@@ -40,6 +40,9 @@ const DISPLAY_NAME_MAX_CHARS: usize = 40;
 /// Longest accepted username, mirrored by the `maxlength` attribute.
 const USERNAME_MAX_CHARS: usize = 20;
 
+/// Longest accepted profile description, mirrored by the `maxlength` attribute.
+const BIO_MAX_CHARS: usize = 280;
+
 /// Shortest accepted password, mirrored by the `minlength` attribute.
 const PASSWORD_MIN_CHARS: usize = 6;
 
@@ -124,6 +127,8 @@ pub struct RegisterDraft {
     pub display_name: String,
     /// Username the visitor typed.
     pub username: String,
+    /// Short description the visitor typed for their profile.
+    pub bio: String,
     /// Whether the chosen username was still free, when it was probed.
     pub username_available: Option<bool>,
 }
@@ -183,6 +188,9 @@ pub fn register_page(
 <label class="auth-label" for="auth-avatar">Profil Resmi <span class="auth-optional">(isteğe bağlı)</span></label>
 <input class="auth-input auth-file" type="file" id="auth-avatar" name="avatar" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,image/tiff">
 <p class="auth-hint">Yüklemezsen varsayılan avatar kullanılır. En fazla {avatar_max} MiB.</p>
+<label class="auth-label" for="auth-bio">Bio <span class="auth-optional">(isteğe bağlı)</span></label>
+<textarea class="auth-input auth-textarea" id="auth-bio" name="bio" rows="3" maxlength="{bio_max}">{bio}</textarea>
+<p class="auth-hint">Profilinde görünecek kısa bir açıklama. Gerçek ad, e-posta veya telefon yazma.</p>
 <button class="btn auth-back" type="button" data-auth-back="1">Geri</button>
 <button class="btn auth-next" type="button" data-auth-next="3">İleri</button>
 </fieldset>
@@ -212,10 +220,12 @@ pub fn register_page(
         username_label = escape_html(USERNAME_FIELD_LABEL),
         display_max = DISPLAY_NAME_MAX_CHARS,
         username_max = USERNAME_MAX_CHARS,
+        bio_max = BIO_MAX_CHARS,
         password_min = PASSWORD_MIN_CHARS,
         avatar_max = AVATAR_MAX_MIB,
         display_name = escape_html(&draft.display_name),
         username = escape_html(&draft.username),
+        bio = escape_html(&draft.bio),
         auth_script_tag = auth_script_tag(),
     );
 
@@ -255,9 +265,9 @@ pub struct AccountMenu {
 
 /// Render the header account menu, or nothing when nobody is signed in.
 ///
-/// The three profile entries are deliberately inert for now: they are shown so
-/// the menu shape is settled, and only the administration panel and the sign-out
-/// control do anything yet.
+/// "Profili Gör" opens the account's public profile. The two entries after it
+/// stay inert: they are shown so the menu shape is settled, and only the
+/// profile, the administration panel, and the sign-out control do anything yet.
 #[must_use]
 pub fn account_menu_html(account: Option<&AccountMenu>, csrf_token: &str) -> String {
     let Some(account) = account else {
@@ -275,13 +285,19 @@ pub fn account_menu_html(account: Option<&AccountMenu>, csrf_token: &str) -> Str
     } else {
         ""
     };
+    // The account's public profile is the only profile entry that exists so
+    // far; editing the account and its settings stay inert.
+    let profile_item = format!(
+        r#"<a class="account-menu-item" href="/u/{username}">Profili Gör</a>"#,
+        username = escape_html(&account.username),
+    );
 
     format!(
         r#"<details class="account-menu" id="account-menu">
 <summary class="account-menu-button" aria-label="Hesap menüsünü aç" aria-controls="account-menu-panel"><span class="account-avatar" aria-hidden="true">{initial}</span></summary>
 <div class="account-menu-panel" id="account-menu-panel">
 <p class="account-menu-identity"><span class="account-menu-name">{display_name}</span><span class="account-menu-handle">@{username}</span></p>
-<span class="account-menu-item is-disabled" aria-disabled="true">Profili Gör</span>
+{profile_item}
 <span class="account-menu-item is-disabled" aria-disabled="true">Profili Düzenle</span>
 <span class="account-menu-item is-disabled" aria-disabled="true">Ayarlar</span>
 {admin_item}
@@ -294,6 +310,7 @@ pub fn account_menu_html(account: Option<&AccountMenu>, csrf_token: &str) -> Str
         initial = escape_html(&initial),
         display_name = escape_html(&account.display_name),
         username = escape_html(&account.username),
+        profile_item = profile_item,
         admin_item = admin_item,
         csrf = escape_html(csrf_token),
     )

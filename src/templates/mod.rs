@@ -19,6 +19,8 @@ pub mod auth;
 pub mod board;
 /// New-thread and reply form fragments.
 pub mod forms;
+/// Public account profile page.
+pub mod profile;
 /// Thread, post, poll, and self-service action templates.
 pub mod thread;
 

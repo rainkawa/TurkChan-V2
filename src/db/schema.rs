@@ -84,7 +84,8 @@ const BASE_SCHEMA_SQL: &str = "
         audio_mime_type  TEXT,
         edited_at        INTEGER,
         media_processing_state TEXT NOT NULL DEFAULT '',
-        media_processing_error TEXT
+        media_processing_error TEXT,
+        user_id          INTEGER
     );
 
     CREATE TABLE IF NOT EXISTS file_hashes (
@@ -122,6 +123,8 @@ const BASE_SCHEMA_SQL: &str = "
         display_name  TEXT NOT NULL,
         password_hash TEXT NOT NULL,
         avatar_file   TEXT,
+        bio           TEXT NOT NULL DEFAULT '',
+        karma         INTEGER NOT NULL DEFAULT 0,
         created_at    INTEGER NOT NULL DEFAULT (unixepoch())
     );
 
@@ -293,6 +296,8 @@ const INDEX_SCHEMA_SQL: &str = "
         ON posts(thread_id, created_at ASC);
     CREATE INDEX IF NOT EXISTS idx_posts_board
         ON posts(board_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_posts_user
+        ON posts(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_bans_ip
         ON bans(ip_hash);
     CREATE INDEX IF NOT EXISTS idx_sessions_expires
@@ -352,9 +357,10 @@ const INDEX_SCHEMA_SQL: &str = "
 /// Obsolete theme index accepted only during the known legacy repair path.
 const LEGACY_THEME_SORT_INDEX: &str = "idx_themes_enabled_sort";
 /// Additive indexes introduced after the first package-version baseline.
-const ADDITIVE_BASELINE_INDEXES: [&str; 11] = [
+const ADDITIVE_BASELINE_INDEXES: [&str; 12] = [
     "idx_user_sessions_expires",
     "idx_user_sessions_user",
+    "idx_posts_user",
     "idx_posts_file_path",
     "idx_posts_thumb_path",
     "idx_posts_audio_file_path",
@@ -1007,8 +1013,8 @@ fn tables_are_legacy_repairable(expected: &SchemaShape, actual: &SchemaShape) ->
         };
         let repairable = match table.as_str() {
             "boards" => boards_table_is_legacy_repairable(expected_table, actual_table),
-            "themes" => themes_table_is_legacy_repairable(expected_table, actual_table),
-            _ => table_is_additive_index_repairable(expected_table, actual_table),
+            "themes" => themes_table_is_legacy_repairable("themes", expected_table, actual_table),
+            _ => table_is_additive_index_repairable(table, expected_table, actual_table),
         };
         if !repairable {
             return false;
@@ -1019,8 +1025,12 @@ fn tables_are_legacy_repairable(expected: &SchemaShape, actual: &SchemaShape) ->
 }
 
 /// Compare a table while accepting missing additive and present redundant indexes.
-fn table_is_additive_index_repairable(expected: &TableShape, actual: &TableShape) -> bool {
-    if !table_definition_semantics_match(expected, actual) {
+fn table_is_additive_index_repairable(
+    table: &str,
+    expected: &TableShape,
+    actual: &TableShape,
+) -> bool {
+    if !table_definition_semantics_match(table, expected, actual) {
         return false;
     }
 
@@ -1038,8 +1048,12 @@ fn table_is_additive_index_repairable(expected: &TableShape, actual: &TableShape
 }
 
 /// Return whether the themes table differs only by its obsolete sort index.
-fn themes_table_is_legacy_repairable(expected: &TableShape, actual: &TableShape) -> bool {
-    if !table_definition_semantics_match(expected, actual) {
+fn themes_table_is_legacy_repairable(
+    table: &str,
+    expected: &TableShape,
+    actual: &TableShape,
+) -> bool {
+    if !table_definition_semantics_match(table, expected, actual) {
         return false;
     }
 
@@ -1049,13 +1063,38 @@ fn themes_table_is_legacy_repairable(expected: &TableShape, actual: &TableShape)
 }
 
 /// Compare all table-definition semantics except separately repairable indexes.
-fn table_definition_semantics_match(expected: &TableShape, actual: &TableShape) -> bool {
-    actual.columns == expected.columns
+fn table_definition_semantics_match(
+    table: &str,
+    expected: &TableShape,
+    actual: &TableShape,
+) -> bool {
+    columns_are_additive_repairable(table, &expected.columns, &actual.columns)
         && actual.foreign_keys == expected.foreign_keys
         && actual.check_constraints == expected.check_constraints
         && actual.autoincrement == expected.autoincrement
         && actual.without_rowid == expected.without_rowid
         && actual.strict == expected.strict
+}
+
+/// Compare columns while accepting only the additive columns a repair installs.
+///
+/// A column that is present but defined differently is still rejected, and so
+/// is a column the baseline does not have: the repair only appends the ones it
+/// knows, it never rewrites or drops a column.
+fn columns_are_additive_repairable(
+    table: &str,
+    expected: &BTreeMap<String, ColumnShape>,
+    actual: &BTreeMap<String, ColumnShape>,
+) -> bool {
+    for (name, expected_column) in expected {
+        match actual.get(name) {
+            Some(actual_column) if actual_column == expected_column => {}
+            Some(_) => return false,
+            None if is_additive_baseline_column(table, name) => {}
+            None => return false,
+        }
+    }
+    actual.keys().all(|name| expected.contains_key(name))
 }
 
 /// Atomically install every additive object and verify the repaired baseline.
@@ -1091,6 +1130,7 @@ fn apply_additive_schema_repairs_in_transaction(conn: &rusqlite::Connection) -> 
     )
     .context("Remove obsolete indexes failed")?;
     create_additive_user_tables(conn).context("Install anonymous account tables failed")?;
+    create_additive_baseline_columns(conn).context("Install additive columns failed")?;
     create_indexes(conn).context("Install additive indexes failed")?;
     ensure_domain_invariants(conn).context("Install additive domain invariants")
 }
@@ -1108,6 +1148,8 @@ const ADDITIVE_USER_TABLES_SQL: &str = "
         display_name  TEXT NOT NULL,
         password_hash TEXT NOT NULL,
         avatar_file   TEXT,
+        bio           TEXT NOT NULL DEFAULT '',
+        karma         INTEGER NOT NULL DEFAULT 0,
         created_at    INTEGER NOT NULL DEFAULT (unixepoch())
     );
 
@@ -1128,6 +1170,60 @@ fn create_additive_user_tables(conn: &rusqlite::Connection) -> Result<()> {
 /// Return whether a missing table is one the additive repair path installs.
 fn is_additive_user_table(name: &str) -> bool {
     matches!(name, "users" | "user_sessions")
+}
+
+/// Columns appended to an existing table after the original release baseline.
+///
+/// A database created by an earlier build simply lacks them. Rebuilding a
+/// populated table is far riskier than appending a nullable or defaulted
+/// column, so the additive repair path adds them in place. Each entry is
+/// `(table, column, ALTER statement)`, and the statement must produce a column
+/// definition identical to the baseline one so the shape comparison passes.
+const ADDITIVE_BASELINE_COLUMNS: [(&str, &str, &str); 3] = [
+    (
+        "users",
+        "bio",
+        "ALTER TABLE users ADD COLUMN bio TEXT NOT NULL DEFAULT ''",
+    ),
+    (
+        "users",
+        "karma",
+        "ALTER TABLE users ADD COLUMN karma INTEGER NOT NULL DEFAULT 0",
+    ),
+    (
+        "posts",
+        "user_id",
+        "ALTER TABLE posts ADD COLUMN user_id INTEGER",
+    ),
+];
+
+/// Return whether a column may be absent from a recognized legacy database.
+fn is_additive_baseline_column(table: &str, column: &str) -> bool {
+    ADDITIVE_BASELINE_COLUMNS
+        .iter()
+        .any(|(name, expected, _)| *name == table && *expected == column)
+}
+
+/// Append every additive column a recognized legacy database is missing.
+fn create_additive_baseline_columns(conn: &rusqlite::Connection) -> Result<()> {
+    for (table, column, statement) in ADDITIVE_BASELINE_COLUMNS {
+        if column_exists(conn, table, column)? {
+            continue;
+        }
+        conn.execute_batch(statement)
+            .with_context(|| format!("Failed to add {table}.{column} to a legacy database"))?;
+    }
+    Ok(())
+}
+
+/// Return whether a table already defines the named column.
+fn column_exists(conn: &rusqlite::Connection, table: &str, column: &str) -> Result<bool> {
+    conn.query_row(
+        "SELECT EXISTS (SELECT 1 FROM pragma_table_info(?1) WHERE name = ?2)",
+        rusqlite::params![table, column],
+        |row| row.get(0),
+    )
+    .with_context(|| format!("Failed to inspect {table} columns"))
 }
 
 /// Return whether a legacy boards table can be safely rebuilt.

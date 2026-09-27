@@ -97,6 +97,7 @@ pub(super) fn public_routes() -> Router<AppState> {
             "/auth/avatar/{user_id}",
             get(crate::handlers::auth::serve_avatar),
         )
+        .route("/u/{username}", get(crate::handlers::board::profile))
         .route("/setup", get(crate::handlers::setup::setup_get))
         .route("/setup/review", post(crate::handlers::setup::setup_review))
         .route("/setup/finish", post(crate::handlers::setup::setup_finish))

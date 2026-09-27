@@ -595,7 +595,8 @@ pub struct AdminSession {
 ///
 /// Registration never asks for a real name, an address, or any other
 /// identifying detail, so this record holds nothing beyond a chosen display
-/// name, a unique login name, and the credential hash.
+/// name, a unique login name, a short self-description, and the credential
+/// hash.
 #[derive(Debug, Clone, Serialize)]
 pub struct User {
     /// Database primary key.
@@ -608,8 +609,84 @@ pub struct User {
     pub password_hash: String,
     /// Stored avatar file name, or `None` when the default avatar is used.
     pub avatar_file: Option<String>,
+    /// Short self-description shown on the public profile.
+    pub bio: String,
+    /// Accumulated score from votes on this account's posts.
+    ///
+    /// The column is the durable home for the vote totals the upvote and
+    /// downvote system will maintain; it stays at zero until that system
+    /// exists, so the profile can already show the field it will fill.
+    pub karma: i64,
     /// Account creation time as a Unix timestamp.
     pub created_at: i64,
+}
+
+/// One post as shown on a public profile page.
+///
+/// The row carries only what the listing renders: the permalink identifiers,
+/// the owning board and subject so a reader can jump back to the thread, and
+/// the raw body the template turns into a bounded excerpt.
+#[derive(Debug, Clone)]
+pub struct ProfilePost {
+    /// Post identifier used by `>>N` references and permalinks.
+    pub id: i64,
+    /// Thread the post belongs to.
+    pub thread_id: i64,
+    /// Short name of the board the post belongs to.
+    pub board_short: String,
+    /// Subject shown above the excerpt, from the post or its thread.
+    pub subject: Option<String>,
+    /// Raw post body, rendered as a bounded excerpt.
+    pub body: String,
+    /// Whether the post opens its thread.
+    pub is_op: bool,
+    /// Post creation time as a Unix timestamp.
+    pub created_at: i64,
+}
+
+/// Which of an account's posts a profile listing returns.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProfilePostScope {
+    /// Every post the account wrote.
+    All,
+    /// Only the replies, without the account's own opening posts.
+    Replies,
+}
+
+/// One thread a user opened, as shown on their public profile.
+#[derive(Debug, Clone)]
+pub struct ProfileThread {
+    /// Thread identifier used in permalinks.
+    pub thread_id: i64,
+    /// Identifier of the opening post.
+    pub post_id: i64,
+    /// Short name of the owning board.
+    pub board_short: String,
+    /// Thread subject.
+    pub subject: Option<String>,
+    /// Opening post body, rendered as a bounded excerpt.
+    pub body: String,
+    /// Thread creation time as a Unix timestamp.
+    pub created_at: i64,
+    /// Number of replies recorded on the thread.
+    pub reply_count: i64,
+}
+
+/// Activity totals shown in a profile header.
+///
+/// `karma` is the accumulated vote score the upvote and downvote system will
+/// maintain. It reads zero until that system exists so the header already
+/// shows the field it will fill.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProfileStats {
+    /// Threads opened by the account.
+    pub thread_count: i64,
+    /// Posts written by the account, opening posts included.
+    pub post_count: i64,
+    /// Replies written by the account.
+    pub reply_count: i64,
+    /// Accumulated vote score.
+    pub karma: i64,
 }
 
 /// Active anonymous-account session.

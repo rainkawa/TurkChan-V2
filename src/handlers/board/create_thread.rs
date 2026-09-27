@@ -34,6 +34,9 @@ pub(in crate::server) async fn create_thread(
     let admin_session_id = jar
         .get(ADMIN_SESSION_COOKIE)
         .map(|cookie| cookie.value().to_owned());
+    // Resolved before the blocking hand-off so the new thread is linked to the
+    // signed-in account and shows up on that account's profile.
+    let account_id = crate::handlers::auth::current_account_id(&state, &jar)?;
     let access_cookie = board_access_cookie_from_jar(&jar, &board_short);
     let access_context = match board_access_preflight(
         &state,
@@ -132,6 +135,7 @@ pub(in crate::server) async fn create_thread(
                     identity_key,
                     cookie_secret: CONFIG.cookie_secret.clone(),
                     admin_session_id,
+                    account_id,
                     ban_csrf_token,
                     submission_token,
                     name,

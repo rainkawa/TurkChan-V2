@@ -1,18 +1,26 @@
-//! Anonymous board-account persistence: registration, lookup, and sessions.
+//! Anonymous board-account persistence: registration, lookup, sessions, and
+//! the public profile queries that back the profile page.
 //!
 //! These tables are separate from `admin_users` on purpose. An administrator
 //! is an operator identity, created from the command line and protected by
 //! the administration panel; a board account is a throwaway posting identity
 //! that carries no real name, address, or contact detail.
+//!
+//! A post carries the id of the account that wrote it in the nullable
+//! `posts.user_id` column. Posts written before accounts existed, and posts
+//! written without signing in, keep a `NULL` there and simply never appear on
+//! a profile page.
 
 use anyhow::{Context as _, Result};
 use rusqlite::params;
 use rusqlite::OptionalExtension as _;
+use std::collections::HashMap;
 
-use crate::models::{User, UserSession};
+use crate::models::{ProfilePost, ProfilePostScope, ProfileStats, ProfileThread, User, UserSession};
 
 /// Columns selected for every account lookup, in a fixed order.
-const USER_COLUMNS: &str = "id, username, display_name, password_hash, avatar_file, created_at";
+const USER_COLUMNS: &str =
+    "id, username, display_name, password_hash, avatar_file, bio, karma, created_at";
 
 fn map_user(row: &rusqlite::Row<'_>) -> rusqlite::Result<User> {
     Ok(User {
@@ -21,7 +29,9 @@ fn map_user(row: &rusqlite::Row<'_>) -> rusqlite::Result<User> {
         display_name: row.get(2)?,
         password_hash: row.get(3)?,
         avatar_file: row.get(4)?,
-        created_at: row.get(5)?,
+        bio: row.get(5)?,
+        karma: row.get(6)?,
+        created_at: row.get(7)?,
     })
 }
 
@@ -36,12 +46,13 @@ pub fn create_user(
     display_name: &str,
     password_hash: &str,
     avatar_file: Option<&str>,
+    bio: &str,
 ) -> Result<i64> {
     let id: i64 = conn
         .query_row(
-            "INSERT INTO users (username, display_name, password_hash, avatar_file)
-             VALUES (?1, ?2, ?3, ?4) RETURNING id",
-            params![username, display_name, password_hash, avatar_file],
+            "INSERT INTO users (username, display_name, password_hash, avatar_file, bio)
+             VALUES (?1, ?2, ?3, ?4, ?5) RETURNING id",
+            params![username, display_name, password_hash, avatar_file, bio],
             |row| row.get(0),
         )
         .context("Failed to create user account")?;
@@ -197,6 +208,195 @@ pub fn delete_user_session_for_owner(
     Ok(())
 }
 
+/// Attach a post to the account that wrote it.
+///
+/// The link is written after the post row exists, so a posting path that never
+/// resolves an account simply leaves the column `NULL`. The `idx_posts_user`
+/// index keeps the profile listings over those rows cheap.
+///
+/// # Errors
+/// Returns an error if the database operation fails.
+pub fn link_post_to_account(
+    conn: &rusqlite::Connection,
+    post_id: i64,
+    user_id: i64,
+) -> Result<()> {
+    conn.execute(
+        "UPDATE posts SET user_id = ?1 WHERE id = ?2",
+        params![user_id, post_id],
+    )
+    .context("Failed to link post to account")?;
+    Ok(())
+}
+
+/// Return the activity totals shown in a profile header.
+///
+/// `karma` mirrors `users.karma`, the column the upvote and downvote system
+/// will maintain. It reads zero until that system exists.
+///
+/// # Errors
+/// Returns an error if the database query fails.
+pub fn profile_stats(conn: &rusqlite::Connection, user_id: i64) -> Result<ProfileStats> {
+    let (post_count, reply_count): (i64, i64) = conn
+        .query_row(
+            "SELECT
+                 (SELECT COUNT(*) FROM posts WHERE user_id = ?1),
+                 (SELECT COUNT(*) FROM posts WHERE user_id = ?1 AND is_op = 0)",
+            params![user_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .context("Failed to count account posts")?;
+    let thread_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM posts WHERE user_id = ?1 AND is_op = 1",
+            params![user_id],
+            |row| row.get(0),
+        )
+        .context("Failed to count account threads")?;
+    let karma: i64 = conn
+        .query_row(
+            "SELECT karma FROM users WHERE id = ?1",
+            params![user_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .context("Failed to read account score")?
+        .unwrap_or(0);
+    Ok(ProfileStats {
+        thread_count,
+        post_count,
+        reply_count,
+        karma,
+    })
+}
+
+/// Columns selected for one row of a profile post listing, in a fixed order.
+const PROFILE_POST_COLUMNS: &str = "p.id, p.thread_id, b.short_name, \
+     COALESCE(NULLIF(p.subject, ''), NULLIF(t.subject, '')), p.body, p.is_op, p.created_at";
+
+/// Map one profile post row.
+fn map_profile_post(row: &rusqlite::Row<'_>) -> rusqlite::Result<ProfilePost> {
+    Ok(ProfilePost {
+        id: row.get(0)?,
+        thread_id: row.get(1)?,
+        board_short: row.get(2)?,
+        subject: row.get(3)?,
+        body: row.get(4)?,
+        is_op: row.get::<_, i32>(5)? != 0,
+        created_at: row.get(6)?,
+    })
+}
+
+/// Return one page of an account's posts, newest first.
+///
+/// The scope picks the history tab the listing serves. The rows are what a
+/// profile page renders, so they deliberately carry no password, address, or
+/// contact data from any account.
+///
+/// # Errors
+/// Returns an error if the database query fails.
+pub fn list_profile_posts(
+    conn: &rusqlite::Connection,
+    user_id: i64,
+    scope: ProfilePostScope,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<ProfilePost>> {
+    let op_filter = match scope {
+        ProfilePostScope::All => "",
+        ProfilePostScope::Replies => "AND p.is_op = 0",
+    };
+    let sql = format!(
+        "SELECT {PROFILE_POST_COLUMNS}
+         FROM posts p
+         JOIN boards b ON b.id = p.board_id
+         LEFT JOIN threads t ON t.id = p.thread_id
+         WHERE p.user_id = ?1 {op_filter}
+         ORDER BY p.created_at DESC, p.id DESC
+         LIMIT ?2 OFFSET ?3"
+    );
+    let mut stmt = conn.prepare_cached(&sql)?;
+    let posts = stmt
+        .query_map(params![user_id, limit, offset], map_profile_post)?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(posts)
+}
+
+/// Return one page of the threads an account opened, newest first.
+///
+/// # Errors
+/// Returns an error if the database query fails.
+pub fn list_profile_threads(
+    conn: &rusqlite::Connection,
+    user_id: i64,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<ProfileThread>> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT t.id, op.id, b.short_name, t.subject, op.body, t.created_at, t.reply_count
+         FROM posts op
+         JOIN threads t ON t.id = op.thread_id
+         JOIN boards b ON b.id = t.board_id
+         WHERE op.user_id = ?1 AND op.is_op = 1
+         ORDER BY t.created_at DESC, t.id DESC
+         LIMIT ?2 OFFSET ?3",
+    )?;
+    let threads = stmt
+        .query_map(params![user_id, limit, offset], |row| {
+            Ok(ProfileThread {
+                thread_id: row.get(0)?,
+                post_id: row.get(1)?,
+                board_short: row.get(2)?,
+                subject: row.get(3)?,
+                body: row.get(4)?,
+                created_at: row.get(5)?,
+                reply_count: row.get(6)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(threads)
+}
+
+/// Return the board short name that owns each of the given posts.
+///
+/// A `>>N` reference points at a post without naming its board, so an excerpt
+/// rendered outside its own thread resolves the reference through this map and
+/// links to the board that actually holds the post. Identifiers with no row are
+/// simply absent and render as plain text.
+///
+/// # Errors
+/// Returns an error if the database query fails.
+pub fn resolve_post_boards(
+    conn: &rusqlite::Connection,
+    post_ids: &[i64],
+) -> Result<HashMap<i64, String>> {
+    if post_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let placeholders = std::iter::repeat_n("?", post_ids.len())
+        .collect::<Vec<_>>()
+        .join(",");
+    let sql = format!(
+        "SELECT p.id, b.short_name
+         FROM posts p
+         JOIN boards b ON b.id = p.board_id
+         WHERE p.id IN ({placeholders})"
+    );
+    // Prepared outside the cache: the placeholder count changes with the
+    // number of references on the page, so caching would only evict hot
+    // statements.
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(rusqlite::params_from_iter(post_ids.iter().copied()), |row| {
+        Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+    })?;
+    let mut boards = HashMap::with_capacity(post_ids.len());
+    for row in rows {
+        let (post_id, board_short) = row.context("Read post board mapping failed")?;
+        boards.insert(post_id, board_short);
+    }
+    Ok(boards)
+}
+
 /// Remove every session that has already expired.
 ///
 /// # Errors
@@ -216,9 +416,9 @@ pub fn purge_expired_user_sessions(conn: &rusqlite::Connection) -> Result<usize>
 /// Schema-upgrade coverage for the anonymous-account tables.
 mod tests {
     use super::{
-        create_user, create_user_session, find_user_by_username, find_user_by_id,
-        username_exists,
+        create_user, create_user_session, find_user_by_id, find_user_by_username, username_exists,
     };
+    use crate::models::ProfilePostScope;
     use crate::db::schema::{install_or_migrate_schema, normalize_database_schema_version};
     use anyhow::{Context as _, Result};
     use rusqlite::params;
@@ -333,6 +533,63 @@ mod tests {
         clippy::panic_in_result_fn,
         reason = "test assertions intentionally panic on failure"
     )]
+    /// A database that already knows the account tables but predates the
+    /// profile columns gains them in place, and keeps its accounts and posts.
+    fn older_database_gains_profile_columns_without_losing_data() -> Result<()> {
+        let conn = pre_account_database()?;
+        normalize_database_schema_version(&conn)?;
+        let hash = crate::utils::crypto::hash_password("Hunter2Hunter2")?;
+        let user_id = create_user(&conn, "anon", "Anonim", &hash, None, "eski bio")?;
+        // Rewind to the shape a released build leaves behind: the profile
+        // columns are gone, and the index that reads them went with them.
+        conn.execute_batch(
+            "DROP INDEX IF EXISTS idx_posts_user;
+             ALTER TABLE posts DROP COLUMN user_id;
+             ALTER TABLE users DROP COLUMN karma;
+             ALTER TABLE users DROP COLUMN bio;",
+        )?;
+
+        normalize_database_schema_version(&conn)?;
+
+        let account = find_user_by_username(&conn, "anon")?
+            .context("the existing account should survive the profile migration")?;
+        assert_eq!(account.bio, "", "an appended bio column starts empty");
+        assert_eq!(account.karma, 0);
+        assert!(conn.query_row(
+            "SELECT EXISTS (SELECT 1 FROM posts WHERE id = 1 AND body = 'ilk gonderi')",
+            [],
+            |row| row.get::<_, bool>(0)
+        )?, "the pre-existing post must survive the profile migration");
+        assert_eq!(
+            super::profile_stats(&conn, user_id)?.post_count,
+            0,
+            "posts written before accounts existed belong to no profile"
+        );
+
+        super::link_post_to_account(&conn, 1, user_id)?;
+        let stats = super::profile_stats(&conn, user_id)?;
+        assert_eq!(stats.post_count, 1);
+        assert_eq!(stats.reply_count, 1);
+        assert_eq!(stats.thread_count, 0);
+        let posts = super::list_profile_posts(&conn, user_id, ProfilePostScope::All, 10, 0)?;
+        assert_eq!(posts.len(), 1);
+        assert_eq!(
+            posts.first().map(|post| post.board_short.as_str()),
+            Some("g"),
+            "a profile post names the board it belongs to"
+        );
+        assert_eq!(
+            super::resolve_post_boards(&conn, &[1, 999])?.get(&1).map(String::as_str),
+            Some("g")
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "test assertions intentionally panic on failure"
+    )]
     /// The installed tables are usable, not merely present.
     fn installed_account_tables_accept_a_registration_and_session() -> Result<()> {
         let conn = pre_account_database()?;
@@ -340,13 +597,14 @@ mod tests {
 
         let hash = crate::utils::crypto::hash_password("Hunter2Hunter2")?;
         assert!(!username_exists(&conn, "anon")?, "username should be free");
-        let user_id = create_user(&conn, "anon", "Anonim", &hash, None)?;
+        let user_id = create_user(&conn, "anon", "Anonim", &hash, None, "merhaba")?;
         assert!(username_exists(&conn, "anon")?, "username should be taken");
 
         let found = find_user_by_username(&conn, "anon")?
             .context("registered account should be found by username")?;
         assert_eq!(found.display_name, "Anonim");
         assert_eq!(found.id, user_id);
+        assert_eq!(found.bio, "merhaba");
         let by_id = find_user_by_id(&conn, user_id)?
             .context("registered account should be found by row id")?;
         assert_eq!(by_id.username, "anon");

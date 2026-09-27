@@ -197,6 +197,95 @@ pub fn render_post_body(escaped: &str, collapse_greentext: bool) -> String {
     html
 }
 
+/// Maximum number of characters kept when an excerpt is cut from a post body.
+const MAX_EXCERPT_CHARS: usize = 400;
+
+/// Render a bounded post excerpt for listings shown outside the post's thread.
+///
+/// `render_post_body` turns every `>>N` into an in-page `#pN` anchor, which only
+/// means something on the post's own thread page. An excerpt is displayed on a
+/// profile instead, so each reference is resolved through `permalink` to the
+/// board that actually owns the referenced post and left as plain text when
+/// that post no longer exists. The input must already be HTML-escaped, exactly
+/// as for [`render_post_body`].
+#[must_use]
+pub fn render_post_excerpt<F>(escaped: &str, permalink: F) -> String
+where
+    F: Fn(i64) -> Option<String>,
+{
+    let was_truncated = escaped.chars().count() > MAX_EXCERPT_CHARS;
+    let truncated = truncate_excerpt(escaped);
+    let mut html = String::with_capacity(truncated.len() + truncated.len() / 4);
+    for (index, line) in truncated.lines().enumerate() {
+        if index > 0 {
+            html.push_str("<br>");
+        }
+        let rendered = RE_REPLY
+            .replace_all(line, |caps: &regex::Captures<'_>| {
+                let Some(digits) = caps.get(1).map(|value| value.as_str()) else {
+                    return caps
+                        .get(0)
+                        .map_or_else(String::new, |value| value.as_str().to_owned());
+                };
+                let Ok(post_id) = digits.parse::<i64>() else {
+                    return format!("&gt;&gt;{digits}");
+                };
+                match permalink(post_id) {
+                    Some(href) => format!(
+                        r#"<a href="{href}" class="quotelink">&gt;&gt;{post_id}</a>"#,
+                        href = escape_html(&href)
+                    ),
+                    None => format!("&gt;&gt;{post_id}"),
+                }
+            })
+            .into_owned();
+        // Greentext is a quoting convention, so it keeps its own styling here
+        // too. Reply references are the one marker that must not read as a
+        // quote, exactly as in the full body renderer.
+        if line.starts_with("&gt;") && !line.starts_with("&gt;&gt;") {
+            html.push_str("<span class=\"quote\">");
+            html.push_str(&rendered);
+            html.push_str("</span>");
+        } else {
+            html.push_str(&rendered);
+        }
+    }
+    if was_truncated {
+        html.push_str(" <em>[devamı]</em>");
+    }
+    html
+}
+
+/// Collect the identifiers of the posts an escaped body references with `>>N`.
+///
+/// A reference names a post but not its board, so a listing rendered outside
+/// the post's own thread looks the referenced posts up once and links each
+/// reference to the board that holds it. The result is sorted and deduplicated
+/// so one lookup covers every reference on the page.
+#[must_use]
+pub fn referenced_post_ids(escaped: &str) -> Vec<i64> {
+    let mut ids = RE_REPLY
+        .captures_iter(escaped)
+        .filter_map(|caps| caps.get(1))
+        .filter_map(|value| value.as_str().parse::<i64>().ok())
+        .collect::<Vec<_>>();
+    ids.sort_unstable();
+    ids.dedup();
+    ids
+}
+
+/// Cut a body down to a listing-sized excerpt on a character boundary.
+fn truncate_excerpt(escaped: &str) -> &str {
+    if escaped.chars().count() <= MAX_EXCERPT_CHARS {
+        return escaped;
+    }
+    let end = escaped
+        .char_indices()
+        .nth(MAX_EXCERPT_CHARS)
+        .map_or(escaped.len(), |(index, _)| index);
+    &escaped[..end]
+}
+
 /// Normalize stored post HTML to match the current greentext collapse setting.
 ///
 /// When collapse is disabled, this strips the generated `<details>` wrapper

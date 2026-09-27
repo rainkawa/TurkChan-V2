@@ -39,6 +39,9 @@ mod catalog;
 mod create_thread;
 mod media;
 mod pages;
+// Named in the plural so the module never shadows the `profile` handler it
+// carries once the module's items are re-exported into this namespace.
+mod profiles;
 mod reports;
 #[cfg(test)]
 mod tests;
@@ -48,6 +51,7 @@ pub(in crate::server) use catalog::*;
 pub(in crate::server) use create_thread::*;
 pub(in crate::server) use media::*;
 pub(in crate::server) use pages::*;
+pub(in crate::server) use profiles::*;
 pub(in crate::server) use reports::*;
 
 pub(super) fn should_set_public_secure_cookie(

@@ -66,6 +66,8 @@ const USER_COOKIE_SAME_SITE: SameSite = SameSite::Lax;
 const DISPLAY_NAME_MAX_CHARS: usize = 40;
 /// Longest accepted username, in characters.
 const USERNAME_MAX_CHARS: usize = 20;
+/// Longest accepted profile description, in characters.
+const BIO_MAX_CHARS: usize = 280;
 /// Shortest accepted password, in characters.
 const PASSWORD_MIN_CHARS: usize = 6;
 /// Longest accepted password, in characters.
@@ -320,6 +322,26 @@ pub(crate) fn current_user(
         return Ok(None);
     };
     Ok(db::find_user_by_id(&conn, session.user_id)?.map(AuthenticatedUser::from))
+}
+
+/// Return the id of the account carried by the request's session cookie.
+///
+/// Posting paths use this to attach a new post to the signed-in account so it
+/// appears on that account's profile. A visitor without an account, and an
+/// administrator who has no `users` row, both resolve to `None` and their posts
+/// stay unlinked.
+///
+/// # Errors
+/// Returns an error if the database query fails.
+pub(crate) fn current_account_id(state: &AppState, jar: &CookieJar) -> Result<Option<i64>> {
+    let Some(session_id) = jar.get(USER_SESSION_COOKIE).map(Cookie::value) else {
+        return Ok(None);
+    };
+    let conn = state.db.get()?;
+    let Some(session) = db::get_user_session(&conn, session_id)? else {
+        return Ok(None);
+    };
+    Ok(Some(session.user_id))
 }
 
 /// Whether a request already carries a valid account session.
@@ -619,6 +641,7 @@ pub(crate) async fn register_submit(
     let draft = RegisterDraft {
         display_name: submitted.display_name.clone(),
         username: submitted.username.clone(),
+        bio: submitted.bio.clone(),
         username_available: None,
     };
     let step = submitted.step.unwrap_or(1).clamp(1, 3);
@@ -688,6 +711,20 @@ pub(crate) async fn register_submit(
         ));
     }
 
+    // The description is optional, but a very long one is a rejected form
+    // rather than a silently truncated profile.
+    let bio = submitted.bio.trim();
+    if bio.chars().count() > BIO_MAX_CHARS {
+        return Ok(render_register_failure(
+            jar,
+            secure,
+            2,
+            &draft,
+            &format!("Bio en fazla {BIO_MAX_CHARS} karakter olabilir."),
+        ));
+    }
+    let bio = bio.to_owned();
+
     // The avatar is optional; a file that is present must still be a real
     // image within the size bound.
     let avatar_bytes = match submitted.avatar {
@@ -721,7 +758,14 @@ pub(crate) async fn register_submit(
             return Ok(None);
         }
         let password_hash = hash_password(&password)?;
-        let insert = db::create_user(&conn, &name_to_store, &display_name, &password_hash, None);
+        let insert = db::create_user(
+            &conn,
+            &name_to_store,
+            &display_name,
+            &password_hash,
+            None,
+            &bio,
+        );
         let inserted = match insert {
             Ok(id) => Ok(Some(id)),
             Err(error) if is_unique_violation(&error) => {
@@ -960,6 +1004,8 @@ struct SubmittedRegister {
     password: String,
     /// Repeated plaintext password.
     password_confirm: String,
+    /// Short profile description.
+    bio: String,
     /// Scoped CSRF token.
     csrf: Option<String>,
     /// One-based step the form was submitted from.
@@ -975,6 +1021,7 @@ async fn read_register_multipart(mut multipart: Multipart) -> Result<SubmittedRe
         username: String::new(),
         password: String::new(),
         password_confirm: String::new(),
+        bio: String::new(),
         csrf: None,
         step: None,
         avatar: None,
@@ -1012,6 +1059,7 @@ async fn read_register_multipart(mut multipart: Multipart) -> Result<SubmittedRe
                 "username" => out.username = value,
                 "password" => out.password = value,
                 "password_confirm" => out.password_confirm = value,
+                "bio" => out.bio = value,
                 "_csrf" => out.csrf = Some(value),
                 "step" => out.step = value.parse().ok(),
                 _ => {}
