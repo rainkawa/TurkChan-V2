@@ -313,7 +313,7 @@ pub fn run_admin(action: AdminAction) -> anyhow::Result<()> {
                 let mut stdout = std::io::stdout().lock();
                 write!(
                     stdout,
-                    /{short}/ ve TÜM içeriği silinsin mi? Onaylamak için 'yes' yaz: "
+                    "/{short}/ ve TÜM içeriği silinsin mi? Onaylamak için 'yes' yaz: "
                 )?;
                 stdout.flush()?;
             }
