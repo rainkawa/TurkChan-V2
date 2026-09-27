@@ -1119,7 +1119,8 @@ const ADDITIVE_USER_TABLES_SQL: &str = "
     );
 ";
 
-/// Install the anonymous-account tables on a database that predates them.    fn create_additive_user_tables(conn: &rusqlite::Connection) -> Result<()> {
+/// Install the anonymous-account tables on a database that predates them.
+fn create_additive_user_tables(conn: &rusqlite::Connection) -> Result<()> {
     conn.execute_batch(ADDITIVE_USER_TABLES_SQL)
         .context("Failed to install anonymous account tables")
 }
