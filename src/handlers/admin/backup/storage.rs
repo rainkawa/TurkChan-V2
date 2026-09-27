@@ -537,7 +537,7 @@ pub(super) fn build_readme(
     let _ = writeln!(out, "Do not mix ZIP parts from different backups.");
     let _ = writeln!(
         out,
-        "Use RustChan restore for safe programmatic restore. Standard ZIP tools are useful only for manual inspection and emergency extraction."
+        "Use TurkChan restore for safe programmatic restore. Standard ZIP tools are useful only for manual inspection and emergency extraction."
     );
     out
 }
@@ -1869,7 +1869,7 @@ fn verify_db_snapshot_schema(snapshot: &VerifiedDatabaseSnapshot) -> Result<()> 
     })?;
     crate::db::normalize_database_schema_version(&conn).map_err(|error| {
         AppError::BadRequest(format!(
-            "Backup v4 DB snapshot does not match the RustChan {} database baseline: {error}",
+            "Backup v4 DB snapshot does not match the TurkChan {} database baseline: {error}",
             crate::db::baseline_schema_version()
         ))
     })

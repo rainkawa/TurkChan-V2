@@ -277,7 +277,7 @@ mod tests {
         let excessive = hash.replacen("m=65536", "m=65537", 1);
         anyhow::ensure!(
             excessive != hash,
-            "test fixture did not contain RustChan's Argon2 memory cost"
+            "test fixture did not contain TurkChan's Argon2 memory cost"
         );
 
         let Err(error) = verify_password("anything", &excessive) else {

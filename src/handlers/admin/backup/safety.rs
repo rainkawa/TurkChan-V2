@@ -572,7 +572,7 @@ fn verify_full_backup_db_schema<R: std::io::Read + Seek>(
     })?;
     crate::db::normalize_database_schema_version(&conn).map_err(|error| {
         AppError::BadRequest(format!(
-            "Invalid full backup: chan.db does not match the RustChan {} database baseline: {error}",
+            "Invalid full backup: chan.db does not match the TurkChan {} database baseline: {error}",
             crate::db::baseline_schema_version()
         ))
     })?;
@@ -892,7 +892,7 @@ mod tests {
             .err()
             .context("structurally invalid database was unexpectedly accepted")?;
         let expected = format!(
-            "does not match the RustChan {} database baseline",
+            "does not match the TurkChan {} database baseline",
             crate::db::baseline_schema_version()
         );
         ensure!(

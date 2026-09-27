@@ -279,7 +279,7 @@ pub struct AdminPanelBackupsView<'a> {
 pub struct AdminPanelSiteHealthView<'a> {
     /// Overall server status.
     pub server_status: &'a str,
-    /// Running `RustChan` version.
+    /// Running `TurkChan` version.
     pub rustchan_version: &'a str,
     /// Database schema status.
     pub database_schema_status: &'a str,
@@ -2158,7 +2158,7 @@ mod tests {
         });
         static DIAGNOSTICS: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
             format!(
-                "RustChan version: {}\nDatabase schema: {}\nRecent warnings:\n  none",
+                "TurkChan version: {}\nDatabase schema: {}\nRecent warnings:\n  none",
                 env!("CARGO_PKG_VERSION"),
                 SCHEMA_STATUS.as_str()
             )
@@ -2178,7 +2178,7 @@ mod tests {
             tor_service_status: "not started; enable Tor support in settings.toml and restart",
             tor_mode: "clearnet only",
             tor_config_summary: "bootstrap timeout 30s; max streams 64",
-            tor_detail: "Set enable_tor_support = true in settings.toml, then restart RustChan.",
+            tor_detail: "Set enable_tor_support = true in settings.toml, then restart TurkChan.",
             dependency_summary: AdminSiteHealthDependencySummary {
                 ffmpeg: AdminDetectionStatus::Detected,
                 ffprobe: AdminDetectionStatus::Detected,
@@ -2203,7 +2203,7 @@ mod tests {
             setup_status: "complete",
             setup_detail: "Public setup routes are blocked.",
             setup_state: AdminDashboardState::Ok,
-            site_title: "RustChan",
+            site_title: "TurkChan",
             public_url: "not configured",
             db_status: "ready",
             db_detail: "Integrity: not checked.",
@@ -2215,7 +2215,7 @@ mod tests {
             storage_detail: "Data directory unknown; active media unknown.",
             storage_state: AdminDashboardState::Unknown,
             tor_status: "disabled",
-            tor_detail: "Set enable_tor_support = true in settings.toml, then restart RustChan.",
+            tor_detail: "Set enable_tor_support = true in settings.toml, then restart TurkChan.",
             tor_state: AdminDashboardState::Disabled,
             dependency_status: "ready",
             dependency_detail: "ffmpeg found; ffprobe found; WebP found; VP9 found; Opus found.",
@@ -2274,7 +2274,7 @@ mod tests {
                 appeals: &[],
             },
             appearance: AdminPanelAppearanceView {
-                site_name: "RustChan",
+                site_name: "TurkChan",
                 site_subtitle: "select board to proceed",
                 homepage_new_thread_badges_enabled: true,
                 homepage_new_reply_badges_enabled: true,
@@ -2412,7 +2412,7 @@ mod tests {
         let board = sample_board();
         let html = render_admin_panel_for_test(&[board], &[], &[sample_theme()], None);
 
-        assert!(html.contains("Built-in theme metadata is managed by RustChan"));
+        assert!(html.contains("Built-in theme metadata is managed by TurkChan"));
         assert!(html.contains(r#"value="Terminal" maxlength="64" readonly aria-readonly="true""#));
         assert!(html.contains(r##"value="#7ab84e" disabled"##));
     }
@@ -2582,7 +2582,7 @@ mod tests {
         assert!(html.contains("Database integrity status"));
         assert!(html.contains("open media panel"));
         assert!(html.contains("copy diagnostics"));
-        assert!(html.contains(&format!("RustChan version: {}", env!("CARGO_PKG_VERSION"))));
+        assert!(html.contains(&format!("TurkChan version: {}", env!("CARGO_PKG_VERSION"))));
         assert!(html.contains("Database schema"));
         assert!(html.contains(&format!(
             "{} baseline verified",
@@ -2872,7 +2872,7 @@ mod tests {
         assert!(html.contains(r#"name="backup_directory""#));
         assert!(html.contains("Effective directory:"));
         assert!(html.contains("Default directory:"));
-        assert!(html.contains("after restarting RustChan"));
+        assert!(html.contains("after restarting TurkChan"));
         assert!(html.contains("Existing backups are not moved"));
         assert!(html.contains(&super::escape_html(
             &crate::config::backups_dir().display().to_string()
@@ -3050,7 +3050,7 @@ mod tests {
                 appeals: &[],
             },
             appearance: AdminPanelAppearanceView {
-                site_name: "RustChan",
+                site_name: "TurkChan",
                 site_subtitle: "select board to proceed",
                 homepage_new_thread_badges_enabled: true,
                 homepage_new_reply_badges_enabled: true,
@@ -3144,7 +3144,7 @@ mod tests {
                 appeals: &[],
             },
             appearance: AdminPanelAppearanceView {
-                site_name: "RustChan",
+                site_name: "TurkChan",
                 site_subtitle: "select board to proceed",
                 homepage_new_thread_badges_enabled: true,
                 homepage_new_reply_badges_enabled: true,
@@ -3226,7 +3226,7 @@ mod tests {
                 appeals: &[],
             },
             appearance: AdminPanelAppearanceView {
-                site_name: "RustChan",
+                site_name: "TurkChan",
                 site_subtitle: "select board to proceed",
                 homepage_new_thread_badges_enabled: true,
                 homepage_new_reply_badges_enabled: true,

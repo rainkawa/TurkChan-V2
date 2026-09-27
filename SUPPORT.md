@@ -1,7 +1,7 @@
-# RustChan Support
+# TurkChan Support
 
-RustChan is self-hosted imageboard software written in Rust. This repository
-provides project documentation and issue tracking; it is not a hosted RustChan
+TurkChan is self-hosted imageboard software written in Rust. This repository
+provides project documentation and issue tracking; it is not a hosted TurkChan
 service or an operations help desk for independent instances.
 
 ## Start here
@@ -14,7 +14,7 @@ service or an operations help desk for independent instances.
   available to your account.
 - Read [SECURITY.md](SECURITY.md) before reporting a vulnerability.
 
-When requesting project help, include the RustChan version or commit, operating
+When requesting project help, include the TurkChan version or commit, operating
 system and architecture, installation method, enabled Cargo features, relevant
 deployment configuration, exact reproduction steps, and sanitized logs. State
 whether the database, media processing, backup/restore, reverse proxy, TLS, Tor,
@@ -31,18 +31,18 @@ Do not use GitHub issues for:
 - credentials, cookies, tokens, API keys, TLS keys, onion private keys,
   databases, backups, or sensitive instance configuration;
 - harassment reports, moderation appeals, ban disputes, takedown requests, or
-  other abuse reports concerning an independently operated RustChan site; or
+  other abuse reports concerning an independently operated TurkChan site; or
 - vulnerability details that belong under [SECURITY.md](SECURITY.md).
 
 Contact the relevant site's operator for its rules, content, moderation, and
-abuse processes. The RustChan project does not operate, endorse, monitor, or
+abuse processes. The TurkChan project does not operate, endorse, monitor, or
 control independent instances and cannot moderate them or recover their data.
 
 ## Operator responsibility
 
 Each operator is responsible for their instance's laws, moderation rules,
 content, users, security, availability, backups, Tor/onion-service identity,
-network boundaries, and infrastructure. Running RustChan does not guarantee
+network boundaries, and infrastructure. Running TurkChan does not guarantee
 anonymity, perfect security, uninterrupted service, legal compliance, or
 protection against a malicious operator.
 

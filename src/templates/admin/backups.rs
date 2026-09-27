@@ -480,7 +480,7 @@ fn render_admin_backups_section(
     </label>
     <button type="submit">save backup directory</button>
   </form>
-  <p class="admin-meta-note">Applies to all saved backups after restarting RustChan. Existing backups are not moved; only the active directory is listed. Enter the default directory shown above to return to existing default backups. Use a dedicated directory on the mounted disk or NAS; RustChan must be able to set private permissions and read, write, and delete files. The CHAN_BACKUP_DIRECTORY environment variable takes precedence over settings.toml.</p>
+  <p class="admin-meta-note">Applies to all saved backups after restarting TurkChan. Existing backups are not moved; only the active directory is listed. Enter the default directory shown above to return to existing default backups. Use a dedicated directory on the mounted disk or NAS; TurkChan must be able to set private permissions and read, write, and delete files. The CHAN_BACKUP_DIRECTORY environment variable takes precedence over settings.toml.</p>
 </div>
 <div class="admin-subsection">
   <div class="admin-card-header">

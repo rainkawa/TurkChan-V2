@@ -766,7 +766,7 @@ pub(super) fn execute_full_restore<R: std::io::Read + Seek>(
             .map_err(|error| AppError::Internal(anyhow::anyhow!("Open backup source: {error}")))?;
         db::normalize_database_schema_version(&src).map_err(|error| {
             AppError::BadRequest(format!(
-                "Restored database does not match the RustChan {} baseline: {error}",
+                "Restored database does not match the TurkChan {} baseline: {error}",
                 db::baseline_schema_version()
             ))
         })?;

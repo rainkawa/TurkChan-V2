@@ -1452,7 +1452,7 @@ fn verify_database_schema_structure(conn: &rusqlite::Connection) -> Result<()> {
         Ok(())
     } else {
         bail!(
-            "database does not match RustChan {BASELINE_SCHEMA_VERSION} baseline: {}",
+            "database does not match TurkChan {BASELINE_SCHEMA_VERSION} baseline: {}",
             issues.join("; ")
         )
     }
@@ -2688,7 +2688,7 @@ mod tests {
             .err()
             .context("partial schema should fail")?;
         let expected = format!(
-            "does not match RustChan {} baseline",
+            "does not match TurkChan {} baseline",
             baseline_schema_version()
         );
         assert!(

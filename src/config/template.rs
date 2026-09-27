@@ -7,13 +7,13 @@
 )]
 pub(super) fn settings_template(secret: &str) -> String {
     format!(
-        r#"# RustChan settings.toml
-# Restart RustChan after changing this file.
+        r#"# TurkChan settings.toml
+# Restart TurkChan after changing this file.
 # Environment variables still override these values.
 
 # Site identity
 # Name shown in the browser tab, page header, and home page title.
-forum_name = "RustChan"
+forum_name = "TurkChan"
 
 # Subtitle shown below the site name on the home page.
 # This seeds the DB on first run; after that Admin -> Site Settings owns the live value.
@@ -102,7 +102,7 @@ tor_bootstrap_timeout_secs = 120
 tor_max_concurrent_streams = 512
 
 # Nickname for this instance's Onion Service key.
-# Change this only when multiple RustChan instances share the same
+# Change this only when multiple TurkChan instances share the same
 # rustchan-data/runtime/tor/state/ directory.
 tor_service_nickname = "rustchan"
 
@@ -112,7 +112,7 @@ tor_service_nickname = "rustchan"
 # When false, the server still starts and video thumbnails fall back to placeholders.
 require_ffmpeg = false
 
-# Maximum seconds RustChan lets ffmpeg run for video re-encoding and other
+# Maximum seconds TurkChan lets ffmpeg run for video re-encoding and other
 # long-running media jobs before it is killed.
 # Slow systems such as Raspberry Pi devices may need a higher value, especially
 # for MP4 -> WebM/VP9 conversion without useful hardware acceleration.

@@ -1,8 +1,8 @@
 # Changelog
 
-All notable changes to RustChan will be documented in this file.
+All notable changes to TurkChan will be documented in this file.
 
-## RustChan 1.4.1
+## TurkChan 1.4.1
 
 ### Improved
 
@@ -18,7 +18,7 @@ All notable changes to RustChan will be documented in this file.
 
 - Moved closed persisted domains and cross-row relationships into audited SQLite triggers, including boolean and enum values, bounded counters, pending-operation kinds, and post, poll, report, banner, theme, and submission relationships; malformed historical data now fails migration without stamping success.
 
-## RustChan 1.4.0
+## TurkChan 1.4.0
 
 ### Added
 
@@ -65,7 +65,7 @@ All notable changes to RustChan will be documented in this file.
 
 ### Documentation
 
-- Added RustChan-specific community standards, contribution and support guidance,
+- Added TurkChan-specific community standards, contribution and support guidance,
   a security disclosure policy, pull request guidance, and structured GitHub
   issue forms with privacy-conscious reporting requirements.
 - Corrected HTTPS documentation to state that TLS is disabled by default and clarified the distinction between self-signed certificate support and automatic HTTPS enablement.
@@ -80,7 +80,7 @@ All notable changes to RustChan will be documented in this file.
 - Replaced equivalent minute and hour duration calculations with Rust 1.91's dedicated constructors to remain warning-clean under current strict Clippy without changing timing behavior.
 - Kept local browser-testing and Node/Playwright artifacts excluded from version control so they do not add repository or release-package bloat.
 
-## RustChan 1.3.0
+## TurkChan 1.3.0
 
 ### Added
 
@@ -111,7 +111,7 @@ All notable changes to RustChan will be documented in this file.
 - Fixed no-JS and pending-media regressions: Firefox no-JS theme changes persist through safe local redirects, and thread update controls expose a stable `data-action="fetch-updates"` hook for pending-media refreshes.
 - Fixed YouTube embed thumbnail sizing.
 - Fixed legacy `1.3.0` schema drift handling on startup for in-development databases.
-- Fixed unintended manual textarea resize handles on RustChan forms.
+- Fixed unintended manual textarea resize handles on TurkChan forms.
 - Updated admin login button copy.
 
 ### Security
@@ -123,7 +123,7 @@ All notable changes to RustChan will be documented in this file.
 
 ### Documentation
 
-- Updated `README.md` and `SETUP.md` for RustChan `1.3.0`, the new schema baseline, `db-status`, PDF upload limits, setup behavior, and observability endpoint defaults.
+- Updated `README.md` and `SETUP.md` for TurkChan `1.3.0`, the new schema baseline, `db-status`, PDF upload limits, setup behavior, and observability endpoint defaults.
 - Added a static ChanNet security audit record for future follow-up.
 - Refreshed release documentation and current-version references.
 
@@ -133,7 +133,7 @@ All notable changes to RustChan will be documented in this file.
 - Renamed the saved-backup implementation module for clearer ownership.
 - Cleaned focused Clippy warnings and kept strict lint coverage passing during the release cycle.
 
-## RustChan 1.2.2
+## TurkChan 1.2.2
 
 - Replaced browser proof-of-work posting CAPTCHA with server-generated image CAPTCHA challenges.
 - Improved secure-cookie handling across HTTP, HTTPS, trusted-proxy HTTPS, admin sessions, board access cookies, CSRF cookies, and owned-post cookies.
@@ -225,14 +225,14 @@ All notable changes to RustChan will be documented in this file.
 - Full banner management in the admin panel: operators can upload, preview, reorder, edit, and delete global board banners, per-board banner overrides, and a separate home-page MOTD/news banner.
 - Global board-banner rotation with two modes: rotate on each refresh by default, or enforce a site-wide time-based rotation interval in minutes.
 - Per-board banner behavior modes that mirror the favicon-style override model: each board can inherit the global banner pool, disable banners entirely, or use one fixed board-specific override.
-- Clickable banner destinations for internal boards and internal paths, plus optional external banner links guarded by an on-site warning/interstitial page before redirecting users away from RustChan.
+- Clickable banner destinations for internal boards and internal paths, plus optional external banner links guarded by an on-site warning/interstitial page before redirecting users away from TurkChan.
 - The admin quick-create board form now includes an audio-upload toggle, so new boards can be created with audio enabled directly from the UI instead of only through later edits or the CLI.
 
 ### Improved
 
 - Board-page presentation is more intentional: centered banners now render under the board title/description, above the board nav on index pages, and above catalog controls on catalog pages.
 - Home page announcement tooling is stronger through a dedicated banner box that is separate from board-header banners and suitable for MOTD, maintenance, or news updates.
-- Banner uploads now follow RustChan's media pipeline expectations by validating the exact `468x60` aspect ratio, documenting a minimum `468x60` / recommended `936x120` workflow, and normalizing uploads to WebP.
+- Banner uploads now follow TurkChan's media pipeline expectations by validating the exact `468x60` aspect ratio, documenting a minimum `468x60` / recommended `936x120` workflow, and normalizing uploads to WebP.
 - Full-site and board-level restore compatibility now covers the new banner metadata and asset layout so banner configuration survives backup workflows.
 
 ### Documentation
@@ -265,10 +265,10 @@ All notable changes to RustChan will be documented in this file.
 - Upload-backed posting and admin restore flows now use explicit XHR redirect/error responses instead of scraping returned HTML, so media uploads fail in-place with clearer feedback and restore uploads stay inside the existing progress modal without fragile document replacement.
 - Thread pages now separate board-level navigation from thread-specific actions more cleanly: board links live in the shared board-nav strip, reply/update controls stay in the thread nav, and the admin toolbar sits under the board context instead of leading the page.
 - Admin board management is now organized around distinct tasks instead of one dense block: each board card separates basic setup, access controls, post features, appearance, backups, and destructive actions, while the full-site and board-backup areas now split scheduling, immediate restore/create actions, and saved archives into clearer sections.
-- Handled XHR validation and restore failures are now transported without browser-level network noise: inline upload and restore errors return structured JSON that preserves the original semantic status in `X-Rustchan-Error-Status`, letting RustChan keep the same in-place error UX without Chromium surfacing expected invalid-request checks as console `Failed to load resource` errors.
+- Handled XHR validation and restore failures are now transported without browser-level network noise: inline upload and restore errors return structured JSON that preserves the original semantic status in `X-Rustchan-Error-Status`, letting TurkChan keep the same in-place error UX without Chromium surfacing expected invalid-request checks as console `Failed to load resource` errors.
 - The admin panel now better preserves operator context during repeated maintenance work: backup/archive dropdowns remember their open state, board/settings forms restore more of their previous inputs after validation failures, and moderation copy/actions are more compact and easier to scan.
 - The terminal dashboard now surfaces active FFmpeg video jobs directly in the TUI, making it easier to spot live transcode backlog without leaving the server console.
-- VP9 transcode settings are now auto-tuned per host architecture and CPU capability: RustChan picks more appropriate `libvpx-vp9` threading, tiling, and `cpu-used` settings on AVX512, AVX2, AVX, SSE4.1, ARM, and generic targets instead of using one static profile everywhere.
+- VP9 transcode settings are now auto-tuned per host architecture and CPU capability: TurkChan picks more appropriate `libvpx-vp9` threading, tiling, and `cpu-used` settings on AVX512, AVX2, AVX, SSE4.1, ARM, and generic targets instead of using one static profile everywhere.
 - Release engineering is more automated and portable: tagged builds now publish GitHub Releases through Actions, attach per-platform ZIP archives with bundled `README`/`LICENSE`, and generate verified `SHA256SUMS` manifests for release downloads.
 - CI and release automation now track newer dependency and action versions, including the move to `reqwest 0.13`, newer `rustls-acme`, refreshed Windows support crates, and updated GitHub Actions checkout/artifact/release steps.
 
@@ -276,7 +276,7 @@ All notable changes to RustChan will be documented in this file.
 
 - Per-board password protection now fails closed more reliably: invalid or partial access-mode data from backups is rejected or forced into a locked state instead of silently becoming public, password-gated pages now return consistent `403`/`429` responses with no-cache headers, and repeated board-unlock failures are temporarily throttled to make online guessing harder.
 - Requests coming directly from untrusted public peers can no longer spoof `X-Forwarded-Proto` to make the app believe they arrived over HTTPS.
-- Built-in self-signed TLS recovery is now resilient to partially missing or corrupted dev-cert files: if the stored cert/key pair cannot be reused, RustChan regenerates a fresh pair instead of failing startup outright.
+- Built-in self-signed TLS recovery is now resilient to partially missing or corrupted dev-cert files: if the stored cert/key pair cannot be reused, TurkChan regenerates a fresh pair instead of failing startup outright.
 - Timeout coverage no longer leaves upload-heavy and admin mutation endpoints outside the request-timeout middleware.
 - Mobile layout resilience is stronger across the updated style system: the header board menu now follows the real wrapped header height instead of a fixed offset, admin board-settings forms collapse cleanly to one column on narrow screens, and wide admin tables stay usable on phones through horizontal scrolling.
 - The admin panel is now substantially more mobile-friendly: dropdown headings wrap instead of running offscreen, board action controls stack cleanly on narrow screens, create-board and moderation forms fit the viewport, and the heaviest admin tables no longer force excessive horizontal overflow.
@@ -293,7 +293,7 @@ All notable changes to RustChan will be documented in this file.
 - Saved full backups are now easier to work with on desktop and mobile: backup table actions stack more cleanly, per-row board extraction stays collapsed until needed, and older full backups without the new board index can still be extracted by entering a board short name manually.
 - Startup schema housekeeping no longer runs indexes ahead of pending migrations, and the legacy `posts.ip_hash` table rebuild now preserves `media_processing_state` and `media_processing_error` so upgraded installs keep async media-status data intact instead of silently dropping those columns.
 - Mobile thread and archive views now stay readable on narrow screens: reply cards use the full available width again, thread action rows wrap and center cleanly, archive rows break metadata onto separate lines, and two-column board/catalog tiles can shrink without forcing horizontal squeeze.
-- Board restore now preserves original post IDs when they are still available, and when collisions force new IDs RustChan remaps same-board quotelinks in restored post bodies and rendered HTML so restored conversations keep their internal reply links intact.
+- Board restore now preserves original post IDs when they are still available, and when collisions force new IDs TurkChan remaps same-board quotelinks in restored post bodies and rendered HTML so restored conversations keep their internal reply links intact.
 - Auto-saved quote-only reply drafts no longer come back as stale `>>123` stubs when you reopen the reply form; only real in-progress text drafts keep persisting between visits.
 - Upload-backed post failures no longer fall back to blocking browser alerts, and media-backed ban hits now redirect to a dedicated ban page so the appeal flow still works without relying on brittle in-place HTML swaps.
 - The recent admin and thread polish pass no longer strands shared JavaScript helpers inside the media auto-compress scope: `createAsyncSubmitHelper`, `requestConfirmation`, and the shared confirmation-submit helpers are once again available to reply uploads, full backup creation, restore uploads, and `data-confirm` actions, restoring inline `.post-error-banner` feedback, confirmation-modal focus/escape/backdrop behavior, the full backup/restore progress flows on live pages, and the compact `[ Return ] [ Catalog ] [ Top/Bottom ] [ Update ] [ Auto ]` thread navigation bars.
@@ -327,7 +327,7 @@ All notable changes to RustChan will be documented in this file.
 - Theme resolution, rendering, and picker behavior are now centralized around the live theme registry, so normal pages, admin pages, ban pages, JS bootstrap, no-JS fallbacks, startup seeding, and runtime cache refreshes all follow the same precedence rules.
 - Theme picker and admin theme controls are now fully data-driven, so adding, renaming, disabling, or reordering themes no longer requires parallel hardcoded edits across Rust templates, handlers, and client JavaScript.
 - Theme-related admin and test internals are leaner through one shared admin dashboard snapshot loader, one shared live-theme synchronization path, a unified CSS response path for built-in and custom themes, shared CSRF jar-check handling, and a reusable `Board` test fixture.
-- Admin theme management is cleaner and easier to use through a redesigned themes panel layout, separate built-in and custom theme sections, clearer built-in/custom editing affordances, and a documented custom-theme starter scaffold that explains RustChan's scoped theme variables and common override selectors.
+- Admin theme management is cleaner and easier to use through a redesigned themes panel layout, separate built-in and custom theme sections, clearer built-in/custom editing affordances, and a documented custom-theme starter scaffold that explains TurkChan's scoped theme variables and common override selectors.
 - Catalog page presentation is cleaner through centered sort/display selectors and larger board-description text on both board headers and homepage board cards.
 - The admin site-settings layout is tidier, with the save button aligned into the form action row instead of floating awkwardly above the global favicon controls.
 - Database maintenance is more user-friendly through a clearer integrity/repair results page and deeper admin repair tooling that now rebuilds SQLite indexes plus the `posts_fts` search table and triggers instead of only reporting a bare integrity status.

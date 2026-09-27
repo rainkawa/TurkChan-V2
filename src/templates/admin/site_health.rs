@@ -66,7 +66,7 @@ fn render_health_rows(view: &AdminPanelViewModel<'_>) -> String {
     let mut rows = String::new();
     for (label, value) in [
         ("Server status", health.server_status),
-        ("RustChan version", health.rustchan_version),
+        ("TurkChan version", health.rustchan_version),
         ("Database schema", health.database_schema_status),
         (
             "Database integrity status",

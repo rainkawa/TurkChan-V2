@@ -1,19 +1,19 @@
-# RustChan Security Policy
+# TurkChan Security Policy
 
-RustChan accepts responsible reports about security defects in this repository.
+TurkChan accepts responsible reports about security defects in this repository.
 This policy does not make the project responsible for independently operated
-RustChan instances.
+TurkChan instances.
 
 ## Supported versions
 
-RustChan does not currently publish a fixed security-support window or response
+TurkChan does not currently publish a fixed security-support window or response
 timeline. Identify the exact release, commit, and deployment configuration you
 tested. Maintainers will assess the current tree and affected releases case by
 case without guaranteeing remediation or release dates.
 
 ## What to report
 
-A security report should describe a defect in RustChan code or project-owned
+A security report should describe a defect in TurkChan code or project-owned
 configuration that can affect confidentiality, integrity, authorization, or
 availability. Examples include:
 
@@ -26,21 +26,21 @@ availability. Examples include:
   security impact;
 - remote code execution, injection, traversal, cross-site scripting, or
   meaningful denial of service; and
-- dependency vulnerabilities that are reachable through RustChan's supported
+- dependency vulnerabilities that are reachable through TurkChan's supported
   build or runtime behavior.
 
-The following are generally not RustChan vulnerability reports:
+The following are generally not TurkChan vulnerability reports:
 
 - operator misconfiguration, exposed admin credentials, insecure proxy rules,
   missing backups, unsafe file permissions, or unsupported modifications;
 - illegal content, harassment, moderation decisions, or abuse occurring only
   on an independently operated site;
 - claims that rely on a malicious operator controlling their own server; or
-- general hardening suggestions without a demonstrated RustChan defect.
+- general hardening suggestions without a demonstrated TurkChan defect.
 
 Operators remain responsible for their instances, applicable law, moderation,
 content, secrets, backups, Tor identity, network boundaries, and infrastructure.
-RustChan does not promise anonymity, perfect security, uninterrupted
+TurkChan does not promise anonymity, perfect security, uninterrupted
 availability, legal compliance, or protection from a malicious operator.
 
 ## Private reporting status
@@ -63,7 +63,7 @@ exact reporting instructions.
 
 Once a private channel is available, include:
 
-- the affected RustChan version or commit;
+- the affected TurkChan version or commit;
 - operating system, architecture, installation method, enabled Cargo features,
   and relevant reverse-proxy, TLS, Tor, database, media-toolchain, or ChanNet
   configuration;

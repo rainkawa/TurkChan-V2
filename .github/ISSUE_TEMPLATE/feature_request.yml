@@ -1,5 +1,5 @@
 name: Feature request
-description: Propose a focused improvement to RustChan itself.
+description: Propose a focused improvement to TurkChan itself.
 title: "[Feature]: "
 labels: []
 assignees: []
@@ -7,7 +7,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Feature requests are for RustChan software, not for policies or moderation decisions on independently operated sites. Do not include illegal content, personal information, credentials, private keys, databases, backups, private media, or sensitive instance data.
+        Feature requests are for TurkChan software, not for policies or moderation decisions on independently operated sites. Do not include illegal content, personal information, credentials, private keys, databases, backups, private media, or sensitive instance data.
 
   - type: textarea
     id: problem
@@ -44,7 +44,7 @@ body:
   - type: dropdown
     id: surfaces
     attributes:
-      label: Affected RustChan surfaces
+      label: Affected TurkChan surfaces
       description: Select every area that changes, or None/not sure.
       multiple: true
       options:
@@ -88,7 +88,7 @@ body:
     attributes:
       label: Confirmation
       options:
-        - label: I searched existing issues and this request concerns RustChan software rather than an independently operated site's moderation or content.
+        - label: I searched existing issues and this request concerns TurkChan software rather than an independently operated site's moderation or content.
           required: true
         - label: I removed secrets, personal information, private content, databases, backups, and private keys.
           required: true

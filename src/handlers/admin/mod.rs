@@ -1630,7 +1630,7 @@ fn dashboard_tor_status(
     if !tor_enabled {
         return (
             "disabled".to_owned(),
-            "Set enable_tor_support = true in settings.toml, then restart RustChan.".to_owned(),
+            "Set enable_tor_support = true in settings.toml, then restart TurkChan.".to_owned(),
             crate::templates::AdminDashboardState::Disabled,
         );
     }
@@ -2008,7 +2008,7 @@ fn build_diagnostics_text(snapshot: &AdminPanelSnapshot, tor_address: Option<&st
     let reverse_proxy = if CONFIG.behind_proxy { "yes" } else { "no" };
     let tor_detail = tor_address.unwrap_or("not available");
     format!(
-        "RustChan version: {version}\n\
+        "TurkChan version: {version}\n\
          Database schema: {schema}\n\
          OS: {os}-{arch}\n\
          SQLite: {sqlite}\n\

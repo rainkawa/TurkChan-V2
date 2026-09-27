@@ -1,5 +1,5 @@
 name: Documentation issue
-description: Report incorrect, missing, or unclear RustChan documentation.
+description: Report incorrect, missing, or unclear TurkChan documentation.
 title: "[Docs]: "
 labels: []
 assignees: []
@@ -21,7 +21,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: RustChan version or commit
+      label: TurkChan version or commit
       description: Enter Not version-specific if applicable.
       placeholder: "1.4.1, commit SHA, or Not version-specific"
     validations:

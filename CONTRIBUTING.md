@@ -1,6 +1,6 @@
-# Contributing to RustChan
+# Contributing to TurkChan
 
-RustChan is self-hosted imageboard software written in Rust. Contributions are
+TurkChan is self-hosted imageboard software written in Rust. Contributions are
 welcome when they are focused, testable, and safe for operators and people who
 use independently run instances.
 
@@ -18,7 +18,7 @@ details publicly. General support boundaries are in [SUPPORT.md](SUPPORT.md).
 - For a large behavioral or architectural change, establish the problem and
   intended scope before investing in an implementation.
 
-The project does not operate or control independent RustChan instances. Do not
+The project does not operate or control independent TurkChan instances. Do not
 submit another site's content, moderation dispute, abuse report, database, or
 operational secrets as repository evidence.
 
@@ -97,7 +97,7 @@ git diff --check
 
 ### Database and migrations
 
-Released schema changes need a forward migration tied to a RustChan release.
+Released schema changes need a forward migration tied to a TurkChan release.
 Preserve data and fail closed on partial, unknown, or corrupt schemas. Add tests
 for fresh creation, supported upgrade paths, invalid input, rollback, and
 backup/restore interaction as applicable. Do not silently rewrite or discard an
@@ -141,5 +141,5 @@ temporary evidence, Playwright reports, or other large generated artifacts.
 
 ## License
 
-RustChan is licensed under the [MIT License](LICENSE). By contributing, you
+TurkChan is licensed under the [MIT License](LICENSE). By contributing, you
 agree that your contribution is provided under that license.

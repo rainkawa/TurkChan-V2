@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a reproducible RustChan defect using sanitized evidence.
+description: Report a reproducible TurkChan defect using sanitized evidence.
 title: "[Bug]: "
 labels: []
 assignees: []
@@ -7,14 +7,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping improve RustChan. Search existing issues first.
+        Thanks for helping improve TurkChan. Search existing issues first.
 
         Do not report vulnerabilities here; read the [security policy](https://github.com/csd113/RustChan/security/policy). Do not include illegal content, personal information, credentials, private keys, databases, backups, private media, onion private keys, or sensitive instance data. Reports about moderation or abuse on an independently operated site belong with that site's operator.
 
   - type: input
     id: version
     attributes:
-      label: RustChan version or commit
+      label: TurkChan version or commit
       description: Use a release number, full commit SHA, or both.
       placeholder: "1.4.1 or 0123456789abcdef..."
     validations:
@@ -73,7 +73,7 @@ body:
       label: Reproduction steps
       description: Use a disposable local instance and synthetic data where possible.
       placeholder: |
-        1. Start RustChan with ...
+        1. Start TurkChan with ...
         2. Open ...
         3. Perform ...
     validations:
@@ -119,7 +119,7 @@ body:
       options:
         - label: I removed secrets, personal information, private content, instance identifiers, databases, backups, and private keys from this report.
           required: true
-        - label: This is a RustChan software defect, not a vulnerability report or a moderation/abuse report about an independently operated site.
+        - label: This is a TurkChan software defect, not a vulnerability report or a moderation/abuse report about an independently operated site.
           required: true
 
   - type: textarea

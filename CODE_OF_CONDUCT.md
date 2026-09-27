@@ -1,14 +1,14 @@
-# RustChan Code of Conduct
+# TurkChan Code of Conduct
 
 ## Purpose and scope
 
-RustChan is self-hosted imageboard software written in Rust. This Code of
-Conduct governs participation in the RustChan project: issues, pull requests,
+TurkChan is self-hosted imageboard software written in Rust. This Code of
+Conduct governs participation in the TurkChan project: issues, pull requests,
 reviews, discussions, and other project-managed spaces.
 
-It does not govern independently operated RustChan instances. Each operator is
+It does not govern independently operated TurkChan instances. Each operator is
 responsible for that instance's laws, moderation rules, content, users,
-security, and infrastructure. The RustChan project does not operate, endorse,
+security, and infrastructure. The TurkChan project does not operate, endorse,
 monitor, or control those sites.
 
 ## Expected conduct
@@ -37,11 +37,11 @@ The following is not acceptable in project-managed spaces:
 - posting illegal content or using the repository to coordinate illegal
   activity; or
 - filing project issues to pursue moderation disputes or abuse reports about an
-  independently operated RustChan site.
+  independently operated TurkChan site.
 
 Good-faith technical discussion of abuse resistance, content handling,
 moderation tooling, media validation, Tor behavior, or security is welcome when
-it is necessary to improve RustChan and uses sanitized evidence.
+it is necessary to improve TurkChan and uses sanitized evidence.
 
 ## Enforcement
 
@@ -56,6 +56,6 @@ information or sensitive conduct-report evidence. The project currently
 publishes no private conduct-reporting address; maintainers should add one if
 they adopt a private reporting process.
 
-Questions about operating or moderating a separate RustChan instance belong
-with that instance's operator, not the RustChan project. See [SUPPORT.md](SUPPORT.md)
+Questions about operating or moderating a separate TurkChan instance belong
+with that instance's operator, not the TurkChan project. See [SUPPORT.md](SUPPORT.md)
 for repository support boundaries.

@@ -1,10 +1,10 @@
-# RustChan Setup Guide
+# TurkChan Setup Guide
 
 Current setup and deployment guide for Linux, macOS, and Windows.
 
 Current development version: `1.4.1`.
 
-This guide reflects the current RustChan architecture:
+This guide reflects the current TurkChan architecture:
 
 - Tor onion hosting is built in via Arti. You do not install or manage a separate `tor` service.
 - `ffmpeg` is optional, but strongly recommended if you want WebP thumbnails, WebM transcoding, video thumbnails, and audio waveforms.
@@ -12,7 +12,7 @@ This guide reflects the current RustChan architecture:
 
 ## Contents
 
-1. [What RustChan Needs](#what-rustchan-needs)
+1. [What TurkChan Needs](#what-turkchan-needs)
 2. [Quick Start](#quick-start)
 3. [Install Rust](#install-rust)
 4. [Install ffmpeg](#install-ffmpeg)
@@ -29,15 +29,15 @@ This guide reflects the current RustChan architecture:
 15. [Updating](#updating)
 16. [Troubleshooting](#troubleshooting)
 
-## What RustChan Needs
+## What TurkChan Needs
 
-RustChan is a single Rust binary. A basic install only needs:
+TurkChan is a single Rust binary. A basic install only needs:
 
 - Rust toolchain to build it
 - a writable runtime data directory (next to the binary by default, or selected with `--data-dir`)
 - `ffmpeg` if you want the enhanced media pipeline
 
-RustChan does not require:
+TurkChan does not require:
 
 - Docker
 - Postgres or MySQL
@@ -53,7 +53,7 @@ cargo build --release
 ./target/release/rustchan-cli
 ```
 
-On first launch RustChan creates `rustchan-data/settings.toml`, `rustchan-data/logs/`, and the rest of its runtime directories next to the binary.
+On first launch TurkChan creates `rustchan-data/settings.toml`, `rustchan-data/logs/`, and the rest of its runtime directories next to the binary.
 
 Then in another terminal:
 
@@ -67,7 +67,7 @@ Open:
 - `http://localhost:8080`
 - admin panel: `http://localhost:8080/admin`
 
-If TLS is enabled in `settings.toml`, RustChan also serves HTTPS on port `8443` by default.
+If TLS is enabled in `settings.toml`, TurkChan also serves HTTPS on port `8443` by default.
 
 ## Install Rust
 
@@ -91,16 +91,16 @@ cargo --version
 
 ## Install ffmpeg
 
-`ffmpeg` is optional, but RustChan is significantly better with it.
+`ffmpeg` is optional, but TurkChan is significantly better with it.
 
-When `ffmpeg` is available, RustChan can:
+When `ffmpeg` is available, TurkChan can:
 
 - extract video thumbnails
 - generate audio waveform thumbnails
 - convert supported image thumbnails to WebP
 - transcode MP4 uploads to WebM when VP9 and Opus are available
 
-Without `ffmpeg`, RustChan still runs, but video and audio handling degrades gracefully.
+Without `ffmpeg`, TurkChan still runs, but video and audio handling degrades gracefully.
 
 ### Debian / Ubuntu / Raspberry Pi OS
 
@@ -138,7 +138,7 @@ ffmpeg -version
 ffprobe -version
 ```
 
-If you want RustChan to refuse startup when `ffmpeg` is missing, set:
+If you want TurkChan to refuse startup when `ffmpeg` is missing, set:
 
 ```toml
 require_ffmpeg = true
@@ -146,7 +146,7 @@ require_ffmpeg = true
 
 ## Verify WebP and WebM Support
 
-RustChan checks more than just whether `ffmpeg` exists. It also checks whether your build includes:
+TurkChan checks more than just whether `ffmpeg` exists. It also checks whether your build includes:
 
 - `libwebp` for WebP image thumbnails and conversions
 - `libvpx-vp9` for WebM video encoding
@@ -206,9 +206,9 @@ ffmpeg -encoders | Select-String libvpx-vp9
 ffmpeg -encoders | Select-String libopus
 ```
 
-### What RustChan Does If Support Is Missing
+### What TurkChan Does If Support Is Missing
 
-RustChan will log warnings and continue:
+TurkChan will log warnings and continue:
 
 - missing `libwebp`: image thumbnails stay in original-friendly formats where needed
 - missing VP9 or Opus: MP4 uploads are stored as MP4 instead of transcoded to WebM
@@ -244,7 +244,7 @@ Binary:
 
 ## First-Run Files and Layout
 
-By default RustChan stores runtime state in `rustchan-data/` next to the binary.
+By default TurkChan stores runtime state in `rustchan-data/` next to the binary.
 Pass `--data-dir` with an absolute, non-root path to place the complete runtime
 layout elsewhere. This is the supported layout for service installations; it
 includes `settings.toml`, the database, uploads, logs, backups, and runtime
@@ -270,7 +270,7 @@ rustchan-data/
 
 ## Banner Artwork Requirements
 
-RustChan `1.4.0` includes board banners plus a separate home-page announcement banner.
+TurkChan `1.4.0` includes board banners plus a separate home-page announcement banner.
 
 Banner upload requirements:
 
@@ -278,7 +278,7 @@ Banner upload requirements:
 - minimum size `468x60`
 - recommended size `936x120`
 - input can be PNG, JPEG, or WebP
-- RustChan converts uploaded banner images to WebP automatically
+- TurkChan converts uploaded banner images to WebP automatically
 
 Board banner placement:
 
@@ -312,7 +312,7 @@ Important notes:
 The generated file documents every setting inline. Commonly tuned settings:
 
 ```toml
-forum_name = "RustChan"
+forum_name = "TurkChan"
 site_subtitle = "select board to proceed"
 default_theme = "forest"
 enabled_builtin_themes = ["forest", "blue-sky", "deep-orbit", "terminal", "dorfic", "chanclassic", "aero", "neoncubicle", "fluorogrid"]
@@ -344,15 +344,15 @@ port = 8443
 ### A Few High-Impact Settings
 
 - `enable_tor_support = true`: built-in onion service is on
-- `tor_only = true`: bind RustChan to loopback and serve only through Tor
+- `tor_only = true`: bind TurkChan to loopback and serve only through Tor
 - `require_ffmpeg = true`: fail startup if ffmpeg is missing
-- `[tls].enabled = true`: explicitly enable RustChan's native HTTPS listener
+- `[tls].enabled = true`: explicitly enable TurkChan's native HTTPS listener
 - `[tls].require_https = true`: opt into disabling public plaintext application access
 - `ffmpeg_timeout_secs = 600`: max runtime for a single ffmpeg job
 
 ## Tor Onion Service
 
-RustChan includes built-in Tor onion service hosting through Arti.
+TurkChan includes built-in Tor onion service hosting through Arti.
 
 You do not need to:
 
@@ -368,7 +368,7 @@ On current builds, the generated `settings.toml` enables Tor support by default:
 enable_tor_support = true
 ```
 
-On first startup with Tor enabled, RustChan:
+On first startup with Tor enabled, TurkChan:
 
 1. creates the Tor runtime directories
 2. bootstraps to the Tor network
@@ -389,22 +389,22 @@ That directory contains the persistent onion identity. If you lose it, the next 
 
 ### Tor-Only Mode
 
-If you want RustChan reachable only through Tor:
+If you want TurkChan reachable only through Tor:
 
 ```toml
 enable_tor_support = true
 tor_only = true
 ```
 
-In this mode RustChan binds to loopback instead of `0.0.0.0`, so clearnet access is blocked.
+In this mode TurkChan binds to loopback instead of `0.0.0.0`, so clearnet access is blocked.
 
 ### Tor Permissions
 
-RustChan creates the Tor state directory with restricted permissions on Unix. If you move the data directory manually, preserve write access for the RustChan service user.
+TurkChan creates the Tor state directory with restricted permissions on Unix. If you move the data directory manually, preserve write access for the TurkChan service user.
 
 ## HTTPS and TLS
 
-RustChan has built-in HTTPS support.
+TurkChan has built-in HTTPS support.
 
 The generated `settings.toml` currently includes:
 
@@ -418,7 +418,7 @@ This means:
 
 - HTTP is available on the main app port
 - HTTPS support is configured but disabled until you turn it on
-- when enabled, RustChan can generate a local self-signed development certificate
+- when enabled, TurkChan can generate a local self-signed development certificate
 
 ## Observability Endpoints
 
@@ -455,7 +455,7 @@ Detailed readiness and metrics include operational state such as database schema
 | 33 | Allow users to edit their own posts during the 60-second grace window | per-board | `true` | true | Yes | No | New-board default for fresh and existing installs. |
 | 34 | Allow users to delete their own posts during the 60-second grace window | per-board | `true` | true | Yes | No | New-board default for fresh and existing installs. |
 | 38 | Master arbitrary-file upload gate | media | `false` | false | Indirect | Yes | When off, boards cannot enable generic file uploads. |
-| 39 | Require ffmpeg at startup | media | `false` | false | No | Yes | When off, RustChan degrades gracefully where possible. |
+| 39 | Require ffmpeg at startup | media | `false` | false | No | Yes | When off, TurkChan degrades gracefully where possible. |
 | 46 | TLS enabled | TLS | `false` | false | No | Yes | Generated `settings.toml` keeps native HTTPS off until explicitly enabled. |
 | 48 | Redirect HTTP to HTTPS | TLS | `false` | false | No | Yes | Only relevant when native TLS is enabled. |
 | 50 | ACME enabled | TLS | `false` | false | No | Yes | The ACME section stays commented out by default. |
@@ -483,11 +483,11 @@ Many operators still prefer putting nginx or Caddy in front and terminating TLS 
 
 #### ACME / Let's Encrypt
 
-RustChan also supports ACME-based certificates when built with the `tls-acme` feature and configured in `[tls.acme]`.
+TurkChan also supports ACME-based certificates when built with the `tls-acme` feature and configured in `[tls.acme]`.
 
 ## Linux Service Setup
 
-Run RustChan as a dedicated unprivileged user.
+Run TurkChan as a dedicated unprivileged user.
 
 ### 1. Create a Service User
 
@@ -520,7 +520,7 @@ Create `/etc/systemd/system/rustchan.service`:
 
 ```ini
 [Unit]
-Description=RustChan
+Description=TurkChan
 After=network-online.target
 Wants=network-online.target
 
@@ -572,14 +572,14 @@ Environment=CHAN_REQUIRE_FFMPEG=true
 
 ## Reverse Proxy Notes
 
-If you put nginx or Caddy in front of RustChan:
+If you put nginx or Caddy in front of TurkChan:
 
-- point the proxy at the RustChan HTTP listener
+- point the proxy at the TurkChan HTTP listener
 - set `CHAN_BEHIND_PROXY=true` if you want proxy headers trusted
 - set `CHAN_TRUSTED_PROXY_CIDRS` to the proxy's loopback or private CIDR when the proxy is not on localhost
-- decide whether TLS terminates at the proxy or inside RustChan
+- decide whether TLS terminates at the proxy or inside TurkChan
 
-When RustChan's built-in TLS is enabled, HTTPS is an additional listener and the
+When TurkChan's built-in TLS is enabled, HTTPS is an additional listener and the
 main HTTP application listener remains available by default. Set
 `require_https = true` under `[tls]` to opt into HTTPS-only access. Independently,
 `redirect_http = true` exposes `tls.http_port` as a redirect listener instead of
@@ -587,7 +587,7 @@ serving application routes there. With the built-in Tor service enabled,
 HTTPS-only mode also keeps a loopback HTTP backend that accepts only connections
 registered by its in-process Tor proxy.
 
-RustChan accepts bounded `Content-Length` request bodies and rejects
+TurkChan accepts bounded `Content-Length` request bodies and rejects
 `Transfer-Encoding` at the application boundary. Configure a reverse proxy to
 dechunk request bodies before forwarding them. Request headers are limited to
 32 KiB per value and 64 KiB in aggregate.
@@ -595,10 +595,10 @@ dechunk request bodies before forwarding them. Request headers are limited to
 Typical loopback setup:
 
 ```text
-internet -> nginx/caddy -> 127.0.0.1:8080 -> RustChan
+internet -> nginx/caddy -> 127.0.0.1:8080 -> TurkChan
 ```
 
-If you use a reverse proxy and terminate TLS there, make sure your proxy forwards the usual headers and that RustChan is not accidentally exposed directly on the public interface.
+If you use a reverse proxy and terminate TLS there, make sure your proxy forwards the usual headers and that TurkChan is not accidentally exposed directly on the public interface.
 
 ## Admin Bootstrapping
 
@@ -640,12 +640,12 @@ Before major updates, back up:
 
 Or use the built-in backup tools from the admin panel.
 
-RustChan `1.4.1` resets the database baseline: fresh installs create the
+TurkChan `1.4.1` resets the database baseline: fresh installs create the
 current `1.4.1` schema directly instead of replaying pre-release internal
 migrations. Existing in-development databases that structurally match that
 schema are marked as database schema version `1.4.1`; partial, unknown, or
 corrupt schemas are rejected without deleting data. Future released schema
-changes should add normal forward migrations tied to RustChan release versions.
+changes should add normal forward migrations tied to TurkChan release versions.
 
 ## Troubleshooting
 
@@ -658,14 +658,14 @@ ffmpeg -version
 ffmpeg -encoders | rg 'libwebp|libvpx-vp9|libopus'
 ```
 
-If one of those encoders is missing, RustChan will still run but some media features will be downgraded.
+If one of those encoders is missing, TurkChan will still run but some media features will be downgraded.
 
 ### Tor never becomes ready
 
 Check:
 
 - outbound network connectivity
-- whether the RustChan service user can write to `rustchan-data/runtime/tor/`
+- whether the TurkChan service user can write to `rustchan-data/runtime/tor/`
 - whether `tor_bootstrap_timeout_secs` needs to be raised
 
 Also review:
@@ -684,7 +684,7 @@ Check:
 
 ### The service starts but uploads fail
 
-Make sure the RustChan user can write to:
+Make sure the TurkChan user can write to:
 
 - `rustchan-data/`
 - the uploads directory

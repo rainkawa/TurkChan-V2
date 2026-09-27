@@ -1,8 +1,8 @@
 <div align="center">
 
-<img width="420" alt="RustChan mascot holding a laptop above the RustChan wordmark" src="docs/assets/branding/rust-chan-mascot.png">
+<img width="420" alt="TurkChan mascot holding a laptop above the TurkChan wordmark" src="docs/assets/branding/rust-chan-mascot.png">
 
-# RustChan
+# TurkChan
 
 A self-hosted imageboard written in Rust.
 
@@ -12,33 +12,33 @@ A self-hosted imageboard written in Rust.
 
 </div>
 
-RustChan gives you boards, threads, replies, media uploads, moderation, backups, themes, and an admin panel without requiring a stack of services. It runs as one binary, uses bundled SQLite, and keeps its runtime files in one data directory.
+TurkChan gives you boards, threads, replies, media uploads, moderation, backups, themes, and an admin panel without requiring a stack of services. It runs as one binary, uses bundled SQLite, and keeps its runtime files in one data directory.
 
 Current version: `1.4.1`. Minimum supported Rust version: `1.91`.
 
 ## Screenshots
 
 <p align="center">
-  <img width="100%" alt="RustChan home page with boards and site statistics" src="docs/screenshots/rustchan-home.png">
+  <img width="100%" alt="TurkChan home page with boards and site statistics" src="docs/screenshots/rustchan-home.png">
 </p>
 
 <p align="center">
-  <img width="100%" alt="RustChan thread with replies, quote links, media, and post controls" src="docs/screenshots/rustchan-thread.png">
+  <img width="100%" alt="TurkChan thread with replies, quote links, media, and post controls" src="docs/screenshots/rustchan-thread.png">
 </p>
 
 <details>
 <summary>Catalog, admin panel, and mobile views</summary>
 
 <p align="center">
-  <img width="100%" alt="RustChan board catalog with thread cards and media thumbnails" src="docs/screenshots/rustchan-catalog.png">
+  <img width="100%" alt="TurkChan board catalog with thread cards and media thumbnails" src="docs/screenshots/rustchan-catalog.png">
 </p>
 
 <p align="center">
-  <img width="100%" alt="RustChan admin dashboard settings view" src="docs/screenshots/rustchan-admin.png">
+  <img width="100%" alt="TurkChan admin dashboard settings view" src="docs/screenshots/rustchan-admin.png">
 </p>
 
 <p align="center">
-  <img width="420" alt="RustChan mobile thread view" src="docs/screenshots/rustchan-mobile.png">
+  <img width="420" alt="TurkChan mobile thread view" src="docs/screenshots/rustchan-mobile.png">
 </p>
 
 </details>
@@ -60,7 +60,7 @@ No Docker, Postgres, or Redis is required.
 
 ## Quick start
 
-You need Rust `1.91` or newer. RustChan works without `ffmpeg`, but installing `ffmpeg` and `ffprobe` enables the full media pipeline.
+You need Rust `1.91` or newer. TurkChan works without `ffmpeg`, but installing `ffmpeg` and `ffprobe` enables the full media pipeline.
 
 ```bash
 git clone https://github.com/csd113/RustChan.git
@@ -76,13 +76,13 @@ cargo build --release
 
 Open `http://localhost:8080`. The admin panel is at `http://localhost:8080/admin`.
 
-On Windows, use `target/release/rustchan-cli.exe`. For a service installation, give RustChan an absolute data directory such as `--data-dir /var/lib/rustchan`.
+On Windows, use `target/release/rustchan-cli.exe`. For a service installation, give TurkChan an absolute data directory such as `--data-dir /var/lib/rustchan`.
 
 The full installation and deployment walkthrough is in [SETUP.md](SETUP.md). It covers Rust and `ffmpeg` installation, systemd, reverse proxies, TLS, Tor, updates, and troubleshooting.
 
 ## Configuration
 
-On first run, RustChan creates `rustchan-data/` next to the executable. Pass `--data-dir /absolute/path` to put the complete runtime somewhere else. The server reads `settings.toml` from that selected directory, not from the current working directory.
+On first run, TurkChan creates `rustchan-data/` next to the executable. Pass `--data-dir /absolute/path` to put the complete runtime somewhere else. The server reads `settings.toml` from that selected directory, not from the current working directory.
 
 ```text
 rustchan-data/
@@ -105,7 +105,7 @@ Back up the whole directory if you want to move or recover a site.
 Fresh configuration files document the available settings inline. A basic configuration looks like this:
 
 ```toml
-forum_name = "RustChan"
+forum_name = "TurkChan"
 site_subtitle = "select board to proceed"
 default_theme = "forest"
 port = 8080
@@ -136,7 +136,7 @@ Common runtime options:
 
 ### Tor and ChanNet
 
-RustChan can run an onion service through Arti, so it does not need a separate `tor` daemon. Its persistent onion identity is stored under `rustchan-data/runtime/tor/state/`; include that directory in backups if you want to keep the same onion address.
+TurkChan can run an onion service through Arti, so it does not need a separate `tor` daemon. Its persistent onion identity is stored under `rustchan-data/runtime/tor/state/`; include that directory in backups if you want to keep the same onion address.
 
 For a Tor-only site:
 
@@ -149,7 +149,7 @@ ChanNet is a separate, optional listener for snapshot transfer, content polling,
 
 ### Media tools
 
-Without `ffmpeg`, RustChan still validates and stores supported media and can create basic image thumbnails. With compatible `ffmpeg` and `ffprobe` builds, it can also create video thumbnails and audio waveforms, use the enhanced WebP path, and transcode MP4 uploads to WebM when the required VP9 and Opus encoders are present.
+Without `ffmpeg`, TurkChan still validates and stores supported media and can create basic image thumbnails. With compatible `ffmpeg` and `ffprobe` builds, it can also create video thumbnails and audio waveforms, use the enhanced WebP path, and transcode MP4 uploads to WebM when the required VP9 and Opus encoders are present.
 
 Set `require_ffmpeg = true` if those capabilities are mandatory for your deployment.
 
@@ -174,7 +174,7 @@ rustchan-cli admin db-status
 
 Run `rustchan-cli admin --help` for arguments and flags.
 
-Full-site and per-board backups can be saved on disk or downloaded. Restores accept uploaded archives and saved backups. RustChan checks archive paths, sizes, structure, and expansion before it changes live data, but you should still keep independent copies and test your restore process.
+Full-site and per-board backups can be saved on disk or downloaded. Restores accept uploaded archives and saved backups. TurkChan checks archive paths, sizes, structure, and expansion before it changes live data, but you should still keep independent copies and test your restore process.
 
 Configure backup storage in **Admin → Backups → backup storage directory**, or set
 `backup_directory = "/mnt/backup-disk/rustchan"` in `settings.toml`.
@@ -191,7 +191,7 @@ directories are created and tested for read/write/delete access; Unix backup
 directories retain mode `0700` and backup files retain their existing private
 permissions. The service user must have suitable ownership/permissions, including
 on NAS mounts. An invalid or inaccessible explicit path fails validation without
-falling back. Mount the storage before starting RustChan; RustChan does not manage
+falling back. Mount the storage before starting TurkChan; TurkChan does not manage
 mounts or verify the identity of the mounted device.
 
 ### Health and metrics
@@ -207,13 +207,13 @@ Detailed readiness and metrics can reveal database health, backup age, media que
 
 ## Security notes
 
-RustChan hashes client IP addresses instead of storing or logging them directly. Admin passwords use Argon2id; sessions are `HttpOnly` and `SameSite=Strict`; state-changing forms use CSRF tokens; uploads and restores are checked before filesystem or database changes.
+TurkChan hashes client IP addresses instead of storing or logging them directly. Admin passwords use Argon2id; sessions are `HttpOnly` and `SameSite=Strict`; state-changing forms use CSRF tokens; uploads and restores are checked before filesystem or database changes.
 
 Those controls do not make an operator, server, proxy, or deployment trustworthy. Operators are still responsible for secrets, moderation, backups, network configuration, and local law. See [SECURITY.md](SECURITY.md) for the project's security policy and reporting scope.
 
 ## Development
 
-RustChan uses Axum, Tokio, bundled SQLite through `rusqlite`, server-rendered Rust templates, `rustls`, Arti, and an in-process worker queue.
+TurkChan uses Axum, Tokio, bundled SQLite through `rusqlite`, server-rendered Rust templates, `rustls`, Arti, and an in-process worker queue.
 
 Run the Rust checks before submitting changes:
 

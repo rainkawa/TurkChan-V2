@@ -75,7 +75,7 @@ struct PresetDefaults {
 const fn preset_defaults(preset: SetupPreset) -> PresetDefaults {
     match preset {
         SetupPreset::Public => PresetDefaults {
-            site_name: "RustChan",
+            site_name: "TurkChan",
             board_slug: "b",
             board_name: "Random",
             board_description: "General discussion",
@@ -89,7 +89,7 @@ const fn preset_defaults(preset: SetupPreset) -> PresetDefaults {
             hide_nsfw_default: false,
         },
         SetupPreset::Private => PresetDefaults {
-            site_name: "Private RustChan",
+            site_name: "Private TurkChan",
             board_slug: "home",
             board_name: "Home",
             board_description: "Private board",
@@ -103,7 +103,7 @@ const fn preset_defaults(preset: SetupPreset) -> PresetDefaults {
             hide_nsfw_default: true,
         },
         SetupPreset::Local => PresetDefaults {
-            site_name: "Local RustChan",
+            site_name: "Local TurkChan",
             board_slug: "test",
             board_name: "Testing",
             board_description: "Local testing board",
@@ -1057,7 +1057,7 @@ fn setup_form_page(
         r#"<main class="setup-wizard">
 <div class="setup-head">
 <p class="setup-eyebrow">First-run configuration</p>
-<h1>RustChan setup</h1>
+<h1>TurkChan setup</h1>
 <p>Configure the instance before opening it to users. Review is a separate step, and every control works without JavaScript.</p>
 </div>
 {alerts}
@@ -1218,7 +1218,7 @@ fn setup_review_page(
     };
     let body = format!(
         r#"<main class="setup-wizard">
-<div class="setup-head"><p class="setup-eyebrow">Final review</p><h1>Review setup</h1><p>Confirm these settings before RustChan writes configuration or setup state.</p></div>
+<div class="setup-head"><p class="setup-eyebrow">Final review</p><h1>Review setup</h1><p>Confirm these settings before TurkChan writes configuration or setup state.</p></div>
 <section class="setup-section setup-review-card" aria-labelledby="setup-review-heading">
 <div class="setup-section-head"><span class="setup-step">Review</span><h2 id="setup-review-heading">Configuration summary</h2><p>Use “edit settings” to go back without making changes.</p></div>
 <dl class="setup-review-list">
@@ -1516,7 +1516,7 @@ mod tests {
         let mut fields = vec![
             ("_csrf", csrf.to_owned()),
             ("preset", "public".to_owned()),
-            ("site_name", "Test RustChan".to_owned()),
+            ("site_name", "Test TurkChan".to_owned()),
             ("site_subtitle", String::new()),
             ("default_theme", crate::theme::HARD_DEFAULT_THEME.to_owned()),
             ("admin_username", "admin".to_owned()),

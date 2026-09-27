@@ -102,7 +102,7 @@ pub fn render(
 
 /// Render the terminal-size fallback without relying on color.
 fn render_small_terminal(frame: &mut Frame<'_>, area: Rect) {
-    let block = panel("RustChan console", ACCENT);
+    let block = panel("TurkChan console", ACCENT);
     let inner = block.inner(area);
     block.render(area, frame.buffer_mut());
     let message = Text::from(vec![
@@ -131,7 +131,7 @@ fn render_header(frame: &mut Frame<'_>, area: Rect, stats: &ChanStats) {
     let right = columns.get(1).copied().unwrap_or(area);
     let title = Line::from(vec![
         Span::styled(
-            "RUSTCHAN",
+            "TURKCHAN",
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
         Span::styled("  /  ", Style::default().fg(MUTED)),
@@ -948,7 +948,7 @@ fn render_dialog(frame: &mut Frame<'_>, area: Rect, dialog: &Dialog, spinner_tic
         Dialog::ConfirmQuit => render_confirm_dialog(
             frame,
             area,
-            "Stop RustChan?",
+            "Stop TurkChan?",
             "New requests will stop and in-flight requests will drain gracefully.",
             "Y / Enter  Stop server",
             WARNING,
@@ -1673,7 +1673,7 @@ mod tests {
         let text = buffer_text(&buffer);
 
         assert!(
-            text.contains("RUSTCHAN"),
+            text.contains("TURKCHAN"),
             "header should retain product identity"
         );
         assert!(

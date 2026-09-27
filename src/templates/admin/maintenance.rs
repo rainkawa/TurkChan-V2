@@ -242,10 +242,10 @@ fn render_admin_maintenance_section(view: &MaintenanceSectionView<'_>) -> String
 <div class="admin-subsection admin-subsection-tight">
   <div class="admin-card-header">
     <h3>// ffmpeg timeout</h3>
-    <p>Adjust how long RustChan waits before killing a slow video conversion job.</p>
+    <p>Adjust how long TurkChan waits before killing a slow video conversion job.</p>
   </div>
 <p class="admin-copy">
-  RustChan currently allows ffmpeg to run for <strong>{ffmpeg_timeout_help}</strong> before a long-running media job is killed.
+  TurkChan currently allows ffmpeg to run for <strong>{ffmpeg_timeout_help}</strong> before a long-running media job is killed.
   This primarily affects uploaded video re-encoding, especially slow MP4 to WebM/VP9 conversion.
 </p>
   <div class="board-settings-grid admin-settings-grid">
@@ -255,7 +255,7 @@ fn render_admin_maintenance_section(view: &MaintenanceSectionView<'_>) -> String
     </label>
   </div>
   <p class="admin-meta-note admin-meta-note-spaced">
-    This controls how long RustChan lets ffmpeg run while converting uploaded videos.
+    This controls how long TurkChan lets ffmpeg run while converting uploaded videos.
     Slow systems such as Raspberry Pi devices may need a higher value.
     MP4 to WebM/VP9 encoding can be especially slow without hardware acceleration.
     If videos fail to convert because of timeouts, increase this value.

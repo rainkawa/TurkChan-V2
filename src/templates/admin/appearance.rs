@@ -39,9 +39,9 @@ pub(super) fn render_site_settings(view: &AdminPanelViewModel<'_>) -> String {
         "No custom global favicon uploaded yet."
     };
     let public_url_help = if view.dashboard.public_url == "not configured" {
-        "No public URL is configured. Add at least one hostname to settings.toml public_hosts, then restart RustChan."
+        "No public URL is configured. Add at least one hostname to settings.toml public_hosts, then restart TurkChan."
     } else {
-        "Runtime host trust uses settings.toml public_hosts. To change this URL, edit public_hosts and restart RustChan."
+        "Runtime host trust uses settings.toml public_hosts. To change this URL, edit public_hosts and restart TurkChan."
     };
 
     render_admin_site_settings_section(
@@ -574,12 +574,12 @@ fn render_builder_preview(config: &ThemeBuilderConfig, slug: &str) -> String {
         r##"<section class="theme-builder-preview-card">
   <div class="admin-card-header">
     <h4>Theme preview</h4>
-    <p>Representative RustChan surfaces update when JavaScript is available. Saving still posts the form normally.</p>
+    <p>Representative TurkChan surfaces update when JavaScript is available. Saving still posts the form normally.</p>
   </div>
   <style data-theme-preview-style></style>
   <div class="theme-preview-shell" style="{preview_style}" data-theme-preview data-theme-preview-slug="{slug}" data-theme-preview-preset="{preset}">
     <div class="theme-preview-header">
-      <span class="theme-preview-title">RustChan</span>
+      <span class="theme-preview-title">TurkChan</span>
       <nav class="theme-preview-nav"><a href="#">/tech/</a> <a href="#">/art/</a> <a href="#">/mu/</a></nav>
     </div>
     <div class="theme-preview-panels">
@@ -637,7 +637,7 @@ fn render_legacy_editor(theme_slug: &str, custom_css: &str) -> String {
     format!(
         r#"<input type="hidden" name="theme_mode" value="legacy">
 <div class="theme-editor-built-in-note">
-  <p>This is a legacy custom CSS theme. RustChan will keep loading it as-is for compatibility. Guided builder themes are safer and easier to maintain; this editor is for legacy/manual CSS only.</p>
+  <p>This is a legacy custom CSS theme. TurkChan will keep loading it as-is for compatibility. Guided builder themes are safer and easier to maintain; this editor is for legacy/manual CSS only.</p>
 </div>
 <div class="theme-editor-css-panel">
   <div class="theme-editor-panel-header">
@@ -664,7 +664,7 @@ fn render_theme_metadata_fields(theme: &crate::models::Theme) -> String {
       <div class="board-settings-grid" style="margin-top:0.65rem">
         <label>Description<input type="text" value="{description}" maxlength="256" readonly aria-readonly="true"></label>
       </div>
-      <p class="admin-meta-note">Built-in theme metadata is managed by RustChan and cannot be edited here. Only picker visibility can be changed.</p>"#,
+      <p class="admin-meta-note">Built-in theme metadata is managed by TurkChan and cannot be edited here. Only picker visibility can be changed.</p>"#,
             name = escape_html(&theme.display_name),
             slug = escape_html(&theme.slug),
             swatch = escape_html(&theme.swatch_hex),
@@ -816,7 +816,7 @@ fn render_admin_site_settings_section(
 <input type="hidden" name="_csrf" value="{csrf}">
 <div class="board-settings-grid admin-settings-grid">
   <label>Site name
-    <input type="text" name="site_name" value="{site_name_val}" maxlength="64" placeholder="RustChan"
+    <input type="text" name="site_name" value="{site_name_val}" maxlength="64" placeholder="TurkChan"
            style="font-family:inherit">
   </label>
   <label>Home page subtitle
@@ -998,7 +998,7 @@ fn render_admin_appearance_section(
   <section class="theme-guide-card">
     <div class="admin-card-header">
       <h3>// guided theme builder</h3>
-      <p>Build a custom theme with friendly controls, paired hex fields, and a representative preview. RustChan still saves the result as regular server-rendered CSS.</p>
+      <p>Build a custom theme with friendly controls, paired hex fields, and a representative preview. TurkChan still saves the result as regular server-rendered CSS.</p>
     </div>
     <div class="theme-guide-grid">
       <div class="theme-guide-block">
@@ -1016,7 +1016,7 @@ fn render_admin_appearance_section(
   <section class="theme-create-card">
     <div class="admin-card-header">
       <h3>// create custom theme</h3>
-      <p>Start from a preset, tweak the friendly fields, and RustChan will generate the scoped theme CSS internally.</p>
+      <p>Start from a preset, tweak the friendly fields, and TurkChan will generate the scoped theme CSS internally.</p>
     </div>
     <form method="POST" action="/admin/theme/create" class="theme-create-form">
       <input type="hidden" name="_csrf" value="{csrf}">

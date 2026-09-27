@@ -902,7 +902,7 @@ mod tests {
         std::fs::write(
             &settings_path,
             format!(
-                "forum_name = \"RustChan\"\nffmpeg_timeout_secs = {previous_timeout}\nmedia_auto_prune_enabled = false\nmedia_max_active_content_size_bytes = 0\n"
+                "forum_name = \"TurkChan\"\nffmpeg_timeout_secs = {previous_timeout}\nmedia_auto_prune_enabled = false\nmedia_max_active_content_size_bytes = 0\n"
             ),
         )
         .context("write settings fixture")?;

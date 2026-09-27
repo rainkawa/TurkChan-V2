@@ -158,7 +158,7 @@ pub fn configure_data_dir(path: Option<&Path>) -> anyhow::Result<()> {
 }
 
 #[must_use]
-/// Return the configured root directory for mutable `RustChan` data.
+/// Return the configured root directory for mutable `TurkChan` data.
 pub fn data_dir() -> PathBuf {
     DATA_DIR_OVERRIDE
         .get()
@@ -540,7 +540,7 @@ struct SettingsFile {
     /// Examples include `127.0.0.1/32`, `::1/128`, and `10.0.0.0/8`.
     trusted_proxy_cidrs: Option<Vec<String>>,
     /// Public hostnames accepted by the HTTP→HTTPS redirect listener.
-    /// Needed when `RustChan` binds to a wildcard address but serves a manual-cert
+    /// Needed when `TurkChan` binds to a wildcard address but serves a manual-cert
     /// public domain.
     public_hosts: Option<Vec<String>>,
     /// When true, overflow threads are always archived rather than hard-deleted,
@@ -1123,7 +1123,7 @@ impl Config {
         let default_uploads = data_dir.join("boards").to_string_lossy().into_owned();
         let forum_name = env_str(
             "CHAN_FORUM_NAME",
-            s.forum_name.as_deref().unwrap_or("RustChan"),
+            s.forum_name.as_deref().unwrap_or("TurkChan"),
         );
         let initial_site_subtitle = env_str(
             "CHAN_SITE_SUBTITLE",
@@ -1588,13 +1588,13 @@ impl Config {
         if self.enable_tor_support && !self.tor_only {
             tracing::warn!(
                 target: "config",
-                "Tor support is enabled, but tor_only=false. RustChan will accept both clearnet and Tor traffic."
+                "Tor support is enabled, but tor_only=false. TurkChan will accept both clearnet and Tor traffic."
             );
         }
         if self.tor_only && self.tls.acme.enabled {
             anyhow::bail!(
                 "CONFIG ERROR: tor_only=true cannot be combined with [tls.acme]. \
-                 ACME validation requires public HTTPS reachability, but tor_only binds RustChan to loopback."
+                 ACME validation requires public HTTPS reachability, but tor_only binds TurkChan to loopback."
             );
         }
         if self.tor_only && !url_host_is_loopback(&self.rustwave_url) {
@@ -2369,7 +2369,7 @@ mod tests {
         const MIB: usize = 1024 * 1024;
         const MIB_U64: u64 = 1024 * 1024;
         Config {
-            forum_name: "RustChan".to_owned(),
+            forum_name: "TurkChan".to_owned(),
             initial_site_subtitle: "select board to proceed".to_owned(),
             initial_homepage_new_thread_badges_enabled: true,
             initial_homepage_new_reply_badges_enabled: true,
@@ -2466,7 +2466,7 @@ mod tests {
             "Config Debug output should identify redacted fields"
         );
         anyhow::ensure!(
-            rendered.contains("forum_name: \"RustChan\""),
+            rendered.contains("forum_name: \"TurkChan\""),
             "Config Debug output should retain useful nonsecret context"
         );
         Ok(())
@@ -2489,8 +2489,8 @@ mod tests {
     #[test]
     /// Updates selected root keys without disturbing comments or other values.
     fn rewrite_settings_file_lines_updates_requested_keys_and_preserves_comments() {
-        let input = r#"# RustChan settings.toml
-forum_name = "RustChan"
+        let input = r#"# TurkChan settings.toml
+forum_name = "TurkChan"
 site_subtitle = "select board to proceed"
 homepage_new_thread_badges_enabled = true
 homepage_new_reply_badges_enabled = true
@@ -2518,7 +2518,7 @@ auto_full_backup_copies_to_keep = 1
         );
 
         assert!(
-            output.starts_with("# RustChan settings.toml\n"),
+            output.starts_with("# TurkChan settings.toml\n"),
             "the leading comment should be preserved"
         );
         for expected in [
@@ -2548,8 +2548,8 @@ auto_full_backup_copies_to_keep = 1
     #[test]
     /// Inserts missing backup keys before the requested root-section anchor.
     fn rewrite_settings_file_lines_inserts_missing_root_keys_before_anchor_section() {
-        let input = r#"# RustChan settings.toml
-forum_name = "RustChan"
+        let input = r#"# TurkChan settings.toml
+forum_name = "TurkChan"
 
 # ── Federation / ChanNet gateway ─────────────────────────────────────────────
 [tls]
@@ -2596,8 +2596,8 @@ enabled = false
     #[test]
     /// Inserts a missing default theme before the network section.
     fn rewrite_settings_file_lines_inserts_missing_default_theme_before_network_section() {
-        let input = r#"# RustChan settings.toml
-forum_name = "RustChan"
+        let input = r#"# TurkChan settings.toml
+forum_name = "TurkChan"
 site_subtitle = "select board to proceed"
 homepage_new_thread_badges_enabled = true
 homepage_new_reply_badges_enabled = true
@@ -2697,7 +2697,7 @@ port = 8080
         std::fs::write(
             &path,
             format!(
-                "forum_name = \"RustChan\"\nffmpeg_timeout_secs = {DEFAULT_FFMPEG_TIMEOUT_SECS}\n"
+                "forum_name = \"TurkChan\"\nffmpeg_timeout_secs = {DEFAULT_FFMPEG_TIMEOUT_SECS}\n"
             ),
         )
         .context("could not write settings fixture")?;
@@ -2735,12 +2735,12 @@ port = 8080
         std::fs::create_dir_all(parent).context("could not create settings directory")?;
         std::fs::write(
             &path,
-            "forum_name = \"RustChan\"\nsite_subtitle = \"select board to proceed\"\nhomepage_new_thread_badges_enabled = true\nhomepage_new_reply_badges_enabled = true\nthread_new_reply_badges_enabled = true\ndefault_theme = \"forest\"\n",
+            "forum_name = \"TurkChan\"\nsite_subtitle = \"select board to proceed\"\nhomepage_new_thread_badges_enabled = true\nhomepage_new_reply_badges_enabled = true\nthread_new_reply_badges_enabled = true\ndefault_theme = \"forest\"\n",
         )
         .context("could not write settings fixture")?;
 
         super::update_settings_file_site_settings(
-            "RustChan",
+            "TurkChan",
             "select board to proceed",
             true,
             false,

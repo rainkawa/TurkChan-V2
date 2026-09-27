@@ -8,7 +8,7 @@ use clap::{Parser, Subcommand};
     name = "rustchan-cli",
     version,
     about = "Self-contained imageboard server",
-    long_about = "RustChan Imageboard — single binary, zero dependencies.\n\
+    long_about = "TurkChan Imageboard — single binary, zero dependencies.\n\
                   Config, database, logs, and uploads default to <exe-dir>/rustchan-data/.\n\
                   Use --data-dir with an absolute path to select another location.\n\
                   Run without arguments to start the server."

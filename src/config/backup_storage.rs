@@ -72,7 +72,7 @@ pub fn prepare_backup_directory(path: &Path, config: &Config) -> anyhow::Result<
     for dir in [&root, &root.join("full"), &root.join("boards")] {
         prepare_private_storage(dir).with_context(|| {
             format!(
-                "backup_directory '{}' is unusable; check the mount and grant the RustChan service user directory access, permission to set private modes, and read/write/delete access",
+                "backup_directory '{}' is unusable; check the mount and grant the TurkChan service user directory access, permission to set private modes, and read/write/delete access",
                 dir.display()
             )
         })?;
@@ -199,7 +199,7 @@ mod tests {
         std::fs::set_permissions(&parent, std::fs::Permissions::from_mode(0o700))?;
         if probe.is_err() {
             let error = result.err().context("unwritable parent was accepted")?;
-            ensure!(format!("{error:#}").contains("grant the RustChan service user"));
+            ensure!(format!("{error:#}").contains("grant the TurkChan service user"));
         }
         Ok(())
     }

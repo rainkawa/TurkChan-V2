@@ -67,7 +67,7 @@ pub(super) fn render(view: &AdminPanelViewModel<'_>) -> String {
 <summary><h2 id="control-center-title"><span>// control center</span><span class="admin-dropdown-badges">{overall_status}</span></h2></summary>
 <div class="admin-dropdown-content admin-control-center">
   <header class="admin-control-center-header">
-    <p class="admin-panel-lead">Prioritized operations for <strong>{site_title}</strong> · RustChan {version} on {build}.</p>
+    <p class="admin-panel-lead">Prioritized operations for <strong>{site_title}</strong> · TurkChan {version} on {build}.</p>
     <p class="admin-meta-note">Warnings, action-needed states, and failures appear first. Routine, pending, disabled, and informational states stay in their task groups.</p>
   </header>
   {attention}
