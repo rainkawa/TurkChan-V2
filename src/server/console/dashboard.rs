@@ -957,7 +957,7 @@ fn render_dialog(frame: &mut Frame<'_>, area: Rect, dialog: &Dialog, spinner_tic
             frame,
             area,
             "Konu kalıcı olarak silinsin mi?",
-            &format("{thread_id} numaralı konu ve tüm gönderileri ile ekli dosyaları kaldırılacak."),
+            &format!("{thread_id} numaralı konu ve tüm gönderileri ile ekli dosyaları kaldırılacak."),
             "Y  Kalıcı olarak sil",
             DANGER,
         ),
