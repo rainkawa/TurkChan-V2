@@ -997,6 +997,12 @@ fn is_legacy_theme_sort_index(sql: &str) -> bool {
 fn tables_are_legacy_repairable(expected: &SchemaShape, actual: &SchemaShape) -> bool {
     for (table, expected_table) in &expected.tables {
         let Some(actual_table) = actual.tables.get(table) else {
+            // A table the additive repair path installs is allowed to be absent
+            // from an older database; the schema-object pass accepts the same
+            // names, and both passes have to agree before anything is written.
+            if is_additive_user_table(table) {
+                continue;
+            }
             return false;
         };
         let repairable = match table.as_str() {
@@ -1113,8 +1119,7 @@ const ADDITIVE_USER_TABLES_SQL: &str = "
     );
 ";
 
-/// Install the anonymous-account tables on a database that predates them.
-fn create_additive_user_tables(conn: &rusqlite::Connection) -> Result<()> {
+/// Install the anonymous-account tables on a database that predates them.    fn create_additive_user_tables(conn: &rusqlite::Connection) -> Result<()> {
     conn.execute_batch(ADDITIVE_USER_TABLES_SQL)
         .context("Failed to install anonymous account tables")
 }
