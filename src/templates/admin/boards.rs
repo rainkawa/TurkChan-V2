@@ -48,35 +48,35 @@ fn render_admin_boards_section(
         r#"<div class="admin-panel-boards" id="boards">
 <section class="admin-section admin-section-collapsible">
 <details class="admin-dropdown" data-admin-dropdown-key="boards"{boards_open_attr}>
-<summary><span>// boards</span></summary>
+<summary><span>// boardlar</span></summary>
 <div class="admin-dropdown-content">
 <div class="admin-subsection">
   <div class="admin-card-header">
-    <h3>// board directory</h3>
-  <p>Open a board to edit its settings.</p>
+    <h3>// board dizini</h3>
+  <p>Bir board’u açıp ayarlarını düzenle.</p>
   </div>
-  <p class="admin-order-note">Board order is shared across the homepage, top bar, and this panel. SFW and NSFW boards each keep their own order.</p>
+  <p class="admin-order-note">Board sırası ana sayfa, üst çubuk ve bu panel arasında ortaktır. SFW ve NSFW boardlar kendi sıralamalarını korur.</p>
   <div class="admin-board-cards">{board_cards}</div>
 </div>
 <div class="admin-subsection">
   <div class="admin-card-header">
-    <h3>// create board</h3>
-    <p>Start with the short name and label, then edit the rest in its board card above.</p>
+    <h3>// board oluştur</h3>
+    <p>Kısa ad ve etiketle başla, kalanını yukarıdaki board kartından düzenle.</p>
   </div>
   <form method="POST" action="/admin/board/create" class="admin-board-create-form admin-quick-form">
   <input type="hidden" name="_csrf" value="{csrf}">
-  <label class="admin-quick-field">Short name
+  <label class="admin-quick-field">Kısa ad
     <input type="text" name="short_name" maxlength="8" required placeholder="tech">
   </label>
-  <label class="admin-quick-field">Display name
-    <input type="text" name="name" maxlength="64" required placeholder="Technology">
+  <label class="admin-quick-field">Görünen ad
+    <input type="text" name="name" maxlength="64" required placeholder="Teknoloji">
   </label>
-  <label class="admin-quick-field">Description
-    <input type="text" name="description" maxlength="256" placeholder="Programming, hardware, and internet culture">
+  <label class="admin-quick-field">Açıklama
+    <input type="text" name="description" maxlength="256" placeholder="Programlama, donanım ve internet kültürü">
   </label>
   <label class="admin-inline-checkbox admin-quick-checkbox"><input type="checkbox" name="nsfw" value="1"> NSFW board</label>
-  <label class="admin-inline-checkbox admin-quick-checkbox"><input type="checkbox" name="allow_audio" value="1"> Enable audio uploads</label>
-  <button type="submit">create</button>
+  <label class="admin-inline-checkbox admin-quick-checkbox"><input type="checkbox" name="allow_audio" value="1"> Ses yüklemelerini etkinleştir</label>
+  <button type="submit">oluştur</button>
   </form>
 </div>
 </div>

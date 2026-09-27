@@ -24,12 +24,12 @@ pub(super) fn render(view: &AdminPanelViewModel<'_>) -> String {
 {flash}
 <div class="admin-panel-header">
   <div class="admin-panel-heading">
-    <h1>[ admin panel ]</h1>
-    <p class="admin-panel-lead">Manage boards, moderation, themes, backups, and site settings from one place.</p>
+    <h1>[ yönetim paneli ]</h1>
+    <p class="admin-panel-lead">Boardları, moderasyonu, temaları, yedekleri ve site ayarlarını tek yerden yönet.</p>
   </div>
   <form method="POST" action="/admin/logout" class="admin-panel-logout">
     <input type="hidden" name="_csrf" value="{csrf}">
-    <button type="submit">logout</button>
+    <button type="submit">çıkış yap</button>
   </form>
 </div>
 
@@ -45,13 +45,13 @@ pub(super) fn render(view: &AdminPanelViewModel<'_>) -> String {
 
 <div id="backup-modal" class="compress-modal admin-modal-hidden" role="dialog" aria-modal="true" aria-labelledby="backup-modal-title" aria-hidden="true" hidden inert>
   <div class="compress-modal-box">
-    <div class="compress-modal-title" id="backup-modal-title">&#128190; Creating Backup…</div>
+    <div class="compress-modal-title" id="backup-modal-title">&#128190; Yedek Oluşturuluyor…</div>
     <div class="compress-progress admin-progress-spaced" id="backup-progress-wrap">
       <div class="compress-progress-track"><div class="compress-progress-bar" id="backup-progress-bar"></div></div>
-      <div class="compress-progress-text" id="backup-progress-text">Starting…</div>
+      <div class="compress-progress-text" id="backup-progress-text">Başlatılıyor…</div>
     </div>
     <div class="compress-done-actions admin-modal-hidden" id="backup-done-actions" hidden>
-      <button class="compress-cancel-btn" data-action="close-backup-modal">&#10003; Done — reload</button>
+      <button class="compress-cancel-btn" data-action="close-backup-modal">&#10003; Bitti — yeniden yükle</button>
     </div>
   </div>
 </div>"#,
@@ -61,7 +61,7 @@ pub(super) fn render(view: &AdminPanelViewModel<'_>) -> String {
     );
 
     base_layout(
-        "admin panel",
+        "yönetim paneli",
         None,
         &body,
         view.csrf_token,
@@ -91,16 +91,16 @@ fn render_flash(flash: Option<AdminPanelFlash<'_>>) -> String {
 
 /// Renders links to each major admin-panel section.
 const fn render_admin_section_index() -> &'static str {
-    r##"<nav class="admin-section-index" aria-label="Admin panel sections">
-  <span>jump to</span>
-  <a href="#control-center">control center</a>
-  <a href="#site-settings">site settings</a>
-  <a href="#site-health">site health</a>
-  <a href="#boards">boards</a>
-  <a href="#moderation">moderation</a>
-  <a href="#appearance">appearance</a>
-  <a href="#backups">backups</a>
-  <a href="#maintenance">maintenance</a>
+    r##"<nav class="admin-section-index" aria-label="Yönetim paneli bölümleri">
+  <span>git</span>
+  <a href="#control-center">kontrol merkezi</a>
+  <a href="#site-settings">site ayarları</a>
+  <a href="#site-health">site sağlığı</a>
+  <a href="#boards">boardlar</a>
+  <a href="#moderation">moderasyon</a>
+  <a href="#appearance">görünüm</a>
+  <a href="#backups">yedekler</a>
+  <a href="#maintenance">bakım</a>
 </nav>"##
 }
 
@@ -117,21 +117,21 @@ fn render_admin_overview_section(view: &AdminPanelViewModel<'_>) -> String {
 {dashboard}
 <section class="admin-section" id="live-log">
 <details class="admin-dropdown" data-admin-dropdown-key="live-log"{live_log_open_attr}>
-<summary>// live log</summary>
+<summary>// canlı log</summary>
 <div class="admin-dropdown-content">
 <p class="admin-copy">
-  Watching <span id="admin-live-log-file">current log</span>. Updates every 2 seconds.
+  <span id="admin-live-log-file">geçerli log</span> izleniyor. Her 2 saniyede güncellenir.
 </p>
-<p id="admin-live-log-status" class="admin-meta-note">JavaScript enables live updates. The current log tail remains available below.</p>
-<p class="admin-copy admin-copy-spaced"><a href="/admin/log/live?bytes=65536">open current log tail (JSON)</a></p>
+<p id="admin-live-log-status" class="admin-meta-note">JavaScript canlı güncellemeleri sağlar. Geçerli logun son kısmı aşağıda görünmeye devam eder.</p>
+<p class="admin-copy admin-copy-spaced"><a href="/admin/log/live?bytes=65536">geçerli logun son kısmını aç (JSON)</a></p>
 <div class="admin-inline-actions admin-inline-actions-spaced" data-admin-live-log-controls hidden>
-  <button type="button" id="admin-live-log-refresh">refresh now</button>
-  <button type="button" id="admin-live-log-clear">clear</button>
+  <button type="button" id="admin-live-log-refresh">şimdi yenile</button>
+  <button type="button" id="admin-live-log-clear">temizle</button>
   <label class="admin-inline-toggle">
-    <input type="checkbox" id="admin-live-log-autoscroll" checked> auto-scroll
+    <input type="checkbox" id="admin-live-log-autoscroll" checked> otomatik kaydırma
   </label>
 </div>
-<pre id="admin-live-log-output" class="admin-log-output">Live updates start when JavaScript is available.</pre>
+<pre id="admin-live-log-output" class="admin-log-output">Canlı güncellemeler JavaScript kullanılabilir olduğunda başlar.</pre>
 </div>
 </details>
 </section>

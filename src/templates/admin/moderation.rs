@@ -21,7 +21,7 @@ pub(super) fn render(view: &AdminPanelViewModel<'_>) -> String {
     };
     let ban_badge = format!(r#" <span class="admin-count-badge">{ban_count}</span>"#);
     let filter_badge = format!(r#" <span class="admin-count-badge">{filter_count}</span>"#);
-    let moderation_summary_counter = format!("Report inbox: [{report_count}]");
+    let moderation_summary_counter = format!("Şikayet kutusu: [{report_count}]");
 
     render_admin_moderation_section(
         view.csrf_token,
@@ -44,7 +44,7 @@ fn render_ban_rows(view: &AdminPanelViewModel<'_>) -> String {
     for ban in view.moderation.bans {
         let expires = ban
             .expires_at
-            .map_or_else(|| "permanent".to_owned(), fmt_ts);
+            .map_or_else(|| "kalıcı".to_owned(), fmt_ts);
         let _ = write!(
             ban_rows,
             r#"<tr>
@@ -53,7 +53,7 @@ fn render_ban_rows(view: &AdminPanelViewModel<'_>) -> String {
 <form method="POST" action="/admin/ban/remove" style="display:inline">
 <input type="hidden" name="_csrf" value="{csrf}">
 <input type="hidden" name="ban_id" value="{id}">
-<button type="submit">lift</button>
+<button type="submit">kaldır</button>
 </form>
 </td>
 </tr>"#,
@@ -79,7 +79,7 @@ fn render_filter_rows(view: &AdminPanelViewModel<'_>) -> String {
 <form method="POST" action="/admin/filter/remove" style="display:inline">
 <input type="hidden" name="_csrf" value="{csrf}">
 <input type="hidden" name="filter_id" value="{id}">
-<button type="submit">remove</button>
+<button type="submit">sil</button>
 </form>
 </td>
 </tr>"#,
@@ -97,7 +97,7 @@ fn render_report_rows(view: &AdminPanelViewModel<'_>) -> String {
     let mut report_rows = String::new();
     if view.moderation.reports.is_empty() {
         report_rows.push_str(
-            r#"<tr><td colspan="6" style="color:var(--text-dim);text-align:center">no open reports</td></tr>"#,
+            r#"<tr><td colspan="6" style="color:var(--text-dim);text-align:center">açık şikayet yok</td></tr>"#,
         );
     }
     for rc in view.moderation.reports {
@@ -109,7 +109,7 @@ fn render_report_rows(view: &AdminPanelViewModel<'_>) -> String {
             |ip_hash| {
                 let short = ip_hash.get(..16).unwrap_or(ip_hash);
                 format!(
-                    r#"<a href="/admin/ip/{ip_hash}" title="View hashed IP history">{short}…</a>"#,
+                    r#"<a href="/admin/ip/{ip_hash}" title="Karma IP geçmişini gör">{short}…</a>"#,
                     ip_hash = escape_html(ip_hash),
                     short = escape_html(short),
                 )
@@ -118,7 +118,7 @@ fn render_report_rows(view: &AdminPanelViewModel<'_>) -> String {
         let _ = write!(
             report_rows,
             r#"<tr>
-<td><a href="/{board}/thread/{tid}#p{pid}" title="view post">/{board}/ No.{pid}</a></td>
+<td><a href="/{board}/thread/{tid}#p{pid}" title="gönderiyi gör">/{board}/ No.{pid}</a></td>
 <td>{user_info}</td>
 <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{preview}">{preview}</td>
 <td>{reason}</td>
@@ -127,7 +127,7 @@ fn render_report_rows(view: &AdminPanelViewModel<'_>) -> String {
   <form method="POST" action="/admin/report/resolve" style="display:inline">
     <input type="hidden" name="_csrf"      value="{csrf}">
     <input type="hidden" name="report_id"  value="{rid}">
-    <button type="submit">&#10003; resolve</button>
+    <button type="submit">&#10003; çöz</button>
   </form>
 </td>
 </tr>"#,
@@ -150,7 +150,7 @@ fn render_appeal_rows(csrf_token: &str, appeals: &[crate::models::BanAppeal]) ->
     let mut appeal_rows = String::new();
     if appeals.is_empty() {
         appeal_rows.push_str(
-            r#"<tr><td colspan="4" style="color:var(--text-dim);text-align:center">no open appeals</td></tr>"#,
+            r#"<tr><td colspan="4" style="color:var(--text-dim);text-align:center">açık itiraz yok</td></tr>"#,
         );
     }
     for a in appeals {
@@ -168,14 +168,14 @@ fn render_appeal_rows(csrf_token: &str, appeals: &[crate::models::BanAppeal]) ->
   <form method="POST" action="/admin/appeal/dismiss" style="display:inline">
     <input type="hidden" name="_csrf"      value="{csrf}">
     <input type="hidden" name="appeal_id"  value="{aid}">
-    <button type="submit">✕ dismiss</button>
+    <button type="submit">✕ reddet</button>
   </form>
   <form method="POST" action="/admin/appeal/accept" style="display:inline;margin-left:0.35rem"
-        data-confirm-submit="Accept appeal and lift ban for this IP?">
+        data-confirm-submit="İtiraz kabul edilsin ve bu IP’nin yasağı kaldırılsın mı?">
     <input type="hidden" name="_csrf"      value="{csrf}">
     <input type="hidden" name="appeal_id"  value="{aid}">
     <input type="hidden" name="ip_hash"    value="{ip_hash}">
-    <button type="submit" class="btn-success">✓ accept + unban</button>
+    <button type="submit" class="btn-success">✓ kabul et + yasağı kaldır</button>
   </form>
 </td>
 </tr>"#,
@@ -221,32 +221,32 @@ fn render_admin_moderation_section(
         r#"<div class="admin-panel-moderation" id="moderation">
 <section class="admin-section admin-section-collapsible" id="reports">
 <details class="admin-dropdown" data-admin-dropdown-key="reports"{reports_open_attr}>
-<summary><span>// moderation</span><span class="admin-dropdown-badges admin-dropdown-counter-label">{moderation_summary_counter}</span></summary>
+<summary><span>// moderasyon</span><span class="admin-dropdown-badges admin-dropdown-counter-label">{moderation_summary_counter}</span></summary>
 <div class="admin-dropdown-content">
 <p class="admin-moderation-intro">
-  Review queues first. Policy tools and the log are below.
+  Önce inceleme kuyruklarına bak. Politika araçları ve log aşağıda.
 </p>
 <div class="admin-moderation-grid">
   <section class="admin-moderation-card admin-moderation-card-review">
     <div class="admin-card-header">
-      <h3>// review queue</h3>
-      <p>Handle open reports and ban appeals first.</p>
+      <h3>// inceleme kuyruğu</h3>
+      <p>Önce açık şikayetleri ve yasak itirazlarını ele al.</p>
     </div>
     <div class="admin-subsection admin-subsection-tight">
-      <h4>// report inbox{report_badge}</h4>
+      <h4>// şikayet kutusu{report_badge}</h4>
       <div class="admin-table-wrap">
       <table class="admin-table">
-        <thead><tr><th>post</th><th>user</th><th>content preview</th><th>reason</th><th>filed</th><th>action</th></tr></thead>
+        <thead><tr><th>gönderi</th><th>kullanıcı</th><th>içerik önizlemesi</th><th>sebep</th><th>tarih</th><th>işlem</th></tr></thead>
         <tbody>{report_rows}</tbody>
       </table>
       </div>
     </div>
 
     <div class="admin-subsection admin-subsection-tight">
-      <h4 id="appeals">// ban appeals{appeal_badge}</h4>
+      <h4 id="appeals">// yasak itirazları{appeal_badge}</h4>
       <div class="admin-table-wrap">
       <table class="admin-table">
-        <thead><tr><th>ip (partial)</th><th>appeal message</th><th>filed</th><th>action</th></tr></thead>
+        <thead><tr><th>ip (kısmi)</th><th>itiraz mesajı</th><th>tarih</th><th>işlem</th></tr></thead>
         <tbody>{appeal_rows}</tbody>
       </table>
       </div>
@@ -255,65 +255,65 @@ fn render_admin_moderation_section(
 
   <section class="admin-moderation-card admin-moderation-card-controls">
     <div class="admin-card-header">
-      <h3>// policy controls</h3>
-      <p>Manage bans and automated word replacements.</p>
+      <h3>// politika kontrolleri</h3>
+      <p>Yasakları ve otomatik kelime değiştirmeleri yönet.</p>
     </div>
 
     <div class="admin-subsection admin-subsection-tight" id="active-bans">
-      <h4>// active bans{ban_badge}</h4>
+      <h4>// etkin yasaklar{ban_badge}</h4>
       <div class="admin-table-wrap">
       <table class="admin-table">
-        <thead><tr><th>ip hash (partial)</th><th>reason</th><th>expires</th><th>action</th></tr></thead>
+        <thead><tr><th>ip hash (kısmi)</th><th>sebep</th><th>bitiş</th><th>işlem</th></tr></thead>
         <tbody>{ban_rows}</tbody>
       </table>
       </div>
-      <h4>add ban</h4>
+      <h4>yasak ekle</h4>
       <form method="POST" action="/admin/ban/add" class="admin-moderation-form admin-quick-form admin-moderation-compact-form">
         <input type="hidden" name="_csrf" value="{csrf}">
         <label class="admin-quick-field admin-moderation-field">IP hash
           <input class="admin-moderation-input" type="text" name="ip_hash" required placeholder="ab12cd34ef56...">
         </label>
-        <label class="admin-quick-field admin-moderation-field">Reason
-          <input class="admin-moderation-input" type="text" name="reason" placeholder="Rule violation">
+        <label class="admin-quick-field admin-moderation-field">Sebep
+          <input class="admin-moderation-input" type="text" name="reason" placeholder="Kural ihlali">
         </label>
-        <label class="admin-quick-field admin-quick-field-compact admin-moderation-field">Duration (hours)
-          <input class="admin-moderation-input" type="text" name="duration_hours" placeholder="blank = permanent" inputmode="numeric">
+        <label class="admin-quick-field admin-quick-field-compact admin-moderation-field">Süre (saat)
+          <input class="admin-moderation-input" type="text" name="duration_hours" placeholder="boş = kalıcı" inputmode="numeric">
         </label>
-        <button type="submit">ban</button>
+        <button type="submit">yasakla</button>
       </form>
     </div>
 
     <div class="admin-subsection admin-subsection-tight" id="word-filters">
-      <h4>// word filters{filter_badge}</h4>
+      <h4>// kelime filtreleri{filter_badge}</h4>
       <div class="admin-table-wrap">
       <table class="admin-table">
-        <thead><tr><th>pattern</th><th>replacement</th><th>action</th></tr></thead>
+        <thead><tr><th>desen</th><th>değiştirme</th><th>işlem</th></tr></thead>
         <tbody>{filter_rows}</tbody>
       </table>
       </div>
-      <h4>add filter</h4>
+      <h4>filtre ekle</h4>
       <form method="POST" action="/admin/filter/add" class="admin-moderation-form admin-quick-form admin-moderation-compact-form">
         <input type="hidden" name="_csrf" value="{csrf}">
-        <label class="admin-quick-field admin-moderation-field">Pattern
-          <input class="admin-moderation-input" type="text" name="pattern" required placeholder="old phrase">
+        <label class="admin-quick-field admin-moderation-field">Desen
+          <input class="admin-moderation-input" type="text" name="pattern" required placeholder="eski ifade">
         </label>
-        <label class="admin-quick-field admin-moderation-field">Replacement
-          <input class="admin-moderation-input" type="text" name="replacement" placeholder="new phrase">
+        <label class="admin-quick-field admin-moderation-field">Değiştirme
+          <input class="admin-moderation-input" type="text" name="replacement" placeholder="yeni ifade">
         </label>
-        <button type="submit">add</button>
+        <button type="submit">ekle</button>
       </form>
     </div>
   </section>
 
   <section class="admin-moderation-card admin-moderation-card-log">
     <div class="admin-card-header">
-      <h3>// audit trail</h3>
-      <p>Every moderation action is recorded here.</p>
+      <h3>// denetim kaydı</h3>
+      <p>Her moderasyon işlemi burada kaydedilir.</p>
     </div>
     <div class="admin-card-actions">
-      <a href="/admin/mod-log" class="admin-link-button">view full log</a>
+      <a href="/admin/mod-log" class="admin-link-button">tam logu gör</a>
     </div>
-    <p class="admin-card-note">Use the full log for history and follow-up. The live queues stay visible in this panel.</p>
+    <p class="admin-card-note">Geçmiş ve takip için tam logu kullan. Canlı kuyruklar bu panelde görünmeye devam eder.</p>
   </section>
 </div>
 </div>

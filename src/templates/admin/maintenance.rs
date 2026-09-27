@@ -54,9 +54,9 @@ pub(super) fn render(view: &AdminPanelViewModel<'_>) -> String {
     let db_warn_banner = if view.maintenance.db_size_warning {
         format!(
             r#"<div class="admin-flash flash-error admin-flash-spaced">
-&#9888; <strong>Database size warning:</strong> The database file has exceeded the configured
-warning threshold ({size}). Consider running <strong>VACUUM</strong> below or archiving
-old boards to prevent query performance degradation.
+&#9888; <strong>Veritabanı boyutu uyarısı:</strong> Veritabanı dosyası yapılandırılmış
+uyarı eşiğini aştı ({size}). Sorgu performansının düşmesini önlemek için aşağıdan
+<strong>VACUUM</strong> çalıştırmayı veya eski boardları arşivlemeyi düşün.
 </div>"#,
             size = format_file_size(view.maintenance.db_size_bytes),
         )
@@ -71,7 +71,7 @@ old boards to prevent query performance degradation.
         if let Some(addr) = view.tor_address {
             let _ = write!(
                 addresses,
-                r#"<p class="admin-copy">Onion address: <a href="http://{addr}" target="_blank" rel="noreferrer">{addr}</a></p>"#,
+                r#"<p class="admin-copy">Onion adresi: <a href="http://{addr}" target="_blank" rel="noreferrer">{addr}</a></p>"#,
                 addr = escape_html(addr)
             );
         }
@@ -85,23 +85,23 @@ old boards to prevent query performance degradation.
     let media_detection_cards = render_media_detection_cards(view);
     let (setup_status, setup_status_detail) = match view.maintenance.setup_status {
         super::AdminPanelSetupStatus::Reopened => (
-            "reopened",
-            "The setup wizard has been reopened by an admin and is available only to authenticated admins.",
+            "yeniden açıldı",
+            "Kurulum sihirbazı bir yönetici tarafından yeniden açıldı ve yalnızca doğrulanmış yöneticilere açıktır.",
         ),
         super::AdminPanelSetupStatus::Complete => (
-            "complete",
-            "The setup wizard has completed and public setup routes are blocked.",
+            "tamamlandı",
+            "Kurulum sihirbazı tamamlandı ve herkese açık kurulum rotaları engellendi.",
         ),
         super::AdminPanelSetupStatus::Available => (
-            "available",
-            "This instance still appears to be in first-run setup.",
+            "mevcut",
+            "Bu örnek hâlâ ilk çalıştırma kurulumunda görünüyor.",
         ),
         super::AdminPanelSetupStatus::Initialized => (
-            "initialized",
-            "This instance has existing durable runtime state, so first-run setup routes are blocked.",
+            "başlatıldı",
+            "Bu örnekte kalıcı çalışma zamanı durumu mevcut, bu yüzden ilk çalıştırma kurulum rotaları engellendi.",
         ),
     };
-    let setup_reopen_warning = "Reopening setup exposes live settings for editing. It does not replace existing admin credentials and still requires an authenticated admin session.";
+    let setup_reopen_warning = "Kurulumu yeniden açmak canlı ayarları düzenlenebilir hale getirir. Mevcut yönetici kimlik bilgilerinin yerini almaz ve hâlâ doğrulanmış bir yönetici oturumu gerektirir.";
     let setup_close_control = if matches!(
         view.maintenance.setup_status,
         super::AdminPanelSetupStatus::Reopened
@@ -109,7 +109,7 @@ old boards to prevent query performance degradation.
         r#"<form method="POST" action="/admin/setup/close" class="admin-inline-actions">
     <input type="hidden" name="_csrf" value="{csrf}">
     <button type="submit"
-            data-confirm="Close the setup wizard without changing live settings?">close setup wizard</button>
+            data-confirm="Canlı ayarları değiştirmeden kurulum sihirbazını kapat?">kurulum sihirbazını kapat</button>
   </form>"#
     } else {
         ""
@@ -170,7 +170,7 @@ fn render_media_detection_cards(view: &AdminPanelViewModel<'_>) -> String {
         (
             "ffmpeg",
             view.maintenance.media_detection.ffmpeg.is_detected(),
-            "video thumbnails, waveform jobs, and transcoding entrypoint",
+            "video küçük resimleri, ses dalgası işleri ve dönüştürme giriş noktası",
         ),
         (
             "ffprobe",
@@ -180,7 +180,7 @@ fn render_media_detection_cards(view: &AdminPanelViewModel<'_>) -> String {
         (
             "WebP encoder",
             view.maintenance.media_detection.webp_encoder.is_detected(),
-            "image to WebP conversion",
+            "resimden WebP’ye dönüştürme",
         ),
         (
             "VP9/WebM pipeline",
@@ -211,7 +211,7 @@ fn render_media_detection_cards(view: &AdminPanelViewModel<'_>) -> String {
             } else {
                 "admin-detection-pill-missing"
             },
-            status = if ok { "detected" } else { "missing" },
+            status = if ok { "algılandı" } else { "eksik" },
             detail = escape_html(detail),
         );
     }
@@ -228,12 +228,12 @@ fn render_admin_maintenance_section(view: &MaintenanceSectionView<'_>) -> String
         r#"<div class="admin-panel-maintenance" id="maintenance">
 <section class="admin-section admin-section-collapsible" id="media-settings">
 <details class="admin-dropdown" data-admin-dropdown-key="media-settings"{media_settings_open_attr}>
-<summary><span>// media settings</span></summary>
+<summary><span>// medya ayarları</span></summary>
 <div class="admin-dropdown-content">
 <div class="admin-subsection admin-subsection-tight">
   <div class="admin-card-header">
-    <h3>// media pipeline detection</h3>
-    <p>Boot-time checks for the main external media tooling.</p>
+    <h3>// medya hattı algılama</h3>
+    <p>Başlangıçta ana harici medya araçları için yapılan kontroller.</p>
   </div>
   <div class="admin-detection-grid">{media_detection_cards}</div>
 </div>
@@ -242,52 +242,52 @@ fn render_admin_maintenance_section(view: &MaintenanceSectionView<'_>) -> String
 <div class="admin-subsection admin-subsection-tight">
   <div class="admin-card-header">
     <h3>// ffmpeg timeout</h3>
-    <p>Adjust how long TurkChan waits before killing a slow video conversion job.</p>
+    <p>Yavaş bir video dönüştürme işlemini sonlandırmadan önce TurkChan’ın bekleyeceği süreyi ayarla.</p>
   </div>
 <p class="admin-copy">
   TurkChan currently allows ffmpeg to run for <strong>{ffmpeg_timeout_help}</strong> before a long-running media job is killed.
   This primarily affects uploaded video re-encoding, especially slow MP4 to WebM/VP9 conversion.
 </p>
   <div class="board-settings-grid admin-settings-grid">
-    <label title="Slow systems may need a higher value for ffmpeg video conversion jobs.">
-      Video re-encoding timeout (seconds)
+    <label title="Yavaş sistemlerde ffmpeg video dönüştürme işleri için daha yüksek bir değer gerekebilir.">
+      Video yeniden kodlama zaman aşımı (saniye)
       <input type="number" name="ffmpeg_timeout_secs" value="{ffmpeg_timeout_secs}" min="{ffmpeg_timeout_min}" max="{ffmpeg_timeout_max}" step="1" inputmode="numeric" class="admin-input-compact" required>
     </label>
   </div>
   <p class="admin-meta-note admin-meta-note-spaced">
     This controls how long TurkChan lets ffmpeg run while converting uploaded videos.
-    Slow systems such as Raspberry Pi devices may need a higher value.
-    MP4 to WebM/VP9 encoding can be especially slow without hardware acceleration.
-    If videos fail to convert because of timeouts, increase this value.
+    Raspberry Pi gibi yavaş sistemler daha yüksek bir değer gerektirebilir.
+    Donanım hızlandırma olmadan MP4’ten WebM/VP9’e kodlama özellikle yavaş olabilir.
+    Videolar zaman aşımı nedeniyle dönüştürülemiyorsa bu değeri artır.
   </p>
 </div>
 <div class="admin-subsection admin-subsection-tight">
   <div class="admin-card-header">
-    <h3>// media pruning</h3>
-    <p>Delete oldest full-size post media when active stored media exceeds the configured cap. Thumbnails are kept where practical.</p>
+    <h3>// medya temizleme</h3>
+    <p>Etkin depolanan medya yapılandırılmış sınırı aştığında en eski tam boy gönderi medyalarını sil. Küçük resimler mümkün olduğunca korunur.</p>
   </div>
   <div class="board-settings-grid admin-settings-grid">
-    <label title="Set to 0 to leave the active media cap unset. When pruning is enabled, use at least 1 MiB.">
-      Maximum active content database/media size
+    <label title="Etkin medya sınırını ayarlanmamış bırakmak için 0 yap. Temizleme etkinken en az 1 MiB kullan.">
+      En büyük etkin içerik veritabanı/medya boyutu
       <span class="admin-inline-control">
         <input type="number" name="media_max_active_content_size" value="{media_max_active_content_size}" min="0" step="1" inputmode="numeric" class="admin-input-compact">
         <select name="media_max_active_content_size_unit">
           <option value="mib"{media_max_unit_mib_selected}>MiB</option>
           <option value="gib"{media_max_unit_gib_selected}>GiB</option>
-          <option value="bytes"{media_max_unit_bytes_selected}>bytes</option>
+          <option value="bytes"{media_max_unit_bytes_selected}>bayt</option>
         </select>
       </span>
     </label>
   </div>
   <div class="board-settings-checks">
-    <label class="admin-inline-checkbox" title="Delete oldest full-size post media when active stored media exceeds the configured cap. Thumbnails are kept where practical.">
+    <label class="admin-inline-checkbox" title="Etkin depolanan medya yapılandırılmış sınırı aştığında en eski tam boy gönderi medyalarını sil. Küçük resimler mümkün olduğunca korunur.">
       <input type="checkbox" name="media_auto_prune_enabled" value="1"{media_auto_prune_checked}>
-      Enable automatic active content pruning
+      Otomatik etkin içerik temizlemeyi etkinleştir
     </label>
   </div>
 </div>
 <div class="board-settings-actions">
-  <button type="submit">save media settings</button>
+  <button type="submit">medya ayarlarını kaydet</button>
 </div>
 </form>
 </div>
@@ -296,42 +296,43 @@ fn render_admin_maintenance_section(view: &MaintenanceSectionView<'_>) -> String
 
 <section class="admin-section admin-section-collapsible" id="database-maintenance">
 <details class="admin-dropdown" data-admin-dropdown-key="database-maintenance"{database_maintenance_open_attr}>
-<summary><span>// database maintenance</span></summary>
+<summary><span>// veritabanı bakımı</span></summary>
 <div class="admin-dropdown-content">
 {db_warn_banner}<p class="admin-copy">
-  Current database size: <strong>{db_size_str}</strong>.
-  Running <strong>VACUUM</strong> rewrites the database file compactly, reclaiming space left after
-  bulk deletions (deleted threads, pruned posts, etc.).  This may take a few seconds on large
-  databases and briefly blocks writes.
+  Geçerli veritabanı boyutu: <strong>{db_size_str}</strong>.
+  <strong>VACUUM</strong> çalıştırmak veritabanı dosyasını sıkıştırarak yeniden yazar ve toplu
+  silmelerden (silinen konular, temizlenen gönderiler vb.) kalan boşluğu geri kazanır.
+  Bu, büyük veritabanlarında birkaç saniye sürebilir ve kısa süre yazmaları engeller.
 </p>
 <p class="admin-copy admin-copy-spaced">
-  Run database checks after restores or large deletes. Before repair, take a backup; repair can
-  rebuild indexes and search data, but may not fix true file corruption.
+  Geri yükleme veya büyük silmelerden sonra veritabanı kontrollerini çalıştır. Onarımdan önce
+  yedek al; onarım indeksleri ve arama verisini yeniden kurabilir, ancak gerçek dosya bozulmasını
+  çözemeyebilir.
 </p>
 <div class="admin-inline-actions">
 <form method="POST" action="/admin/db/check">
   <input type="hidden" name="_csrf" value="{csrf}">
-  <button type="submit">&#x1F50E; check database health</button>
+  <button type="submit">&#x1F50E; veritabanı sağlığını denetle</button>
 </form>
 <form method="POST" action="/admin/vacuum">
   <input type="hidden" name="_csrf" value="{csrf}">
   <button type="submit"
-          data-confirm="Run VACUUM? This will briefly block the database while it rebuilds. Continue?">&#x1F9F9; run VACUUM</button>
+          data-confirm="VACUUM çalıştırılsın mı? Yeniden kurarken veritabanı kısa süreyle engellenecek. Devam edilsin mi?">&#x1F9F9; VACUUM çalıştır</button>
 </form>
 </div>
 <div class="admin-subsection admin-subsection-tight">
   <div class="admin-card-header">
-    <h3>// setup status</h3>
-    <p>First-run setup route state and controlled maintenance reopen.</p>
+    <h3>// kurulum durumu</h3>
+    <p>İlk çalıştırma kurulum rotalarının durumu ve kontrollü bakım yeniden açma.</p>
   </div>
   <p class="admin-copy">
-    Setup status: <strong>{setup_status}</strong>. {setup_status_detail}
+    Kurulum durumu: <strong>{setup_status}</strong>. {setup_status_detail}
   </p>
   <p class="admin-meta-note admin-meta-note-spaced">{setup_reopen_warning}</p>
   <form method="POST" action="/admin/setup/reopen" class="admin-inline-actions">
     <input type="hidden" name="_csrf" value="{csrf}">
     <button type="submit"
-            data-confirm="Reopen the setup wizard? This edits live settings and remains admin-only. Continue?">reopen setup wizard</button>
+            data-confirm="Kurulum sihirbazı yeniden açılsın mı? Bu işlem canlı ayarları düzenler ve yalnızca yöneticilere açık kalır. Devam edilsin mi?">kurulum sihirbazını yeniden aç</button>
   </form>
   {setup_close_control}
 </div>

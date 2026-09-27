@@ -64,10 +64,10 @@ pub(super) fn render(view: &AdminPanelViewModel<'_>) -> String {
     format!(
         r#"<section class="admin-section admin-section-collapsible" id="control-center" aria-labelledby="control-center-title">
 <details class="admin-dropdown" data-admin-dropdown-key="control-center"{default_open_attr}{open_attr}>
-<summary><h2 id="control-center-title"><span>// control center</span><span class="admin-dropdown-badges">{overall_status}</span></h2></summary>
+<summary><h2 id="control-center-title"><span>// kontrol merkezi</span><span class="admin-dropdown-badges">{overall_status}</span></h2></summary>
 <div class="admin-dropdown-content admin-control-center">
   <header class="admin-control-center-header">
-    <p class="admin-panel-lead">Prioritized operations for <strong>{site_title}</strong> · TurkChan {version} on {build}.</p>
+    <p class="admin-panel-lead"><strong>{site_title}</strong> için önceliklendirilmiş işlemler · TurkChan {version}, {build}.</p>
     <p class="admin-meta-note">Warnings, action-needed states, and failures appear first. Routine, pending, disabled, and informational states stay in their task groups.</p>
   </header>
   {attention}
@@ -88,27 +88,27 @@ const fn dashboard_signals<'a>(dashboard: &'a AdminPanelDashboardView<'a>) -> Da
     DashboardSignals {
         setup: DashboardSignal {
             key: "setup",
-            label: "Setup",
+            label: "Kurulum",
             value: dashboard.setup_status,
             detail: dashboard.setup_detail,
             state: dashboard.setup_state,
             open_section: "database-maintenance",
             anchor: "database-maintenance",
-            action: "open setup controls",
+            action: "kurulum kontrollerini aç",
         },
         database: DashboardSignal {
             key: "database",
-            label: "Database",
+            label: "Veritabanı",
             value: dashboard.db_status,
             detail: dashboard.db_detail,
             state: dashboard.db_state,
             open_section: "database-maintenance",
             anchor: "database-maintenance",
-            action: "open maintenance",
+            action: "bakımı aç",
         },
         backup: DashboardSignal {
             key: "backups",
-            label: "Backups",
+            label: "Yedekler",
             value: dashboard.backup_status,
             detail: dashboard.backup_detail,
             state: dashboard.backup_state,
@@ -118,13 +118,13 @@ const fn dashboard_signals<'a>(dashboard: &'a AdminPanelDashboardView<'a>) -> Da
         },
         storage: DashboardSignal {
             key: "storage",
-            label: "Storage",
+            label: "Depolama",
             value: dashboard.storage_status,
             detail: dashboard.storage_detail,
             state: dashboard.storage_state,
             open_section: "media-settings",
             anchor: "media-settings",
-            action: "open media settings",
+            action: "medya ayarlarını aç",
         },
         tor: DashboardSignal {
             key: "tor",
@@ -134,31 +134,31 @@ const fn dashboard_signals<'a>(dashboard: &'a AdminPanelDashboardView<'a>) -> Da
             state: dashboard.tor_state,
             open_section: "site-health",
             anchor: "tor-status",
-            action: "open Tor diagnostics",
+            action: "Tor tanılamalarını aç",
         },
         dependencies: DashboardSignal {
             key: "media-tools",
-            label: "Media tools",
+            label: "Medya araçları",
             value: dashboard.dependency_status,
             detail: dashboard.dependency_detail,
             state: dashboard.dependency_state,
             open_section: "media-settings",
             anchor: "media-settings",
-            action: "review media tools",
+            action: "medya araçlarını incele",
         },
         jobs: DashboardSignal {
             key: "jobs",
-            label: "Background jobs",
+            label: "Arka plan görevleri",
             value: dashboard.job_status,
             detail: dashboard.job_detail,
             state: dashboard.job_state,
             open_section: "site-health",
             anchor: "site-health",
-            action: "inspect jobs",
+            action: "görevleri incele",
         },
         reports: DashboardSignal {
             key: "reports",
-            label: "Reports and appeals",
+            label: "Şikayetler ve itirazlar",
             value: dashboard.report_status,
             detail: dashboard.report_detail,
             state: dashboard.report_state,
@@ -217,8 +217,8 @@ fn render_attention(signals: &DashboardSignals<'_>) -> String {
 
     if alerts.is_empty() {
         return r#"<div class="admin-control-calm" data-dashboard-attention-count="0">
-  <strong>No warning, action-needed, or failure states detected.</strong>
-  <span>Review pending, disabled, informational, and unavailable states by task below.</span>
+  <strong>Uyarı, işlem gerekli veya hata durumu algılanmadı.</strong>
+  <span>Bekleyen, kapalı, bilgilendirme ve kullanılamayan durumları aşağıdaki görevlerden incele.</span>
 </div>"#
             .to_owned();
     }
@@ -248,8 +248,8 @@ fn render_attention(signals: &DashboardSignals<'_>) -> String {
     format!(
         r#"<section class="admin-control-attention" aria-labelledby="control-center-attention-title" data-dashboard-attention-count="{count}">
   <header>
-    <h3 id="control-center-attention-title">// needs attention</h3>
-    <span>{count} current</span>
+    <h3 id="control-center-attention-title">// ilgilenilmesi gerekenler</h3>
+    <span>{count} geçerli</span>
   </header>
   <ul>{rows}</ul>
 </section>"#,
@@ -264,29 +264,29 @@ fn render_common_actions(signals: &DashboardSignals<'_>) -> String {
         actions.push_str(&section_action_link(
             "reports",
             "reports",
-            "review moderation",
+            "moderasyonu incele",
         ));
     }
-    actions.push_str(&section_action_link("boards", "boards", "manage boards"));
+    actions.push_str(&section_action_link("boards", "boards", "boardları yönet"));
     if !is_attention_state(signals.backup.state) {
         actions.push_str(&section_action_link(
             "full-backup-restore",
             "full-backup-restore",
-            "manage backups",
+            "yedekleri yönet",
         ));
     }
     actions.push_str(&section_action_link(
         "site-health",
         "site-health",
-        "site health",
+        "site sağlığı",
     ));
     actions.push_str(&section_action_link(
         "site-settings",
         "site-settings",
-        "site settings",
+        "site ayarları",
     ));
     format!(
-        r#"<nav class="admin-control-common-actions" aria-label="Common Control Center tasks">{actions}</nav>"#,
+        r#"<nav class="admin-control-common-actions" aria-label="Kontrol Merkezi’nin sık kullanılan görevleri">{actions}</nav>"#,
     )
 }
 
@@ -308,16 +308,16 @@ fn render_site_group(view: &AdminPanelViewModel<'_>, signals: &DashboardSignals<
     let dashboard = &view.dashboard;
     render_task_group(
         "control-site-overview",
-        "site overview and health",
-        "Core readiness and storage state.",
+        "site genel bakışı ve sağlığı",
+        "Temel hazır olma ve depolama durumu.",
         &[signals.database, signals.storage],
         &[
             ("Site", dashboard.site_title),
-            ("Version", dashboard.version),
+            ("Sürüm", dashboard.version),
         ],
         &[
-            section_action_link("site-health", "site-health", "health and diagnostics"),
-            direct_action_link("/", "view site"),
+            section_action_link("site-health", "site-health", "sağlık ve tanılamalar"),
+            direct_action_link("/", "siteyi gör"),
         ]
         .concat(),
     )
@@ -334,20 +334,20 @@ fn render_moderation_group(
         actions.push_str(&section_action_link(
             "reports",
             "reports",
-            "review moderation",
+            "moderasyonu incele",
         ));
     }
-    actions.push_str(&direct_action_link("/admin/mod-log", "view mod log"));
+    actions.push_str(&direct_action_link("/admin/mod-log", "moderasyon logunu gör"));
     render_task_group(
         "control-moderation",
-        "moderation and recent activity",
-        "Current queue first, then neutral activity totals.",
+        "moderasyon ve son hareketler",
+        "Önce geçerli kuyruk, ardından nötr etkinlik toplamları.",
         &[signals.reports],
         &[
-            ("Boards", dashboard.board_count),
-            ("Threads", dashboard.thread_count),
-            ("Posts", dashboard.post_count),
-            ("Recent", dashboard.recent_activity),
+            ("Boardlar", dashboard.board_count),
+            ("Konular", dashboard.thread_count),
+            ("Gönderiler", dashboard.post_count),
+            ("Son", dashboard.recent_activity),
         ],
         &actions,
     )
@@ -361,17 +361,17 @@ fn render_backups_group(view: &AdminPanelViewModel<'_>, signals: &DashboardSigna
         section_action_link(
             "full-backup-restore",
             "full-backup-restore",
-            "manage backups",
+            "yedekleri yönet",
         )
     };
     render_task_group(
         "control-backups",
-        "backups and recovery",
-        "Saved full-backup readiness without exposing restore actions here.",
+        "yedekler ve kurtarma",
+        "Kayıtlı tam yedek hazır olma durumu; geri yükleme işlemleri burada gösterilmez.",
         &[signals.backup],
         &[
-            ("Last successful", view.site_health.last_successful_backup),
-            ("Next scheduled", view.site_health.next_scheduled_backup),
+            ("Son başarılı", view.site_health.last_successful_backup),
+            ("Sıradaki planlanmış", view.site_health.next_scheduled_backup),
         ],
         &action,
     )
@@ -384,18 +384,18 @@ fn render_maintenance_group(
 ) -> String {
     render_task_group(
         "control-maintenance",
-        "maintenance and background jobs",
-        "Active work, failures, and optional media capability.",
+        "bakım ve arka plan görevleri",
+        "Etkin çalışma, hatalar ve isteğe bağlı medya yetenekleri.",
         &[signals.jobs, signals.dependencies],
-        &[("Active media", view.dashboard.media_summary)],
+        &[("Etkin medya", view.dashboard.media_summary)],
         &[
             section_action_link(
                 "database-maintenance",
                 "database-maintenance",
-                "database maintenance",
+                "veritabanı bakımı",
             ),
-            section_action_link("media-settings", "media-settings", "media settings"),
-            section_action_link("live-log", "live-log", "live log"),
+            section_action_link("media-settings", "media-settings", "medya ayarları"),
+            section_action_link("live-log", "live-log", "canlı log"),
         ]
         .concat(),
     )
@@ -405,16 +405,16 @@ fn render_maintenance_group(
 fn render_network_group(view: &AdminPanelViewModel<'_>, signals: &DashboardSignals<'_>) -> String {
     render_task_group(
         "control-network",
-        "network and Tor",
-        "Configured public entry point and onion-service state.",
+        "ağ ve Tor",
+        "Yapılandırılmış herkese açık giriş noktası ve onion servis durumu.",
         &[signals.tor],
-        &[("Public URL", view.dashboard.public_url)],
+        &[("Herkese açık URL", view.dashboard.public_url)],
         &[
-            section_action_link("site-health", "tor-status", "Tor diagnostics"),
+            section_action_link("site-health", "tor-status", "Tor tanılamaları"),
             section_action_link(
                 "site-settings",
                 "public-url-settings",
-                "public URL settings",
+                "herkese açık URL ayarları",
             ),
         ]
         .concat(),
@@ -425,18 +425,18 @@ fn render_network_group(view: &AdminPanelViewModel<'_>, signals: &DashboardSigna
 fn render_configuration_group(signals: &DashboardSignals<'_>) -> String {
     render_task_group(
         "control-configuration",
-        "configuration shortcuts",
-        "Safe navigation to existing settings and rare setup controls.",
+        "yapılandırma kısayolları",
+        "Mevcut ayarlara ve nadir kullanılan kurulum kontrollerine güvenli gezinme.",
         &[signals.setup],
         &[],
         &[
-            section_action_link("site-settings", "site-settings", "site settings"),
-            section_action_link("boards", "boards", "manage or create boards"),
-            section_action_link("theme-catalog", "theme-catalog", "appearance and themes"),
+            section_action_link("site-settings", "site-settings", "site ayarları"),
+            section_action_link("boards", "boards", "boardları yönet veya oluştur"),
+            section_action_link("theme-catalog", "theme-catalog", "görünüm ve temalar"),
             section_action_link(
                 "database-maintenance",
                 "database-maintenance",
-                "setup controls",
+                "kurulum kontrolleri",
             ),
         ]
         .concat(),
@@ -538,25 +538,25 @@ fn render_system_details(view: &AdminPanelViewModel<'_>, signals: &DashboardSign
         );
     }
     let technical_facts = render_fact_rows(&[
-        ("Build", dashboard.build),
-        ("Thread totals", dashboard.thread_count),
-        ("Recent activity", dashboard.recent_activity),
-        ("Media totals", dashboard.media_summary),
+        ("Derleme", dashboard.build),
+        ("Konu toplamı", dashboard.thread_count),
+        ("Son etkinlik", dashboard.recent_activity),
+        ("Medya toplamı", dashboard.media_summary),
     ]);
     let supporting_links = [
-        section_action_link("site-health", "site-health", "site health and diagnostics"),
-        section_action_link("live-log", "live-log", "live log"),
-        direct_action_link("/admin/mod-log", "moderation log"),
+        section_action_link("site-health", "site-health", "site sağlığı ve tanılamalar"),
+        section_action_link("live-log", "live-log", "canlı log"),
+        direct_action_link("/admin/mod-log", "moderasyon logu"),
     ]
     .concat();
 
     format!(
         r#"<details class="admin-control-system-details">
-  <summary>system details, logs, and diagnostics</summary>
+  <summary>sistem ayrıntıları, loglar ve tanılamalar</summary>
   <div class="admin-control-system-details-content">
     <dl class="admin-control-detail-list">{detail_rows}</dl>
     {technical_facts}
-    <nav class="admin-control-group-actions" aria-label="System detail actions">{supporting_links}</nav>
+    <nav class="admin-control-group-actions" aria-label="Sistem ayrıntısı işlemleri">{supporting_links}</nav>
   </div>
 </details>"#,
     )
@@ -584,7 +584,7 @@ fn direct_action_link(href: &str, label: &str) -> String {
 /// Renders a compact textual status pill.
 fn render_state_pill(state: AdminDashboardState, label: &str) -> String {
     format!(
-        r#"<span class="admin-state-pill admin-state-pill-{class}" aria-label="Status: {label}">{label}</span>"#,
+        r#"<span class="admin-state-pill admin-state-pill-{class}" aria-label="Durum: {label}">{label}</span>"#,
         class = state_class(state),
         label = escape_html(label),
     )
@@ -631,14 +631,14 @@ const fn state_class(state: AdminDashboardState) -> &'static str {
 /// Returns the visible label for a dashboard state.
 const fn state_label(state: AdminDashboardState) -> &'static str {
     match state {
-        AdminDashboardState::Ok => "healthy",
-        AdminDashboardState::Informational => "information",
-        AdminDashboardState::Pending => "in progress",
-        AdminDashboardState::Warning => "warning",
-        AdminDashboardState::ActionNeeded => "action needed",
-        AdminDashboardState::Failure => "failure",
-        AdminDashboardState::Disabled => "disabled",
-        AdminDashboardState::Unknown => "not checked",
+        AdminDashboardState::Ok => "sağlıklı",
+        AdminDashboardState::Informational => "bilgi",
+        AdminDashboardState::Pending => "devam ediyor",
+        AdminDashboardState::Warning => "uyarı",
+        AdminDashboardState::ActionNeeded => "işlem gerekli",
+        AdminDashboardState::Failure => "hata",
+        AdminDashboardState::Disabled => "devre dışı",
+        AdminDashboardState::Unknown => "kontrol edilmedi",
     }
 }
 
@@ -647,12 +647,12 @@ const fn overall_state_label(state: AdminDashboardState) -> &'static str {
     match state {
         AdminDashboardState::Ok
         | AdminDashboardState::Informational
-        | AdminDashboardState::Disabled => "Operational",
-        AdminDashboardState::Pending => "Work in progress",
-        AdminDashboardState::Warning => "Warning",
-        AdminDashboardState::ActionNeeded => "Action needed",
-        AdminDashboardState::Failure => "Failure",
-        AdminDashboardState::Unknown => "Review status",
+        | AdminDashboardState::Disabled => "Çalışıyor",
+        AdminDashboardState::Pending => "Çalışma sürüyor",
+        AdminDashboardState::Warning => "Uyarı",
+        AdminDashboardState::ActionNeeded => "İşlem gerekli",
+        AdminDashboardState::Failure => "Hata",
+        AdminDashboardState::Unknown => "Durumu incele",
     }
 }
 
