@@ -98,13 +98,14 @@ pub(in crate::server) async fn profile(
     } else {
         (jar, String::new())
     };
-    let account_menu = identity
-        .map(|identity| crate::templates::auth::AccountMenu {
-            display_name: identity.display_name,
-            username: identity.username,
-            is_admin: identity.is_admin,
-        })
-        .as_ref();
+    // Bound before the reference is taken: the menu is passed to the layout
+    // call far below, so the owned value has to outlive this statement.
+    let menu = identity.map(|identity| crate::templates::auth::AccountMenu {
+        display_name: identity.display_name,
+        username: identity.username,
+        is_admin: identity.is_admin,
+    });
+    let account_menu = menu.as_ref();
 
     let tab = ProfileTab::from_query(params.tab.as_deref());
     let page = params.page.unwrap_or(1).max(1);
