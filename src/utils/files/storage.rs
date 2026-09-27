@@ -78,7 +78,7 @@ struct UploadPlan {
     thumbs_dir: PathBuf,
 }
 
-/// Classify an uploaded file into the MIME type `RustChan` should persist.
+/// Classify an uploaded file into the MIME type `TurkChan` should persist.
 ///
 /// # Errors
 /// Returns an error if MIME sniffing fails and arbitrary file uploads are not
