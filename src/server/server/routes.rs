@@ -88,7 +88,6 @@ pub(super) fn public_routes() -> Router<AppState> {
                 // is modest but still finite.
                 .layer(DefaultBodyLimit::max(3 * 1024 * 1024)),
         )
-        .route("/register/welcome", get(crate::handlers::auth::register_welcome))
         .route("/logout", post(crate::handlers::auth::logout))
         .route(
             "/auth/username",

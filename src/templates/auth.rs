@@ -233,45 +233,68 @@ pub fn register_page(
     )
 }
 
-/// Render the confirmation shown right after a successful registration.
+/// Render the confirmation shown on the home page after registration.
 #[must_use]
-pub fn register_welcome_page(
-    display_name: &str,
-    username: &str,
-    user_id: i64,
-    csrf_token: &str,
-) -> String {
-    let body = format!(
-        r#"<div class="page-box auth-page">
-<h1 class="auth-title">Kaydın tamamlandı</h1>
-<p class="auth-lead">Hoş geldin, {display_name}. Artık giriş yapmış durumdasın.</p>
-<div class="auth-identity">
-<img class="auth-avatar" src="/auth/avatar/{user_id}" width="64" height="64" alt="{username} hesabının profil resmi">
-<p class="auth-identity-name">{display_name}</p>
-<p class="auth-identity-handle">@{username}</p>
-</div>
-<p class="auth-switch"><a class="btn auth-submit" href="/">Ana sayfaya git</a></p>
-<form class="auth-form" method="POST" action="/logout">
-<input type="hidden" name="_csrf" value="{csrf}">
-<button class="btn" type="submit">Çıkış yap</button>
-</form>
-</div>"#,
+pub fn registration_notice(display_name: &str) -> String {
+    format!(
+        r#"<p class="index-account-notice" role="status">Kaydın tamamlandı. Hoş geldin, {display_name}.</p>"#,
         display_name = escape_html(display_name),
-        username = escape_html(username),
-        user_id = user_id,
-        csrf = escape_html(csrf_token),
-    );
+    )
+}
 
-    base_layout_with_preferences(
-        "Kaydın tamamlandı",
-        None,
-        &body,
-        csrf_token,
-        &[],
-        None,
-        None,
-        false,
-        "/register/welcome",
-        UserPreferences::default(),
+/// The signed-in identity rendered in the header account menu.
+#[derive(Debug, Clone)]
+pub struct AccountMenu {
+    /// Name shown to other visitors.
+    pub display_name: String,
+    /// Unique login name.
+    pub username: String,
+    /// Whether this identity may also open the administration panel.
+    pub is_admin: bool,
+}
+
+/// Render the header account menu, or nothing when nobody is signed in.
+///
+/// The three profile entries are deliberately inert for now: they are shown so
+/// the menu shape is settled, and only the administration panel and the sign-out
+/// control do anything yet.
+#[must_use]
+pub fn account_menu_html(account: Option<&AccountMenu>, csrf_token: &str) -> String {
+    let Some(account) = account else {
+        return String::new();
+    };
+    let initial = account
+        .display_name
+        .chars()
+        .find(|c| c.is_alphanumeric())
+        .or_else(|| account.username.chars().find(|c| c.is_ascii_alphanumeric()))
+        .map(|c| c.to_uppercase().to_string())
+        .unwrap_or_else(|| "?".to_owned());
+    let admin_item = if account.is_admin {
+        r#"<a class="account-menu-item" href="/admin/panel">Admin Panel</a>"#
+    } else {
+        ""
+    };
+
+    format!(
+        r#"<details class="account-menu" id="account-menu">
+<summary class="account-menu-button" aria-label="Hesap menüsünü aç" aria-controls="account-menu-panel"><span class="account-avatar" aria-hidden="true">{initial}</span></summary>
+<div class="account-menu-panel" id="account-menu-panel">
+<p class="account-menu-identity"><span class="account-menu-name">{display_name}</span><span class="account-menu-handle">@{username}</span></p>
+<span class="account-menu-item is-disabled" aria-disabled="true">Profili Gör</span>
+<span class="account-menu-item is-disabled" aria-disabled="true">Profili Düzenle</span>
+<span class="account-menu-item is-disabled" aria-disabled="true">Ayarlar</span>
+{admin_item}
+<form class="account-menu-form" method="POST" action="/logout">
+<input type="hidden" name="_csrf" value="{csrf}">
+<button class="account-menu-item account-menu-logout" type="submit">Çıkış yap</button>
+</form>
+</div>
+</details>"#,
+        initial = escape_html(&initial),
+        display_name = escape_html(&account.display_name),
+        username = escape_html(&account.username),
+        admin_item = admin_item,
+        csrf = escape_html(csrf_token),
     )
 }

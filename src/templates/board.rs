@@ -6,9 +6,9 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Write as _;
 
 use super::{
-    base_layout, base_layout_with_preferences, compress_modal_script, embed_thumb_from_body,
-    fmt_ts, fmt_ts_short, live_site_name, live_site_subtitle, render_pagination,
-    report_modal_script, urlencoding_simple,
+    base_layout, base_layout_with_account, base_layout_with_preferences, compress_modal_script,
+    embed_thumb_from_body, fmt_ts, fmt_ts_short, live_site_name, live_site_subtitle,
+    render_pagination, report_modal_script, urlencoding_simple,
 };
 
 // Site index (board list)
@@ -672,6 +672,9 @@ pub fn index_page<S: std::hash::BuildHasher>(
     nsfw_consent: bool,
     is_admin: bool,
     user_preferences: crate::templates::UserPreferences,
+    account: Option<&crate::templates::auth::AccountMenu>,
+    registration_notice_html: &str,
+    account_menu_csrf: &str,
 ) -> String {
     let all_boards: Vec<Board> = board_stats.iter().map(|s| s.board.clone()).collect();
 
@@ -822,10 +825,12 @@ pub fn index_page<S: std::hash::BuildHasher>(
 <h1 class="index-title">[ {name} ]</h1>
 <p class="index-subtitle">{subtitle}</p>
 </div>
+{registration_notice_html}
 {home_banner_html}
 {sfw}{nsfw}{empty}{stats}{onion}{nsfw_overlay}"#,
         name = escape_html(&live_site_name()),
         subtitle = escape_html(&live_site_subtitle()),
+        registration_notice_html = registration_notice_html,
         home_banner_html = home_banner_html,
         sfw = sfw_sec,
         nsfw = nsfw_sec,
@@ -835,7 +840,7 @@ pub fn index_page<S: std::hash::BuildHasher>(
         nsfw_overlay = nsfw_overlay,
     );
 
-    base_layout_with_preferences(
+    base_layout_with_account(
         &live_site_name(),
         None,
         &body,
@@ -846,6 +851,7 @@ pub fn index_page<S: std::hash::BuildHasher>(
         false,
         "/",
         user_preferences,
+        &crate::templates::auth::account_menu_html(account, account_menu_csrf),
     )
 }
 
@@ -1842,6 +1848,9 @@ mod tests {
             true,
             false,
             crate::templates::UserPreferences::default(),
+            None,
+            "",
+            "menu-csrf",
         );
 
         assert!(html.contains("site istatistikleri geçici olarak kullanılamıyor."));
@@ -1877,6 +1886,9 @@ mod tests {
             true,
             false,
             crate::templates::UserPreferences::default(),
+            None,
+            "",
+            "menu-csrf",
         );
 
         assert!(html.contains("yüklenen ses dosyası"));
@@ -1901,6 +1913,9 @@ mod tests {
             true,
             false,
             crate::templates::UserPreferences::default(),
+            None,
+            "",
+            "menu-csrf",
         );
 
         assert!(html.contains(r#"<code class="onion-addr">aaaaaaaa"#));

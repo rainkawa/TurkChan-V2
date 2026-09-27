@@ -3,11 +3,12 @@ use super::{
     board_access_denied_response, board_access_preflight, board_activity_markers_from_jar,
     can_view_board, current_theme_from_jar, db, ensure_csrf_for_request, has_nsfw_consent, header,
     latest_visible_thread_marker_tuple, optional_connect_info_peer, prune_board_activity_markers,
-    remember_board_activity, remember_visible_thread_activity, render, sha256_hex, templates,
-    thread_activity_markers_from_jar, user_preferences_from_jar, AppError, AppState,
-    BoardAccessDecision, BoardAccessRequirement, CookieJar, HashMap, HashSet, HeaderMap,
-    HeaderValue, Html, OptionalConnectInfoPeer, Path, Query, Redirect, Response, Result, State,
-    StatusCode, ADMIN_SESSION_COOKIE, CONFIG, PREVIEW_REPLIES, THREADS_PER_PAGE,
+    remember_board_activity, remember_visible_thread_activity, render, sha256_hex,
+    should_set_public_secure_cookie, templates, thread_activity_markers_from_jar,
+    user_preferences_from_jar, AppError, AppState, BoardAccessDecision, BoardAccessRequirement,
+    CookieJar, HashMap, HashSet, HeaderMap, HeaderValue, Html, OptionalConnectInfoPeer, Path,
+    Query, Redirect, Response, Result, State, StatusCode, ADMIN_SESSION_COOKIE, CONFIG,
+    PREVIEW_REPLIES, THREADS_PER_PAGE,
 };
 use axum::response::IntoResponse as _;
 
@@ -193,6 +194,28 @@ pub(in crate::server) async fn index(
         }
     }
 
+    // A visitor who just registered lands here with a one-shot confirmation.
+    let account = crate::handlers::auth::account_identity(&state, &jar)?
+        .map(|identity| templates::auth::AccountMenu {
+            display_name: identity.display_name,
+            username: identity.username,
+            is_admin: identity.is_admin,
+        });
+    let registration_notice_html = match (params.get("kayit").map(String::as_str), &account) {
+        (Some("1"), Some(identity)) => templates::auth::registration_notice(&identity.display_name),
+        _ => String::new(),
+    };
+    // The sign-out control inside the account menu needs the sign-in-scoped
+    // token, so its cookie is issued here rather than on the auth screens.
+    let (jar, menu_csrf) = if account.is_some() {
+        crate::handlers::auth::account_menu_csrf(
+            jar,
+            should_set_public_secure_cookie(&req_headers, optional_connect_info_peer(peer)),
+        )
+    } else {
+        (jar, String::new())
+    };
+
     let mut response = Html(templates::index_page(
         &board_stats,
         site_data.as_ref(),
@@ -207,6 +230,9 @@ pub(in crate::server) async fn index(
         nsfw_consent,
         is_admin,
         user_preferences,
+        &account,
+        &registration_notice_html,
+        &menu_csrf,
     ))
     .into_response();
     let activity_markers_enabled = homepage_thread_badges_enabled || homepage_reply_badges_enabled;

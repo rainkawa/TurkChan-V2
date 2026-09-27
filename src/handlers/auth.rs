@@ -101,6 +101,73 @@ impl From<crate::models::User> for AuthenticatedUser {
     }
 }
 
+/// Cookie carrying the administrator session created from the sign-in screen.
+const ADMIN_SESSION_COOKIE: &str = crate::handlers::board::ADMIN_SESSION_COOKIE;
+
+/// Build the administrator session cookie issued by the sign-in screen.
+fn admin_session_cookie(session_id: String, secure: bool) -> Cookie<'static> {
+    let mut cookie = Cookie::new(ADMIN_SESSION_COOKIE, session_id);
+    cookie.set_http_only(true);
+    cookie.set_same_site(USER_COOKIE_SAME_SITE);
+    cookie.set_path("/");
+    cookie.set_secure(secure);
+    cookie.set_max_age(Duration::seconds(CONFIG.session_duration));
+    cookie
+}
+
+/// Sign a visitor in with an administrator account.
+///
+/// Administrators created from the command line are not anonymous board
+/// accounts, so they have no `users` row. Accepting them here means one
+/// sign-in screen serves both, and the existing administration session cookie
+/// and panel are reused unchanged.
+async fn issue_admin_session(
+    state: AppState,
+    jar: CookieJar,
+    username: &str,
+    password: &str,
+    secure: bool,
+) -> Result<Option<Response>> {
+    let pool = state.db.clone();
+    let username = username.to_owned();
+    let password = password.to_owned();
+    let verified = tokio::task::spawn_blocking(move || -> Result<Option<i64>> {
+        let conn = pool.get()?;
+        let Some(admin) = db::get_admin_by_username(&conn, &username)? else {
+            return Ok(None);
+        };
+        if verify_password(&password, &admin.password_hash)? {
+            Ok(Some(admin.id))
+        } else {
+            Ok(None)
+        }
+    })
+    .await
+    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
+
+    let Some(admin_id) = verified else {
+        return Ok(None);
+    };
+
+    let session_id = new_session_id();
+    let expires_at = Utc::now().timestamp() + CONFIG.session_duration;
+    let sid = session_id.clone();
+    tokio::task::spawn_blocking({
+        let pool = state.db.clone();
+        move || -> Result<()> {
+            let conn = pool.get()?;
+            db::create_session(&conn, &sid, admin_id, expires_at)?;
+            Ok(())
+        }
+    })
+    .await
+    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
+
+    let jar = jar.add(admin_session_cookie(session_id, secure));
+    tracing::info!(target: "auth", admin_id, "Administrator signed in from the sign-in screen");
+    Ok(Some((jar, Redirect::to("/admin/panel")).into_response()))
+}
+
 /// Fields submitted by the sign-in form.
 #[derive(Debug, Deserialize)]
 pub(crate) struct LoginForm {
@@ -170,6 +237,15 @@ fn user_csrf_cookie(raw_token: String, secure: bool) -> Cookie<'static> {
     cookie.set_path("/");
     cookie.set_secure(secure);
     cookie
+}
+
+/// Return the sign-in-scoped CSRF token for the account menu's sign-out form.
+///
+/// The account menu lives inside the shared layout, which only has the site's
+/// public token, so the form field is issued here and paired with its own
+/// cookie. Validation on `POST /logout` requires that cookie to be present.
+pub(crate) fn account_menu_csrf(jar: CookieJar, secure: bool) -> (CookieJar, String) {
+    ensure_user_csrf(jar, secure, LOGIN_CSRF_SCOPE)
 }
 
 /// Return the account CSRF token for a page, issuing a cookie when absent.
@@ -247,6 +323,49 @@ pub(crate) fn has_valid_session(state: &AppState, jar: &CookieJar) -> bool {
     matches!(current_user(state, jar), Ok(Some(_)))
 }
 
+/// The identity shown in the header account menu.
+pub(crate) struct AccountIdentity {
+    /// Name shown to other visitors.
+    pub display_name: String,
+    /// Unique login name.
+    pub username: String,
+    /// Whether this identity may also open the administration panel.
+    pub is_admin: bool,
+}
+
+/// Resolve the signed-in identity for the account menu.
+///
+/// An anonymous board account wins when both cookies are present: it is the
+/// identity the visitor chose on the sign-in screen, and the operator session
+/// only adds the administration entry.
+pub(crate) fn account_identity(
+    state: &AppState,
+    jar: &CookieJar,
+) -> Result<Option<AccountIdentity>> {
+    if let Some(user) = current_user(state, jar)? {
+        return Ok(Some(AccountIdentity {
+            display_name: user.display_name,
+            username: user.username,
+            is_admin: false,
+        }));
+    }
+    let Some(session_id) = jar.get(ADMIN_SESSION_COOKIE).map(Cookie::value) else {
+        return Ok(None);
+    };
+    let conn = state.db.get()?;
+    let Some(session) = db::get_session(&conn, session_id)? else {
+        return Ok(None);
+    };
+    let Some(username) = db::get_admin_name_by_id(&conn, session.admin_id)? else {
+        return Ok(None);
+    };
+    Ok(Some(AccountIdentity {
+        display_name: username.clone(),
+        username,
+        is_admin: true,
+    }))
+}
+
 /// A real Argon2id hash that matches no account.
 ///
 /// Signing in with an unknown name still performs the full password
@@ -298,6 +417,9 @@ pub(crate) async fn login_submit(
     }
 
     let username = normalize_username(&form.username);
+    // Administrator names are stored as typed, so the operator lookup uses the
+    // trimmed form rather than the lower-cased board-account one.
+    let operator_username = form.username.trim().to_owned();
     let return_to = strict_safe_internal_path_or(Some(&form.return_to), "/").to_owned();
     let pool = state.db.clone();
     let password = form.password.clone();
@@ -321,6 +443,19 @@ pub(crate) async fn login_submit(
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
 
     let Some(user_id) = verified else {
+        // Administrators created from the command line are not anonymous board
+        // accounts, so fall back to the operator identity before failing.
+        if let Some(response) = issue_admin_session(
+            state.clone(),
+            jar.clone(),
+            &operator_username,
+            &form.password,
+            secure,
+        )
+        .await?
+        {
+            return Ok(response);
+        }
         return Ok(render_login_failure(
             jar,
             secure,
@@ -397,9 +532,26 @@ pub(crate) async fn logout(
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
     }
 
+    // An administrator who signed in from this screen holds an operator
+    // session as well, so signing out has to end that one too.
+    let admin_session_id = jar
+        .get(ADMIN_SESSION_COOKIE)
+        .map(|cookie| cookie.value().to_owned());
+    if let Some(session_id) = admin_session_id {
+        let pool = state.db.clone();
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            let conn = pool.get()?;
+            db::delete_session(&conn, &session_id)?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
+    }
+
     let jar = jar
         .remove(Cookie::from(USER_SESSION_COOKIE))
-        .remove(Cookie::from(USER_CSRF_COOKIE));
+        .remove(Cookie::from(USER_CSRF_COOKIE))
+        .remove(Cookie::from(ADMIN_SESSION_COOKIE));
     Ok((jar, Redirect::to("/login")).into_response())
 }
 
@@ -613,7 +765,7 @@ pub(crate) async fn register_submit(
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
 
     let jar = jar.add(user_session_cookie(session_id, secure));
-    Ok((jar, Redirect::to("/register/welcome")).into_response())
+    Ok((jar, Redirect::to("/?kayit=1")).into_response())
 }
 
 /// Whether a database error is a `UNIQUE` constraint failure.
@@ -625,32 +777,7 @@ fn is_unique_violation(error: &anyhow::Error) -> bool {
                 db_error.sqlite_error_code() == Some(rusqlite::ErrorCode::ConstraintViolation)
             })
     })
-}
-
-// GET /register/welcome
-pub(crate) async fn register_welcome(
-    State(state): State<AppState>,
-    jar: CookieJar,
-    headers: HeaderMap,
-    secure_context: crate::middleware::SecureCookieContext,
-) -> Result<Response> {
-    // Reaching this page at all means registration completed, but confirm the
-    // session so the page never renders for someone who skipped registration.
-    let Some(user) = current_user(&state, &jar)? else {
-        return Ok(Redirect::to("/login").into_response());
-    };
-    let secure = crate::handlers::admin::should_set_secure_cookie(&headers, secure_context);
-    let (jar, csrf) = ensure_user_csrf(jar, secure, LOGIN_CSRF_SCOPE);
-    let html = templates::auth::register_welcome_page(
-        &user.display_name,
-        &user.username,
-        user.id,
-        &csrf,
-    );
-    Ok((jar, Html(html)).into_response())
-}
-
-/// Render the wizard again with a failure message.
+}/// Render the wizard again with a failure message.
 fn render_register_failure(
     jar: CookieJar,
     secure: bool,

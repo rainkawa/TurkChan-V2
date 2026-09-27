@@ -700,8 +700,7 @@ pub fn base_layout(
 #[must_use]
 #[expect(
     clippy::too_many_arguments,
-    clippy::too_many_lines,
-    reason = "the shared layout keeps its HTML structure and page context together"
+    reason = "the base layout accepts independent page metadata and rendering context"
 )]
 /// Renders the shared document layout with explicit visitor preferences.
 pub fn base_layout_with_preferences(
@@ -715,6 +714,45 @@ pub fn base_layout_with_preferences(
     collapse_greentext: bool,
     current_path: &str,
     preferences: UserPreferences,
+) -> String {
+    base_layout_with_account(
+        title,
+        board_short,
+        body,
+        csrf_token,
+        boards,
+        current_theme,
+        board_default_theme,
+        collapse_greentext,
+        current_path,
+        preferences,
+        "",
+    )
+}
+
+#[must_use]
+#[expect(
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    reason = "the shared layout keeps its HTML structure and page context together"
+)]
+/// Renders the shared document layout with a signed-in account menu.
+///
+/// `account_menu_html` is pre-rendered by the caller so the layout stays
+/// independent of how an identity is stored. Pages that do not offer the menu
+/// pass an empty string.
+pub fn base_layout_with_account(
+    title: &str,
+    board_short: Option<&str>,
+    body: &str,
+    csrf_token: &str,
+    boards: &[Board],
+    current_theme: Option<&str>,
+    board_default_theme: Option<&str>,
+    collapse_greentext: bool,
+    current_path: &str,
+    preferences: UserPreferences,
+    account_menu_html: &str,
 ) -> String {
     let board_links = board_nav_html_for_preferences(boards, preferences);
     let board_menu = if boards.is_empty() {
@@ -914,12 +952,13 @@ pub fn base_layout_with_preferences(
     {board_links}
   </nav>
   <div class="header-search">{search_bar}</div>
+  {account_menu_html}
 </header>
 <main>
 {body}
 </main>
 <footer class="site-footer">
-  <p class="site-footer-copy">{forum_name} &mdash; <a href="/">ana sayfa</a> <span aria-hidden="true">&middot;</span> <a class="admin-footer-link" href="/admin" aria-label="Yönetici girişi">admin</a></p>
+  <p class="site-footer-copy">{forum_name} &mdash; <a href="/">ana sayfa</a></p>
   <div class="site-footer-theme">
     <details class="user-preferences-panel">
       <summary id="theme-picker-btn" class="user-preferences-summary">&#9881; Kullanıcı Tercihleri</summary>
@@ -1014,6 +1053,7 @@ pub fn base_layout_with_preferences(
         board_links = board_links,
         search_bar = search_bar,
         board_menu = board_menu,
+        account_menu_html = account_menu_html,
         forum_name = escape_html(&live_site_name()),
         body = body,
         confirmation_modal = confirmation_modal_script(),
@@ -1384,9 +1424,8 @@ mod tests {
         assert!(html.contains(r#"name="hide_nsfw_boards" value="1" aria-pressed="true""#));
         assert!(!html.contains("save preferences"));
         assert!(!html.contains(r#"class="admin-header-link""#));
-        assert!(html.contains(
-            r#"<a class="admin-footer-link" href="/admin" aria-label="Yönetici girişi">admin</a>"#
-        ));
+        assert!(!html.contains(r#"class="admin-footer-link""#));
+        assert!(!html.contains(r#"aria-label="Yönetici girişi""#));
     }
 
     #[test]
