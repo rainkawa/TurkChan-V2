@@ -1,7 +1,5 @@
 <div align="center">
 
-<img width="420" alt="TurkChan mascot holding a laptop above the TurkChan wordmark" src="docs/assets/branding/rust-chan-mascot.png">
-
 # TurkChan
 
 A self-hosted imageboard written in Rust.
