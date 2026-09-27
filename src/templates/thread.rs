@@ -2399,7 +2399,7 @@ mod tests {
         assert!(html.contains(r#"method="POST" action="/test/post/1/edit""#));
         assert!(html.contains(r#"name="_csrf" value="csrf""#));
         assert!(html.contains(
-            r#"name="body" aria-label="edit post body" rows="8" maxlength="4096" required"#
+            r#"name="body" aria-label="gönderi metnini düzenle" rows="8" maxlength="4096" required"#
         ));
         assert!(html.contains("gönderdikten sonra en fazla 60 saniye boyunca kullanılabilir"));
         assert!(html.contains(r#"href="/test/thread/87#p1""#));

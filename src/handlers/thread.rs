@@ -2235,8 +2235,8 @@ mod tests {
                 .to_vec(),
         )
         .context("response body was not valid UTF-8")?;
-        assert!(body.contains("Please wait"));
-        assert!(body.contains("before posting again."));
+        assert!(body.contains("Lütfen tekrar"));
+        assert!(body.contains("gönderi yapmadan önce"));
 
         let reply_count = {
             let conn = state
@@ -2345,9 +2345,9 @@ mod tests {
         assert!(body.contains(&format!(r#"action="/test/post/{post_id}/edit""#)));
         assert!(body.contains(r#"name="_csrf""#));
         assert!(body.contains(
-            r#"name="body" aria-label="edit post body" rows="8" maxlength="4096" required"#
+            r#"name="body" aria-label="gönderi metnini düzenle" rows="8" maxlength="4096" required"#
         ));
-        assert!(body.contains("available for up to 60 seconds after posting"));
+        assert!(body.contains("gönderdikten sonra en fazla 60 saniye boyunca kullanılabilir"));
         assert!(body.contains(&format!(r#"href="/test/thread/{thread_id}#p{post_id}""#)));
         Ok(())
     }
@@ -2711,8 +2711,8 @@ mod tests {
         .context("response body was not valid UTF-8")?;
         assert!(body.contains(&format!(r#"action="/test/post/{post_id}/delete""#)));
         assert!(body.contains(r#"name="_csrf""#));
-        assert!(body.contains("delete this post"));
-        assert!(body.contains("available for up to 60 seconds after posting"));
+        assert!(body.contains("gönderiyi sil"));
+        assert!(body.contains("gönderdikten sonra en fazla 60 saniye boyunca kullanılabilir"));
         assert!(body.contains(&format!(r#"href="/test/thread/{thread_id}#p{post_id}""#)));
         Ok(())
     }

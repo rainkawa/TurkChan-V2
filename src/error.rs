@@ -176,20 +176,20 @@ impl IntoResponse for AppError {
             Self::InvalidMediaType(msg) => (StatusCode::UNSUPPORTED_MEDIA_TYPE, msg.clone()),
             Self::DbBusy => (
                 StatusCode::SERVICE_UNAVAILABLE,
-                "The server is temporarily busy. Please try again in a moment.".to_owned(),
+                "Sunucu geçici olarak meşgul. Lütfen birazdan tekrar dene.".to_owned(),
             ),
             Self::Internal(e) => {
                 error!("Internal error: {:?}", e);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    "An internal error occurred.".to_owned(),
+                    "Bir iç hata oluştu.".to_owned(),
                 )
             }
             Self::Tls(msg) => {
                 error!("TLS error: {msg}");
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    "A TLS configuration error occurred.".to_owned(),
+                    "Bir TLS yapılandırma hatası oluştu.".to_owned(),
                 )
             }
         };

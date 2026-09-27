@@ -840,7 +840,7 @@ mod tests {
         let body = to_bytes(response.into_body(), usize::MAX).await?;
         let body = String::from_utf8(body.to_vec()).context("decode error response body")?;
         assert!(
-            body.contains("Password-protected boards require a saved password."),
+            body.contains("Parola korumalı boardlar kayıtlı bir parola gerektirir."),
             "response should explain why removing the password failed"
         );
         let (access_mode, password_hash) = board_access_row(&state, board_id)?;

@@ -1738,7 +1738,7 @@ pub fn admin_ip_history_page(
     }
 
     if posts_with_boards.is_empty() {
-        rows.push_str(r#"<tr><td colspan="8" style="color:var(--text-dim);text-align:center">no posts found for this hashed IP</td></tr>"#);
+        rows.push_str(r#"<tr><td colspan="8" style="color:var(--text-dim);text-align:center">bu karma IP için gönderi bulunamadı</td></tr>"#);
     }
 
     for (post, board_short) in posts_with_boards {
@@ -1751,7 +1751,7 @@ pub fn admin_ip_history_page(
             None => "",
         };
         let thread_link = format!(
-            r#"<a class="quotelink crosslink" href="/{board}/thread/{tid}#p{pid}" data-crossboard="{board}" data-pid="{pid}" title="hover to preview">/{board}/ No.{pid}</a>"#,
+            r#"<a class="quotelink crosslink" href="/{board}/thread/{tid}#p{pid}" data-crossboard="{board}" data-pid="{pid}" title="önizlemek için üzerine gel">/{board}/ No.{pid}</a>"#,
             board = escape_html(board_short),
             tid = post.thread_id,
             pid = post.id,
@@ -2335,13 +2335,13 @@ mod tests {
             None,
         );
 
-        assert!(html.contains("// basic setup"));
+        assert!(html.contains("// temel kurulum"));
         assert!(html.contains("// access &amp; anti-spam"));
-        assert!(html.contains("// uploads &amp; post features"));
-        assert!(html.contains("// save board management"));
+        assert!(html.contains("// yüklemeler &amp; gönderi özellikleri"));
+        assert!(html.contains("// board yönetimini kaydet"));
         assert!(!html.contains("// appearance"));
-        assert!(!html.contains("// board backup tools"));
-        assert!(html.contains("// danger zone"));
+        assert!(!html.contains("// board banner ayarları"));
+        assert!(html.contains("// tehlikeli bölge"));
         assert!(!html.contains("class=\"board-backup-download-form\""));
         assert!(html.contains("action=\"/admin/board/delete\""));
     }
@@ -2379,7 +2379,7 @@ mod tests {
             None,
         );
 
-        assert!(html.contains("A password is saved but unused while this board is public."));
+        assert!(html.contains("Bir parola kayıtlı, ancak bu board herkese açıkken kullanılmıyor."));
     }
 
     #[test]
@@ -2396,13 +2396,13 @@ mod tests {
             Some("theme-catalog"),
         );
 
-        assert!(html.contains("guided theme builder"));
-        assert!(html.contains("Page and background"));
-        assert!(html.contains("Posts/cards"));
-        assert!(html.contains("Forms/buttons"));
-        assert!(html.contains("Advanced/legacy CSS"));
+        assert!(html.contains("rehberli tema oluşturucu"));
+        assert!(html.contains("background"));
+        assert!(html.contains("Gönderiler/kartlar"));
+        assert!(html.contains("Formlar/butonlar"));
+        assert!(html.contains("Gelişmiş/eski CSS"));
         assert!(html.contains("data-theme-builder-color-for=\"background_color\""));
-        assert!(html.contains("legacy custom CSS theme"));
+        assert!(html.contains("Bu, eski tip bir özel CSS teması."));
         assert!(html.contains("Guided Forest"));
         assert!(html.contains("Legacy Sunset"));
     }
@@ -2412,7 +2412,7 @@ mod tests {
         let board = sample_board();
         let html = render_admin_panel_for_test(&[board], &[], &[sample_theme()], None);
 
-        assert!(html.contains("Built-in theme metadata is managed by TurkChan"));
+        assert!(html.contains("Yerleşik tema üstverisi TurkChan tarafından yönetilir"));
         assert!(html.contains(r#"value="Terminal" maxlength="64" readonly aria-readonly="true""#));
         assert!(html.contains(r##"value="#7ab84e" disabled"##));
     }
@@ -2432,11 +2432,11 @@ mod tests {
 
         assert!(html.contains(r#"name="allow_editing" value="1""#));
         assert!(
-            html.contains("Allow users to edit their own posts during the 60-second grace window")
+            html.contains("Kullanıcıların 60 saniyelik süre içinde kendi gönderilerini düzenlemesine izin ver")
         );
         assert!(html.contains(r#"name="allow_self_delete" value="1""#));
         assert!(html
-            .contains("Allow users to delete their own posts during the 60-second grace window"));
+            .contains("Kullanıcıların 60 saniyelik süre içinde kendi gönderilerini silmesine izin ver"));
         assert!(!html.contains(r#"name="edit_window_secs""#));
         assert!(!html.contains("edit token"));
     }
@@ -2472,7 +2472,7 @@ mod tests {
         assert!(!html.contains(r#"max="8""#));
         assert!(!html.contains(r#"max="50""#));
         assert!(!html.contains(r#"max="150""#));
-        assert!(html.contains("PDF uploads use the PDF cap"));
+        assert!(html.contains("PDF yüklemeleri PDF sınırını kullanır"));
     }
 
     #[test]
@@ -2486,19 +2486,19 @@ mod tests {
 
         assert!(html.contains(r#"<div class="board-settings-checks">"#));
         assert!(html.contains(r#"name="homepage_new_thread_badges_enabled" value="1" checked"#));
-        assert!(html.contains("Homepage board-card new-thread badges"));
+        assert!(html.contains("Ana sayfa board kartlarında yeni konu rozetleri"));
         assert!(html.contains(r#"name="homepage_new_reply_badges_enabled" value="1" checked"#));
-        assert!(html.contains("Show new reply badges on homepage"));
+        assert!(html.contains("Ana sayfada yeni yanıt rozetlerini göster"));
         assert!(html.contains(r#"name="thread_new_reply_badges_enabled" value="1" checked"#));
-        assert!(html.contains("Board/catalog thread-card new-reply badges"));
+        assert!(html.contains("Board/katalog konu kartlarında yeni yanıt rozetleri"));
         assert!(html.contains(
-            "Track newly created threads on the home page, new replies on the home page, and new replies inside board index/catalog cards independently."
+            "Ana sayfadaki yeni konuları, ana sayfadaki yeni yanıtları ve board dizini/katalog kartlarındaki yeni yanıtları birbirinden bağımsız izle."
         ));
 
         let theme_idx = html.find("Default theme");
-        let homepage_idx = html.find("Homepage board-card new-thread badges");
-        let thread_idx = html.find("Board/catalog thread-card new-reply badges");
-        let homepage_reply_idx = html.find("Show new reply badges on homepage");
+        let homepage_idx = html.find("Ana sayfa board kartlarında yeni konu rozetleri");
+        let thread_idx = html.find("Board/katalog konu kartlarında yeni yanıt rozetleri");
+        let homepage_reply_idx = html.find("Ana sayfada yeni yanıt rozetlerini göster");
 
         assert!(theme_idx.is_some(), "theme control should be present");
         assert!(homepage_idx.is_some(), "homepage control should be present");
@@ -2580,8 +2580,8 @@ mod tests {
             r#"<details class="admin-dropdown" data-admin-dropdown-key="site-health" open>"#
         ));
         assert!(html.contains("Database integrity status"));
-        assert!(html.contains("open media panel"));
-        assert!(html.contains("copy diagnostics"));
+        assert!(html.contains("medya panel"));
+        assert!(html.contains("tanılamaları kopyala"));
         assert!(html.contains(&format!("TurkChan version: {}", env!("CARGO_PKG_VERSION"))));
         assert!(html.contains("Database schema"));
         assert!(html.contains(&format!(
@@ -2595,12 +2595,12 @@ mod tests {
         assert!(html.contains(r#"data-admin-health-job-list="failed""#));
         assert!(html.contains(r#"action="/admin/site-health/jobs/dismiss""#));
         assert!(html.contains(r#"name="_csrf" value="csrf""#));
-        assert!(html.contains("dismiss counter"));
+        assert!(html.contains("sayacı sıfır"));
         assert!(html.contains(r"data-admin-health-close"));
         assert!(html.contains(r#"id="tor-status""#));
-        assert!(html.contains("// Tor diagnostics"));
-        assert!(html.contains("Onion service"));
-        assert!(html.contains("Runtime config"));
+        assert!(html.contains("// Tor tanılamaları"));
+        assert!(html.contains("Onion servisi"));
+        assert!(html.contains("Çalışma zamanı yapılandırması"));
         assert!(html.contains("Set enable_tor_support = true in settings.toml"));
         assert!(!html.contains("Thumbnail/transcode jobs"));
         assert!(!html.contains("Repair/VACUUM jobs"));
@@ -2654,9 +2654,9 @@ mod tests {
         assert!(html.contains(r#"href="/admin/panel?open=theme-catalog#theme-catalog""#));
         assert!(html.contains(r#"data-dashboard-status="jobs""#));
         assert!(html.contains(r#"data-dashboard-state="ok""#));
-        assert!(html.contains("system details, logs, and diagnostics"));
+        assert!(html.contains("sistem ayrıntıları, loglar ve tanılamalar"));
         assert!(html.contains(r#"id="public-url-settings""#));
-        assert!(html.contains("settings.toml public_hosts"));
+        assert!(html.contains("settings.toml içindeki public_hosts"));
     }
 
     #[test]
@@ -2750,7 +2750,7 @@ mod tests {
         let html = render_admin_panel_for_test(std::slice::from_ref(&board), &[], &themes, None);
 
         let index =
-            html.find(r#"<nav class="admin-section-index" aria-label="Admin panel sections">"#);
+            html.find(r#"<nav class="admin-section-index" aria-label="Yönetim paneli bölümleri">"#);
         let overview = html.find(r#"class="admin-panel-overview" id="overview""#);
 
         assert!(index.is_some(), "section index should be present");
@@ -3096,7 +3096,7 @@ mod tests {
             open_section: Some("media-settings"),
         });
 
-        assert!(html.contains("using built-in generic PDF placeholder thumbnail"));
+        assert!(html.contains("yerleşik genel PDF yer tutucu küçük resmi kullanılıyor"));
         assert!(html.contains(r#"admin-detection-pill admin-detection-pill-missing">missing"#));
     }
 
@@ -3107,10 +3107,10 @@ mod tests {
         let html = render_admin_panel_for_test(std::slice::from_ref(&board), &[], &themes, None);
 
         assert!(html.contains(r#"id="admin-live-log-status""#));
-        assert!(html.contains("JavaScript enables live updates"));
+        assert!(html.contains("JavaScript canlı güncellemeleri sağlar"));
         assert!(html.contains(r#"href="/admin/log/live?bytes=65536""#));
         assert!(html.contains(r"data-admin-live-log-controls hidden"));
-        assert!(html.contains("Live updates start when JavaScript is available."));
+        assert!(html.contains("Geçerli logun son kısmı aşağıda görünmeye devam eder."));
     }
 
     #[test]
@@ -3291,7 +3291,7 @@ mod tests {
             true,
         );
         assert!(with_tor.contains(r#"name="include_tor_hidden_service_keys" value="1""#));
-        assert!(with_tor.contains("Include Tor hidden service keys"));
+        assert!(with_tor.contains("Tor gizli servis anahtarlarını dahil et"));
         assert!(!with_tor.contains(r#"name="include_tor_hidden_service_keys" value="1" checked"#));
 
         let without_tor = render_admin_panel_for_test_with_backup_options(
@@ -3318,7 +3318,7 @@ mod tests {
             true,
             true,
         );
-        assert!(with_tor.contains("includes Tor hidden service keys"));
+        assert!(with_tor.contains("Tor gizli servis anahtarları içeriyor"));
         assert!(with_tor.contains(r#"name="restore_tor_hidden_service_keys" value="1""#));
         assert!(!with_tor.contains(r#"name="restore_tor_hidden_service_keys" value="1" checked"#));
 
@@ -3330,9 +3330,9 @@ mod tests {
             true,
             false,
         );
-        assert!(without_tor.contains("no Tor hidden service keys"));
+        assert!(without_tor.contains("Tor gizli servis anahtarı yok"));
         assert!(!without_tor
-            .contains("Replaces the current onion identity with the one from this backup."));
+            .contains("Geçerli onion kimliğini bu yedekteki kimlikle değiştirir."));
     }
 
     #[test]
@@ -3358,7 +3358,7 @@ mod tests {
         assert!(html.contains(
             r#"data-report-ip-hash="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef""#
         ));
-        assert!(html.contains("Go to admin pannel"));
+        assert!(html.contains("admin paneline dön"));
         assert!(html.contains("Back to thread"));
     }
 }

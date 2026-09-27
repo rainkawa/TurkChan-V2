@@ -1289,8 +1289,8 @@ mod tests {
 
         match error {
             AppError::BadRequest(message) => {
-                assert!(message.contains("Please wait"));
-                assert!(message.contains("before posting again."));
+                assert!(message.contains("Lütfen tekrar"));
+                assert!(message.contains("gönderi yapmadan önce"));
             }
             other => bail!("expected BadRequest, got {other:?}"),
         }

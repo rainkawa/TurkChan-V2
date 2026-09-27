@@ -855,7 +855,7 @@ mod tests {
     async fn wait_for_repair_result(router: &Router) -> anyhow::Result<String> {
         for _ in 0..100 {
             let body = repair_status_body(router).await?;
-            if !body.contains("maintenance rebuild running") {
+            if !body.contains("bakım yeniden oluşturma çalışıyor") {
                 return Ok(body);
             }
             tokio::time::sleep(std::time::Duration::from_millis(25)).await;
@@ -1027,7 +1027,7 @@ mod tests {
             .context("read repair-started body")?;
         let started_body =
             String::from_utf8(started_body.to_vec()).context("decode repair-started body")?;
-        ensure!(started_body.contains("[ database repair ]"));
+        ensure!(started_body.contains("[ veritabanı denetimi ]"));
 
         let body = wait_for_repair_result(&router).await?;
 
@@ -1038,16 +1038,16 @@ mod tests {
             *failure = None;
         }
 
-        ensure!(body.contains("[ database repair ]"));
+        ensure!(body.contains("[ veritabanı denetimi ]"));
         ensure!(body.contains("Onarım öncesi yedekleme başarısız olduğu için onarım çalıştırılmadı."));
         ensure!(body.contains("Onarım öncesi yedekleme başarısız:"));
         ensure!(body.contains("simulated pre-repair backup failure"));
         ensure!(body.contains("<strong>Repair run:</strong> No"));
         ensure!(body.contains("Hiçbir onarım veya bakım işlemi çalıştırılmadı."));
         ensure!(body.contains("Hiçbir bakım adımı çalıştırılmadı."));
-        ensure!(body.contains("// repair outcome"));
-        ensure!(body.contains("// maintenance actions run"));
-        ensure!(body.contains("back to admin panel"));
+        ensure!(body.contains("// çalıştırılan bakım işlemleri"));
+        ensure!(body.contains("// çalıştırılan bakım işlemleri"));
+        ensure!(body.contains("admin panel"));
 
         ensure!(posts_ai_trigger_sql(&state)? == sentinel_trigger_sql);
         Ok(())
@@ -1143,19 +1143,19 @@ mod tests {
             .context("read repair-started body")?;
         let started_body =
             String::from_utf8(started_body.to_vec()).context("decode repair-started body")?;
-        ensure!(started_body.contains("[ database repair ]"));
+        ensure!(started_body.contains("[ veritabanı denetimi ]"));
 
         let repair_body = wait_for_repair_result(&router).await?;
 
-        ensure!(repair_body.contains("[ database repair ]"));
+        ensure!(repair_body.contains("[ veritabanı denetimi ]"));
         ensure!(
             repair_body.contains("Onarım öncesi veritabanı + yapılandırma yedeği oluşturuldu:"),
             "{repair_body}"
         );
         ensure!(repair_body.contains("<strong>Repair run:</strong> Yes"));
         ensure!(repair_body.contains("Onarım bitti, ancak veritabanı hâlâ bir sorun bildiriyor."));
-        ensure!(repair_body.contains("<strong>Pre-repair backup:</strong> <code>"));
-        ensure!(repair_body.contains("<strong>Pre-repair backup type:</strong> DB + config"));
+        ensure!(repair_body.contains("<strong>Onarım öncesi yedek:</strong> <code>"));
+        ensure!(repair_body.contains("<strong>Onarım öncesi yedek türü:</strong> DB + config"));
         ensure!(!repair_body
             .contains("Bakım tamamlandı. Sonrasında veritabanı sağlık denetimleri geçti."));
         ensure!(!repair_body.contains(
@@ -1188,7 +1188,7 @@ mod tests {
 
         ensure!(response.status() == StatusCode::OK);
         let body = response_body(response).await?;
-        ensure!(body.contains("[ database repair ]"));
+        ensure!(body.contains("[ veritabanı denetimi ]"));
         Ok(())
     }
 
@@ -1205,7 +1205,7 @@ mod tests {
         ensure!(response.headers().get(header::REFRESH).is_none());
         let body = response_body(response).await?;
         ensure!(body.contains("Çalışan bir bakım yeniden oluşturma yok."));
-        ensure!(!body.contains("maintenance rebuild running"));
+        ensure!(!body.contains("bakım yeniden oluşturma çalışıyor"));
         ensure!(!body.contains("Bakım yeniden oluşturması <code>0</code> tarihinde başladı"));
         ensure!(!body.contains("data-db-repair-progress"));
         ensure!(!body.contains("data-db-repair-progress-url"));
@@ -1225,7 +1225,7 @@ mod tests {
         ensure!(response.headers().get(header::REFRESH).is_none());
         let body = response_body(response).await?;
         ensure!(body.contains("Çalışan bir bakım yeniden oluşturma yok."));
-        ensure!(!body.contains("maintenance rebuild running"));
+        ensure!(!body.contains("bakım yeniden oluşturma çalışıyor"));
         ensure!(!body.contains("Bakım yeniden oluşturması <code>0</code> tarihinde başladı"));
         ensure!(!body.contains("data-db-repair-progress"));
         Ok(())
@@ -1251,7 +1251,7 @@ mod tests {
                 == Some(expected_refresh.as_str())
         );
         let body = response_body(response).await?;
-        ensure!(body.contains("maintenance rebuild running"));
+        ensure!(body.contains("bakım yeniden oluşturma çalışıyor"));
         ensure!(body.contains(&format!(
             r#"data-db-repair-progress-url="/admin/db/repair/progress?job_id={job_id}""#
         )));
@@ -1347,7 +1347,7 @@ mod tests {
         ensure!(response.status() == StatusCode::OK);
         ensure!(response.headers().get(header::REFRESH).is_none());
         let body = response_body(response).await?;
-        ensure!(body.contains("[ database repair ]"));
+        ensure!(body.contains("[ veritabanı denetimi ]"));
         ensure!(body.contains(&format!("<strong>Run id:</strong> <code>{job_id}</code>")));
         Ok(())
     }

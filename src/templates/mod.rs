@@ -1217,15 +1217,15 @@ pub(crate) fn error_page_with_preferences(
     let boards = live_boards();
     let body = format!(
         r#"<div class="page-box error-page">
-<h1>error {code}</h1>
+<h1>hata {code}</h1>
 <p>{message}</p>
-<p><a href="/">return home</a></p>
+<p><a href="/">ana sayfaya dön</a></p>
 </div>"#,
         code = code,
         message = escape_html(message),
     );
     base_layout_with_preferences(
-        &format!("Error {code}"),
+        &format!("Hata {code}"),
         None,
         &body,
         csrf,
@@ -1366,8 +1366,8 @@ mod tests {
         assert!(html.contains(r#"name="_csrf" value="csrf""#));
         assert!(html.contains(r#"name="preferences_form" value="1""#));
         assert!(html.contains(r#"class="user-preferences-mobile-close""#));
-        assert!(html.contains(r#"aria-label="Close preferences""#));
-        assert!(html.contains("User Preferences"));
+        assert!(html.contains(r#"aria-label="Tercihleri kapat""#));
+        assert!(html.contains("Kullanıcı Tercihleri"));
         assert!(html.contains(r#"<option value="blue-sky" selected>Blue Sky</option>"#));
         assert!(html.contains(r#"name="hide_nsfw_boards_present" value="1""#));
         assert!(html.contains(r#"name="hide_nsfw_boards" value="1" checked"#));
@@ -1375,14 +1375,14 @@ mod tests {
         assert!(html.contains(r#"name="preferred_board_view" value="index" checked"#));
         assert!(html.contains(r#"name="show_activity_badges_present" value="1""#));
         assert!(!html.contains(r#"name="show_activity_badges" value="1" checked"#));
-        assert!(html.contains("Changes apply immediately."));
-        assert!(html.contains("JavaScript is off. Each choice below applies immediately."));
+        assert!(html.contains("Değişiklikler hemen uygulanır."));
+        assert!(html.contains("JavaScript kapalı. Aşağıdaki seçimlerin her biri hemen uygulanır."));
         assert!(html.contains(r#"name="hide_nsfw_boards" value="0" aria-pressed="false""#));
         assert!(html.contains(r#"name="hide_nsfw_boards" value="1" aria-pressed="true""#));
         assert!(!html.contains("save preferences"));
         assert!(!html.contains(r#"class="admin-header-link""#));
         assert!(html.contains(
-            r#"<a class="admin-footer-link" href="/admin" aria-label="Administrator login">admin</a>"#
+            r#"<a class="admin-footer-link" href="/admin" aria-label="Yönetici girişi">admin</a>"#
         ));
     }
 
