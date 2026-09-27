@@ -587,7 +587,7 @@ pub async fn run_server(port_override: Option<u16>, chan_net: bool) -> anyhow::R
         db_maintenance_jobs: crate::middleware::DbMaintenanceJobs::new(),
         chan_ledger,
         onion_address: Arc::new(tokio::sync::RwLock::new(None)),
-        require_user_account: crate::config::CONFIG.require_user_account,
+        require_user_account: CONFIG.require_user_account,
     };
 
     // worker_cancel is the shutdown token threaded through all background tasks
@@ -786,7 +786,8 @@ pub async fn run_server(port_override: Option<u16>, chan_net: bool) -> anyhow::R
                             }
                             // Anonymous board accounts carry their own session
                             // table, so they are swept on the same schedule.
-                            match crate::db::purge_expired_user_sessions(&conn) {
+                            let user_purge_result = crate::db::purge_expired_user_sessions(&conn);
+                            match user_purge_result {
                                 Ok(n) if n > 0 => {
                                     tracing::info!(target: "sessions", purged = n, "Expired account sessions purged");
                                 }

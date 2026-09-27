@@ -43,7 +43,7 @@ use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use chrono::Utc;
 use serde::Deserialize;
 use std::sync::LazyLock;
-use std::time::Duration;
+use time::Duration;
 
 /// Cookie carrying the opaque anonymous-account session identifier.
 pub(crate) const USER_SESSION_COOKIE: &str = "chan_user_session";
@@ -183,7 +183,7 @@ fn ensure_user_csrf(jar: CookieJar, secure: bool, scope: &str) -> (CookieJar, St
         Some(value) if !value.is_empty() => value.to_owned(),
         _ => {
             let raw = new_csrf_token();
-            jar = std::mem::take(&jar).add(user_csrf_cookie(raw.clone(), secure));
+            jar = jar.add(user_csrf_cookie(raw.clone(), secure));
             raw
         }
     };
@@ -198,9 +198,9 @@ fn user_session_cookie(session_id: String, secure: bool) -> Cookie<'static> {
     cookie.set_same_site(USER_COOKIE_SAME_SITE);
     cookie.set_path("/");
     cookie.set_secure(secure);
-    cookie.set_max_age(Duration::from_secs(
-        u64::try_from(CONFIG.session_duration).unwrap_or(u64::MAX),
-    ));
+    // The browser should expire the cookie after the configured session
+    // lifetime instead of persisting it indefinitely.
+    cookie.set_max_age(Duration::seconds(CONFIG.session_duration));
     cookie
 }
 
@@ -550,14 +550,16 @@ pub(crate) async fn register_submit(
             return Ok(None);
         }
         let password_hash = hash_password(&password)?;
-        match db::create_user(&conn, &name_to_store, &display_name, &password_hash, None) {
+        let insert = db::create_user(&conn, &name_to_store, &display_name, &password_hash, None);
+        let inserted = match insert {
             Ok(id) => Ok(Some(id)),
             Err(error) if is_unique_violation(&error) => {
                 tracing::debug!(target: "auth", "username taken during registration");
                 Ok(None)
             }
             Err(error) => Err(AppError::from(error)),
-        }
+        };
+        inserted
     })
     .await
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
@@ -832,11 +834,18 @@ async fn read_register_multipart(mut multipart: Multipart) -> Result<SubmittedRe
         avatar: None,
     };
 
-    while let Some(field) = multipart
-        .next_field()
-        .await
-        .map_err(|error| AppError::BadRequest(format!("Form okunamadı: {error}")))?
-    {
+    loop {
+        // Bind the field to a local instead of using it as a `while let`
+        // scrutinee: the field and the multipart error own custom destructors,
+        // and a tail expression would drop them in a different order under the
+        // Rust 2024 rules than under the 2021 rules this crate still uses.
+        let next_field = multipart
+            .next_field()
+            .await
+            .map_err(|error| AppError::BadRequest(format!("Form okunamadı: {error}")))?;
+        let Some(field) = next_field else {
+            break;
+        };
         let name = field.name().unwrap_or("").to_owned();
         if field.file_name().is_some() {
             let bytes = field
