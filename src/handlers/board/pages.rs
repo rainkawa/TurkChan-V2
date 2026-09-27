@@ -230,7 +230,7 @@ pub(in crate::server) async fn index(
         nsfw_consent,
         is_admin,
         user_preferences,
-        &account,
+        account.as_ref(),
         &registration_notice_html,
         &menu_csrf,
     ))
