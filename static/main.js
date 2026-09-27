@@ -81,7 +81,7 @@ function syncMobileBoardMenuState(menu) {
   var open = menu.open;
   if (summary) {
     summary.setAttribute('aria-expanded', open ? 'true' : 'false');
-    summary.setAttribute('aria-label', open ? 'Close board menu' : 'Open board menu');
+    summary.setAttribute('aria-label', open ? 'Board menüsünü kapat' : 'Board menüsünü aç');
   }
   if (panel) {
     setElementAriaHidden(panel, !open);
@@ -213,7 +213,7 @@ function copyTextWithTextareaFallback(text) {
     if (copied) {
       resolve();
     } else {
-      reject(new Error('copy command failed'));
+      reject(new Error('kopyalama komutu başarısız'));
     }
   });
 }
@@ -243,9 +243,9 @@ function initTorCopyButtons(root) {
 
     button.addEventListener('click', function () {
       copyTextToClipboard(address).then(function () {
-        button.textContent = 'Copied';
+        button.textContent = 'Kopyalandı';
         button.classList.add('is-copied');
-        if (status) status.textContent = 'Copied';
+        if (status) status.textContent = 'Kopyalandı';
         window.clearTimeout(resetTimer);
         resetTimer = window.setTimeout(function () {
           button.textContent = defaultText;
@@ -253,8 +253,8 @@ function initTorCopyButtons(root) {
           if (status) status.textContent = '';
         }, 1800);
       }).catch(function () {
-        button.textContent = 'Copy failed';
-        if (status) status.textContent = 'Copy failed';
+        button.textContent = 'Kopyalama başarısız';
+        if (status) status.textContent = 'Kopyalama başarısız';
         window.clearTimeout(resetTimer);
         resetTimer = window.setTimeout(function () {
           button.textContent = defaultText;
@@ -291,8 +291,8 @@ function localizePostTimes(root) {
     var ss  = padTwoDigits(d.getSeconds());
     var local = mm + '/' + dd + '/' + yy + '(' + day + ')' + hh + ':' + min + ':' + ss;
     if (el.classList.contains('post-edited')) {
-      el.title = 'last edited ' + local;
-      el.textContent = '(edited ' + local + ')';
+      el.title = 'son düzenleme ' + local;
+      el.textContent = '(düzenlendi ' + local + ')';
     } else {
       el.textContent = local;
     }
@@ -707,7 +707,7 @@ function resetUploadProgress(form) {
   var bar = row.querySelector('.upload-progress-bar');
   var text = row.querySelector('.upload-progress-text');
   if (bar) bar.style.width = '0%';
-  if (text) text.textContent = 'Preparing upload…';
+  if (text) text.textContent = 'Yükleme hazırlanıyor…';
 }
 
 function getFormSubmitButtons(form) {
@@ -758,7 +758,7 @@ function startSubmitButtonAnimation(form) {
   stopSubmitButtonAnimation(form);
 
   var frame = 0;
-  var labels = ['Posting', 'Posting.', 'Posting..', 'Posting...'];
+  var labels = ['Gönderiliyor', 'Gönderiliyor.', 'Gönderiliyor..', 'Gönderiliyor...'];
   var buttons = Array.prototype.slice.call(form.querySelectorAll('button[type="submit"]'));
   if (!buttons.length) return;
 
@@ -778,7 +778,7 @@ function setSubmitButtonsWaitingForServer(form) {
   stopSubmitButtonAnimation(form);
   setFormSubmitButtonsBusy(form, true, {
     labelKey: 'uploadOriginalLabel',
-    busyLabel: 'Upload sent, waiting for server'
+    busyLabel: 'Yükleme gönderildi, sunucu bekleniyor'
   });
 }
 
@@ -1044,7 +1044,7 @@ function extractMessageFromHtmlDocument(html) {
     if (bannedHeading && /you are banned/i.test(bannedHeading.textContent || '')) {
       var reason = doc.querySelector('.error-page strong');
       if (reason) {
-        return normalizeInlineMessage('You are banned. Reason: ' + reason.textContent);
+        return normalizeInlineMessage('Yasaklandınız. Sebep: ' + reason.textContent);
       }
       return normalizeInlineMessage(bannedHeading.textContent);
     }
@@ -1132,7 +1132,7 @@ function submitPostFormWithProgress(form) {
 
   clearPostFormFeedback(form);
   submitHelper.setBusy(true);
-  submitHelper.setProgress(0, 'Starting upload…');
+  submitHelper.setProgress(0, 'Yükleme başlatılıyor…');
 
   xhr.upload.addEventListener('progress', function (event) {
     if (event.lengthComputable && event.total > 0) {
@@ -1142,10 +1142,10 @@ function submitPostFormWithProgress(form) {
       }
       submitHelper.setProgress(
         percent,
-        'Uploading ' + formatBytes(event.loaded) + ' / ' + formatBytes(event.total) + ' (' + Math.round(percent) + '%)'
+        'Yükleniyor ' + formatBytes(event.loaded) + ' / ' + formatBytes(event.total) + ' (' + Math.round(percent) + '%)'
       );
     } else {
-      submitHelper.setProgress(100, 'Uploading…');
+      submitHelper.setProgress(100, 'Yükleniyor…');
     }
   });
 
@@ -1154,7 +1154,7 @@ function submitPostFormWithProgress(form) {
     var explicitRedirect = submitHelper.extractRedirect(xhr, payload);
 
     submitHelper.setBusy(false);
-    submitHelper.setProgress(100, 'Finishing…');
+    submitHelper.setProgress(100, 'Tamamlanıyor…');
 
     // XHR follows redirects internally, and some browsers expose the final
     // response URL without the original #p123 fragment. The explicit redirect
@@ -1185,21 +1185,21 @@ function submitPostFormWithProgress(form) {
 
     resetPostSubmitFailureState(
       form,
-      submitHelper.extractError(xhr, payload, 'Upload failed. Please try again.')
+      submitHelper.extractError(xhr, payload, 'Yükleme başarısız. Lütfen tekrar dene.')
     );
   });
 
   xhr.addEventListener('error', function () {
     resetPostSubmitFailureState(
       form,
-      'Connection dropped before the server response arrived. Your post may still have succeeded. Refresh the thread or board before trying again.'
+      'Sunucu yanıtı gelmeden bağlantı koptu. Gönderin yine de başarılı olmuş olabilir. Tekrar denemeden önce konuyu ya da board’u yenile.'
     );
   });
 
   xhr.addEventListener('timeout', function () {
     resetPostSubmitFailureState(
       form,
-      'Request timed out before the server response arrived. Request may still have succeeded. Refresh before retrying.'
+      'Sunucu yanıtı gelmeden istek zaman aşımına uğradı. İstek yine de başarılı olmuş olabilir. Tekrar denemeden önce yenile.'
     );
   });
 
@@ -1437,10 +1437,10 @@ function expandVideoEmbed(preview, type, id, container) {
   var title = '';
   if (type === 'youtube') {
     src = 'https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&rel=0&playsinline=1';
-    title = 'YouTube video player';
+    title = 'YouTube video oynatıcısı';
   } else if (type === 'streamable') {
     src = 'https://streamable.com/e/' + id + '?autoplay=1';
-    title = 'Streamable player';
+    title = 'Streamable oynatıcısı';
   }
 
   var iframe = document.createElement('iframe');
@@ -1776,7 +1776,7 @@ window.requestConfirmation = requestConfirmation;
     var size = formatBytes(file.size);
     var max = formatBytes(limit);
     var info = document.getElementById('compress-info');
-    if (info) info.textContent = '"' + file.name + '" is ' + size + '. Board limit is ' + max + '.';
+    if (info) info.textContent = '"' + file.name + '" ' + size + ' boyutunda. Board sınırı ' + max + '.';
     _setView('actions');
     var modal = document.getElementById('compress-modal');
     setModalOpen(modal, true);
@@ -1841,19 +1841,19 @@ window.requestConfirmation = requestConfirmation;
     if (!_file || !_input || _compressing) return;
     _compressing = true;
     _setView('progress');
-    _setProgress(0, 'Starting\u2026');
+    _setProgress(0, 'Başlatılıyor\u2026');
 
     var kind = fileMediaKind(_file);
     var isImg = kind === 'image';
     var isVideo = kind === 'video';
     var promise = isImg ? _compressImage(_file, _max)
       : isVideo ? _compressVideo(_file, _max)
-        : Promise.reject(new Error('Unsupported type'));
+        : Promise.reject(new Error('Desteklenmeyen tür'));
 
     promise.then(function (blob) {
       if (!blob || blob.size > _max) {
         var resultSize = blob && blob.size ? ' Result was ' + formatBytes(blob.size) + '.' : '';
-        _setProgress(100, 'Could not compress under ' + formatBytes(_max) + '.' + resultSize + ' Please use a smaller file.');
+        _setProgress(100, 'Şu boyutun altına sıkıştırılamadı: ' + formatBytes(_max) + '.' + resultSize + ' Lütfen daha küçük bir dosya kullan.');
         _compressing = false;
         _setView('done');
         return;
@@ -1867,8 +1867,8 @@ window.requestConfirmation = requestConfirmation;
       _input.dataset.autoCompressedOriginalName = _file.name;
       _input.dataset.autoCompressedOriginalSize = String(_file.size);
       _input.dataset.autoCompressedFinalSize = String(blob.size);
-      setCompressionStatus(_input, 'Auto-compressed ' + formatBytes(_file.size) + ' to ' + formatBytes(blob.size) + '.');
-      _setProgress(100, '\u2713 Compressed to ' + formatBytes(blob.size) + '. Ready to post.');
+      setCompressionStatus(_input, 'Otomatik sıkıştırıldı: ' + formatBytes(_file.size) + ' → ' + formatBytes(blob.size) + '.');
+      _setProgress(100, '\u2713 ' + formatBytes(blob.size) + ' boyutuna sıkıştırıldı. Gönderime hazır.');
       _compressing = false;
       setTimeout(function () {
         var modal = document.getElementById('compress-modal');
@@ -1876,7 +1876,7 @@ window.requestConfirmation = requestConfirmation;
         _input = null; _file = null;
       }, 1200);
     }).catch(function (err) {
-      _setProgress(0, 'Error: ' + (err.message || err));
+      _setProgress(0, 'Hata: ' + (err.message || err));
       _compressing = false;
       _setView('done');
     });
@@ -1918,7 +1918,7 @@ window.requestConfirmation = requestConfirmation;
     return new Promise(function (resolve, reject) {
       isAnimatedImage(file).then(function (animated) {
         if (animated) {
-          reject(new Error('Animated images are not auto-compressed to avoid losing animation'));
+          reject(new Error('Animasyon kaybını önlemek için animasyonlu görseller otomatik sıkıştırılmaz'));
           return;
         }
         var img = new Image();
@@ -1929,13 +1929,13 @@ window.requestConfirmation = requestConfirmation;
           var scale = 1.0, quality = 0.85;
           var outputType = imageOutputType(file);
           if (outputType === 'image/jpeg' && imageHasTransparency(img)) {
-            reject(new Error('This image uses transparency and this browser cannot safely auto-compress it'));
+            reject(new Error('Bu görsel saydamlık kullanıyor ve bu tarayıcı onu güvenle otomatik sıkıştıramıyor'));
             return;
           }
           var canvas = document.createElement('canvas');
           var ctx = canvas.getContext('2d');
           if (!ctx) {
-            reject(new Error('Canvas 2D context unavailable'));
+            reject(new Error('Canvas 2D bağlamı kullanılamıyor'));
             return;
           }
           var attempt = 0;
@@ -1945,8 +1945,8 @@ window.requestConfirmation = requestConfirmation;
             canvas.height = Math.round(h * scale);
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             canvas.toBlob(function (blob) {
-              _setProgress(Math.min(attempt * 15, 90), 'Compressing\u2026 attempt ' + attempt);
-              if (!blob) { reject(new Error('Canvas toBlob failed')); return; }
+              _setProgress(Math.min(attempt * 15, 90), 'Sıkıştırılıyor\u2026 deneme ' + attempt);
+              if (!blob) { reject(new Error('Canvas toBlob başarısız')); return; }
               if (blob.size <= maxBytes) { resolve(blob); return; }
               if (attempt >= 12) { resolve(blob); return; }
               quality -= 0.12;
@@ -1959,7 +1959,7 @@ window.requestConfirmation = requestConfirmation;
           }
           tryEncode();
         };
-        img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
+        img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('Görsel yüklenemedi')); };
         img.src = url;
       });
     });
@@ -1967,12 +1967,12 @@ window.requestConfirmation = requestConfirmation;
 
   function _compressVideo(file, maxBytes) {
     return new Promise(function (resolve, reject) {
-      if (!window.MediaRecorder) { reject(new Error('MediaRecorder not supported')); return; }
+      if (!window.MediaRecorder) { reject(new Error('MediaRecorder desteklenmiyor')); return; }
       var mimeType = videoRecorderMimeType();
-      if (!mimeType) { reject(new Error('No supported WebM encoder available in this browser')); return; }
+      if (!mimeType) { reject(new Error('Bu tarayıcıda desteklenen bir WebM kodlayıcı yok')); return; }
       var videoEl = document.createElement('video');
       if (typeof videoEl.captureStream !== 'function' && typeof videoEl.mozCaptureStream !== 'function') {
-        reject(new Error('Video compression is not supported in this browser. Please use a smaller file.'));
+        reject(new Error('Video sıkıştırma bu tarayıcıda desteklenmiyor. Lütfen daha küçük bir dosya kullan.'));
         return;
       }
       var url = URL.createObjectURL(file);
@@ -2014,8 +2014,8 @@ window.requestConfirmation = requestConfirmation;
 
       videoEl.onloadedmetadata = function () {
         duration = videoEl.duration;
-        if (!duration || !isFinite(duration)) { finish(new Error('Cannot determine video duration')); return; }
-        _setProgress(10, 'Analysing video\u2026');
+        if (!duration || !isFinite(duration)) { finish(new Error('Video süresi belirlenemiyor')); return; }
+        _setProgress(10, 'Video analiz ediliyor\u2026');
         var targetBitsPerSec = Math.floor((maxBytes * 8) / duration * 0.9);
         try {
           stream = videoEl.captureStream ? videoEl.captureStream() : videoEl.mozCaptureStream();
@@ -2024,13 +2024,13 @@ window.requestConfirmation = requestConfirmation;
           return;
         }
         if (!stream) {
-          finish(new Error('Video capture stream is not available'));
+          finish(new Error('Video yakalama akışı kullanılamıyor'));
           return;
         }
         currentBitsPerSec = Math.max(targetBitsPerSec, 64000);
         startRecordingAttempt();
       };
-      videoEl.onerror = function () { finish(new Error('Video load error')); };
+      videoEl.onerror = function () { finish(new Error('Video yükleme hatası')); };
       videoEl.load();
 
       function startRecordingAttempt() {
@@ -2054,7 +2054,7 @@ window.requestConfirmation = requestConfirmation;
           var blob = new Blob(chunks, { type: 'video/webm' });
           if (blob.size > maxBytes && attempt < 4) {
             currentBitsPerSec = Math.max(Math.floor(currentBitsPerSec * 0.6), 48000);
-            _setProgress(12, 'Retrying at lower bitrate\u2026 attempt ' + (attempt + 1));
+            _setProgress(12, 'Daha düşük bit hızıyla yeniden deneniyor\u2026 deneme ' + (attempt + 1));
             window.setTimeout(function () {
               if (settled) return;
               stopMediaStream(stream);
@@ -2070,7 +2070,7 @@ window.requestConfirmation = requestConfirmation;
                     finish(e);
                   }
                 }).catch(function (err) {
-                  finish(err || new Error('Video playback failed during compression'));
+                  finish(err || new Error('Sıkıştırma sırasında video oynatımı başarısız'));
                 });
               }, { once: true });
               try {
@@ -2083,7 +2083,7 @@ window.requestConfirmation = requestConfirmation;
           }
           finish(null, blob);
         };
-        recorder.onerror = function (e) { finish(e.error || new Error('MediaRecorder error')); };
+        recorder.onerror = function (e) { finish(e.error || new Error('MediaRecorder hatası')); };
         try {
           recorder.start(1000);
         } catch (e) {
@@ -2093,14 +2093,14 @@ window.requestConfirmation = requestConfirmation;
         progressTimer = setInterval(function () {
           _setProgress(
             Math.min(10 + Math.round((videoEl.currentTime / duration) * 80), 90),
-            'Re-encoding\u2026 attempt ' + attempt + ' · ' + Math.round((videoEl.currentTime / duration) * 100) + '%'
+            'Yeniden kodlanıyor\u2026 deneme ' + attempt + ' · ' + Math.round((videoEl.currentTime / duration) * 100) + '%'
           );
         }, 500);
         safetyTimer = setTimeout(function () {
           if (recorder && recorder.state !== 'inactive') {
             try { recorder.stop(); } catch (e) {}
           }
-          finish(new Error('Video compression timed out'));
+          finish(new Error('Video sıkıştırma zaman aşımına uğradı'));
         }, VIDEO_COMPRESS_TIMEOUT_MS);
         videoEl.addEventListener('ended', function handleEnded() {
           videoEl.removeEventListener('ended', handleEnded);
@@ -2109,7 +2109,7 @@ window.requestConfirmation = requestConfirmation;
           }
         });
         videoEl.play().catch(function (err) {
-          finish(err || new Error('Video playback failed during compression'));
+          finish(err || new Error('Sıkıştırma sırasında video oynatımı başarısız'));
         });
       }
     });
@@ -2135,12 +2135,12 @@ function openReportModal(postId, threadId, board, csrf, label) {
   var title = document.getElementById('report-modal-title');
   if (title) title.textContent = opts.title || 'Report Thread/Post';
   var info = document.getElementById('report-info');
-  if (info) info.textContent = label || ('Reporting post No.' + postId);
+  if (info) info.textContent = label || ('No. gönderi şikayet ediliyor' + postId);
   var reason = document.getElementById('report-reason');
   if (reason) {
     reason.value = '';
     reason.required = !!opts.reasonRequired;
-    reason.placeholder = opts.reasonRequired ? 'reason (required)' : 'reason (optional)';
+    reason.placeholder = opts.reasonRequired ? 'sebep (zorunlu)' : 'sebep (isteğe bağlı)';
   }
   var submit = document.getElementById('report-submit-btn');
   if (submit) submit.textContent = opts.submitLabel || 'Submit Report';
@@ -2239,7 +2239,7 @@ function bindEditModalCountdown() {
   }
 
   bindExpiryCountdown(form, countdown, expiry, function () {
-    showEditModalError('The 60-second edit window for this post has closed.');
+    showEditModalError('Bu gönderi için 60 saniyelik düzenleme süresi doldu.');
     window.setTimeout(function () {
       closeEditModal();
     }, 900);
@@ -2300,14 +2300,14 @@ function submitEditModalForm(form) {
     .then(function (payload) {
       if (!payload) return;
       if (submitter) submitter.disabled = false;
-      showEditModalError(payload.error || 'Unable to save your edit.');
+      showEditModalError(payload.error || 'Düzenlemen kaydedilemedi.');
     })
     .catch(function (error) {
       if (submitter) submitter.disabled = false;
       showEditModalError(
         error && error.name === 'AbortError'
-          ? 'Request timed out. Request may still have succeeded. Refresh before retrying.'
-          : 'Unable to save your edit. Request may still have succeeded. Refresh before retrying.'
+          ? 'İstek zaman aşımına uğradı. İstek yine de başarılı olmuş olabilir. Tekrar denemeden önce yenile.'
+          : 'Düzenlemen kaydedilemedi. İstek yine de başarılı olmuş olabilir. Tekrar denemeden önce yenile.'
       );
     });
 
@@ -2814,7 +2814,7 @@ function clampPopupToViewport(anchor, popup) {
             return;
           }
           if (!saved) {
-            setPreferenceStatus('Could not save. Try the change again.', 'error');
+            setPreferenceStatus('Kaydedilemedi. Değişikliği tekrar dene.', 'error');
             return;
           }
           setPreferenceStatus('Saved.', 'saved');
@@ -2830,13 +2830,13 @@ function clampPopupToViewport(anchor, popup) {
         if (control.name === 'theme') {
           var change = ++themeChange;
           themeLoading = true;
-          setPreferenceStatus('Loading theme…', 'saving');
+          setPreferenceStatus('Tema yükleniyor…', 'saving');
           applyTheme(control.value).then(function (applied) {
             if (change !== themeChange) return;
             themeLoading = false;
             if (!applied) {
               syncThemeControls(document.documentElement.getAttribute('data-active-theme'));
-              setPreferenceStatus('Could not load theme. Try the change again.', 'error');
+              setPreferenceStatus('Tema yüklenemedi. Değişikliği tekrar dene.', 'error');
               if (preferenceSaveQueued) {
                 preferenceSaveQueued = false;
                 mirrorUserPreferencesToCookies(form);
@@ -2941,7 +2941,7 @@ function clampPopupToViewport(anchor, popup) {
 
   function showPill(n) {
     pillCount += n;
-    pill.textContent = '+' + pillCount + ' new repl' + (pillCount === 1 ? 'y' : 'ies') + ' \u2193';
+    pill.textContent = '+' + pillCount + ' yeni yanıt \u2193';
     pill.style.display = 'block';
     if (pillTimer) clearTimeout(pillTimer);
     pillTimer = setTimeout(hidePill, 30000);
@@ -3078,7 +3078,7 @@ function clampPopupToViewport(anchor, popup) {
                 badges.className = 'thread-state-badges';
                 meta.querySelector('.post-num').insertAdjacentElement('afterend', badges);
               }
-              badges.insertAdjacentHTML('afterbegin', '<span class="thread-state-badge thread-state-badge-pin" title="Pinned" aria-label="Pinned">&#128204;</span>');
+              badges.insertAdjacentHTML('afterbegin', '<span class="thread-state-badge thread-state-badge-pin" title="Sabitlendi" aria-label="Sabitlendi">&#128204;</span>');
             } else if (badges) {
               var pin = badges.querySelector('.thread-state-badge-pin');
               if (pin) pin.remove();
@@ -3089,7 +3089,7 @@ function clampPopupToViewport(anchor, popup) {
             if (input.value !== 'sticky' && input.value !== 'unsticky') return;
             input.value = data.sticky ? 'unsticky' : 'sticky';
             var button = input.form.querySelector('button[type="submit"]');
-            if (button) button.textContent = '\uD83D\uDCCC ' + (data.sticky ? 'Unsticky' : 'Sticky');
+            if (button) button.textContent = '\uD83D\uDCCC ' + (data.sticky ? 'Sabitlemeyi kaldır' : 'Sabitle');
           });
         }
         consecutiveUpdateFailures = 0;
@@ -3125,8 +3125,8 @@ function clampPopupToViewport(anchor, popup) {
         }
         setStatus(
           data.count > 0
-            ? ('Updated. ' + data.count + ' new repl' + (data.count === 1 ? 'y.' : 'ies.'))
-            : 'Updated.',
+            ? ('Güncellendi. ' + data.count + ' yeni yanıt.')
+            : 'Güncellendi.',
           { state: 'success' }
         );
         setUpdateButtonsBusy(false);
@@ -3139,8 +3139,8 @@ function clampPopupToViewport(anchor, popup) {
           15000 * Math.pow(2, Math.min(consecutiveUpdateFailures - 1, 2))
         );
         setStatus(
-          (error && error.name === 'AbortError' ? 'Update timed out. ' : 'Update failed. ') +
-            (autoOn ? 'Retrying in ' + Math.round(delayMs / 1000) + 's.' : 'Use Update now to retry.'),
+          (error && error.name === 'AbortError' ? 'Güncelleme zaman aşımına uğradı. ' : 'Güncelleme başarısız. ') +
+            (autoOn ? 'Yeniden deneniyor: ' + Math.round(delayMs / 1000) + 's.' : 'Yeniden denemek için Şimdi Güncelle’yi kullan.'),
           { state: 'error', persist: true }
         );
         setUpdateButtonsBusy(false);
@@ -3159,7 +3159,7 @@ function clampPopupToViewport(anchor, popup) {
       if (timer) clearInterval(timer);
       timer = setInterval(window.fetchUpdates, 15000);
       consecutiveUpdateFailures = 0;
-      setStatus('Auto-update on.', { state: 'working' });
+      setStatus('Otomatik güncelleme açık.', { state: 'working' });
     } else {
       if (timer) { clearInterval(timer); timer = null; }
       setStatus('');
@@ -3261,8 +3261,8 @@ function clampPopupToViewport(anchor, popup) {
         if (postNum && !postNum.parentNode.querySelector('.you-badge')) {
           var badge = document.createElement('span');
           badge.className = 'you-badge';
-          badge.title = 'You posted this';
-          badge.textContent = '(You)';
+          badge.title = 'Bunu sen gönderdin';
+          badge.textContent = '(Sen)';
           postNum.insertAdjacentElement('afterend', badge);
         }
       });
@@ -3332,7 +3332,7 @@ function clampPopupToViewport(anchor, popup) {
     notice.className = 'missing-post-notice missing-hash-notice';
     notice.innerHTML =
       '<span class="missing-post-icon">&#x2715;</span> ' +
-      '<strong>&gt;&gt;' + pid + '</strong> — post not found' +
+      '<strong>&gt;&gt;' + pid + '</strong> — gönderi bulunamadı' +
       '<span class="missing-post-sub">it may have been deleted</span>';
     container.parentNode.insertBefore(notice, container);
     _missingHashNotice = notice;
@@ -3345,7 +3345,7 @@ function clampPopupToViewport(anchor, popup) {
     var missing = !target;
     link.classList.toggle('missing-post-ref', missing);
     if (missing) {
-      link.setAttribute('title', 'post not found');
+      link.setAttribute('title', 'gönderi bulunamadı');
     } else {
       link.removeAttribute('title');
     }
@@ -3450,7 +3450,7 @@ function clampPopupToViewport(anchor, popup) {
     popup.innerHTML =
       '<div class="missing-post-notice">' +
       '<span class="missing-post-icon">&#x2715;</span> ' +
-      '<strong>&gt;&gt;' + pid + '</strong> — post not found' +
+      '<strong>&gt;&gt;' + pid + '</strong> — gönderi bulunamadı' +
       '<span class="missing-post-sub">it may have been deleted</span>' +
       '</div>';
     popup.style.display = 'block';
@@ -3601,7 +3601,7 @@ function clampPopupToViewport(anchor, popup) {
         delete _cbInFlight[key];
         var missing = error === 404 || error === 410;
         var errorHtml = '<div class="missing-post-notice">' +
-          (missing ? 'Post not found' : 'Preview unavailable. Click the link to retry.') + '</div>';
+          (missing ? 'Gönderi bulunamadı' : 'Önizleme kullanılamıyor. Tekrar denemek için bağlantıya tıkla.') + '</div>';
         // A failed connection or permission check is not a missing post.
         if (missing) _cbCache[key] = { html: errorHtml, thread_id: 0 };
         if (popup.style.display !== 'none' && popup.dataset.previewKey === key) {
@@ -3648,14 +3648,14 @@ function clampPopupToViewport(anchor, popup) {
           if (!cbPopup) return;
           cbPopup.dataset.previewKey = key;
           link.classList.toggle('missing-post-ref', missing);
-          if (missing) link.setAttribute('title', 'post not found');
+          if (missing) link.setAttribute('title', 'gönderi bulunamadı');
           else link.removeAttribute('title');
           cbPopup.innerHTML =
             '<div class="missing-post-notice">' +
             '<span class="missing-post-icon">&#x2715;</span> ' +
             '<strong>&gt;&gt;&gt;/' + board + '/' + pid + '</strong> — ' +
-            (missing ? 'post not found<span class="missing-post-sub">it may have been deleted</span>' :
-              'could not load post<span class="missing-post-sub">try the link again</span>') +
+            (missing ? 'gönderi bulunamadı<span class="missing-post-sub">silinmiş olabilir</span>' :
+              'gönderi yüklenemedi<span class="missing-post-sub">bağlantıyı tekrar dene</span>') +
             '</div>';
           cbPopup.style.display = 'block';
           positionCbPopup(link, cbPopup);
@@ -3779,7 +3779,7 @@ function submitBanDeleteModal() {
   var rawDuration = (_banDeleteDuration.value || '').trim();
   var hours = rawDuration === '' ? 0 : parseInt(rawDuration, 10);
   if (isNaN(hours) || hours < 0) {
-    showBanDeleteError('Duration must be 0 or a positive number of hours.');
+    showBanDeleteError('Süre 0 ya da pozitif bir saat sayısı olmalı.');
     _banDeleteDuration.focus();
     return;
   }
@@ -3787,7 +3787,7 @@ function submitBanDeleteModal() {
   var pid = _banDeleteTargetForm.dataset.banDeletePid;
   var reasonEl = document.getElementById('ban-reason-' + pid);
   var durEl = document.getElementById('ban-dur-' + pid);
-  if (reasonEl) reasonEl.value = (_banDeleteReason.value || '').trim() || 'Rule violation';
+  if (reasonEl) reasonEl.value = (_banDeleteReason.value || '').trim() || 'Kural ihlali';
   if (durEl) durEl.value = hours;
 
   var targetForm = _banDeleteTargetForm;
@@ -3811,8 +3811,8 @@ function getPollOptionMaxCount(list) {
 
 function buildPollOptionRowHtml(count, maxLength) {
   return (
-    '<input type="text" class="poll-option-input" name="poll_option" placeholder="Option ' + count + '" maxlength="' + maxLength + '">' +
-    '<button type="button" class="poll-remove-btn" data-action="remove-poll-option" aria-label="Remove poll option" hidden>\u2715</button>'
+    '<input type="text" class="poll-option-input" name="poll_option" placeholder="Seçenek ' + count + '" maxlength="' + maxLength + '">' +
+    '<button type="button" class="poll-remove-btn" data-action="remove-poll-option" aria-label="Anket seçeneğini kaldır" hidden>\u2715</button>'
   );
 }
 
@@ -4100,7 +4100,7 @@ document.addEventListener('submit', function (e) {
       e.preventDefault();
       showPostFormFeedback(
         form,
-        'Enter the CAPTCHA text before posting.'
+        'Gönderi yapmadan önce CAPTCHA metnini gir.'
       );
       setPostFormOpen(true, { scrollIntoView: true });
       return;
@@ -4241,7 +4241,7 @@ if (window.visualViewport) {
     var closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.className = 'media-close-btn';
-    closeBtn.setAttribute('aria-label', 'Collapse media');
+    closeBtn.setAttribute('aria-label', 'Medyayı daralt');
     closeBtn.innerHTML = '&#x2715; close';
     closeBtn.style.display = 'none';
     closeBtn.addEventListener('click', function (e) {
@@ -4255,7 +4255,7 @@ if (window.visualViewport) {
     var preview = document.createElement('button');
     preview.type = 'button';
     preview.className = 'media-preview';
-    preview.title = 'click to open embed';
+    preview.title = 'gömüyü açmak için tıkla';
     preview.setAttribute('aria-expanded', 'false');
 
     if (type === 'youtube') {
@@ -4263,7 +4263,7 @@ if (window.visualViewport) {
       img.className = 'thumb embed-thumb';
       img.loading = 'lazy';
       img.decoding = 'async';
-      img.alt = 'video thumbnail';
+      img.alt = 'video küçük resmi';
       // mqdefault is 16:9; hqdefault is 4:3 and often includes padded whitespace.
       img.src = 'https://img.youtube.com/vi/' + id + '/mqdefault.jpg';
       preview.appendChild(img);

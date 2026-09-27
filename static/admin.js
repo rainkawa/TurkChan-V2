@@ -232,7 +232,7 @@ function setAdminModalOpen(modal, open, displayValue) {
         copyTextToClipboard(text).then(function () {
           setCopyFeedback(button, 'Copied', defaultText, 1500);
         }).catch(function () {
-          setCopyFeedback(button, 'Copy failed', defaultText, 2200);
+          setCopyFeedback(button, 'Kopyalama başarısız', defaultText, 2200);
         });
       });
     });
@@ -288,9 +288,9 @@ function setAdminModalOpen(modal, open, displayValue) {
         copyButton.addEventListener('click', function () {
           var value = text.textContent || '';
           copyTextToClipboard(value).then(function () {
-            setCopyFeedback(copyButton, 'Copied', 'Copy', 1500);
+            setCopyFeedback(copyButton, 'Kopyalandı', 'Kopyala', 1500);
           }).catch(function () {
-            setCopyFeedback(copyButton, 'Copy failed', 'Copy', 2200);
+            setCopyFeedback(copyButton, 'Kopyalama başarısız', 'Kopyala', 2200);
           });
         });
       }
@@ -793,7 +793,7 @@ function setAdminModalOpen(modal, open, displayValue) {
         event.preventDefault();
         showBannerWarning(
           form,
-          'Enable external banner links in Global board banner settings before saving a banner that opens another website.'
+          'Başka bir siteyi açan bir banner kaydetmeden önce Genel board banner ayarlarında harici banner bağlantılarını etkinleştir.'
         );
         var warning = bannerWarningNode(form);
         if (warning && typeof warning.scrollIntoView === 'function') {
@@ -896,7 +896,7 @@ function setAdminModalOpen(modal, open, displayValue) {
       }, requestTimeoutMs);
 
       if (!lastText) {
-        setStatus('Connecting to live log…');
+        setStatus('Canlı günlüğe bağlanılıyor…');
       }
 
       fetch('/admin/log/live?bytes=65536', {
@@ -921,11 +921,11 @@ function setAdminModalOpen(modal, open, displayValue) {
             clearedBaseline = '';
             clearedFile = fileName;
           }
-          setStatus('Live log connected. Retrying automatically if this connection stalls.');
+          setStatus('Canlı günlüğe bağlanıldı. Bu bağlantı takılırsa otomatik olarak yeniden denenecek.');
           if (fullText !== lastText) {
             lastText = fullText;
             var text = visibleText(fullText, fileName);
-            output.textContent = text || 'Waiting for new log lines\u2026';
+            output.textContent = text || 'Yeni günlük satırları bekleniyor\u2026';
           }
           if (!autoscroll || autoscroll.checked) {
             output.scrollTop = output.scrollHeight;
@@ -942,13 +942,13 @@ function setAdminModalOpen(modal, open, displayValue) {
           var timedOut = !!(error && error.name === 'AbortError');
           if (!lastText) {
             output.textContent = timedOut
-              ? 'Live log request timed out. Retrying\u2026'
-              : 'Unable to load live log. Retrying\u2026';
+              ? 'Canlı günlük isteği zaman aşımına uğradı. Yeniden deneniyor\u2026'
+              : 'Canlı günlük yüklenemedi. Yeniden deneniyor\u2026';
           }
           setStatus(
             timedOut
-              ? 'Live log request timed out over this connection. Retrying in ' + Math.round(delayMs / 1000) + 's.'
-              : 'Live log unavailable right now. Retrying in ' + Math.round(delayMs / 1000) + 's.'
+              ? 'Bu bağlantı üzerinden canlı günlük isteği zaman aşımına uğradı. Yeniden deneniyor: ' + Math.round(delayMs / 1000) + 's.'
+              : 'Canlı günlük şu anda kullanılamıyor. Yeniden deneniyor: ' + Math.round(delayMs / 1000) + 's.'
           );
           scheduleNextPoll(delayMs);
         });
@@ -974,7 +974,7 @@ function setAdminModalOpen(modal, open, displayValue) {
       }
       requestInFlight = false;
       if (controls) controls.hidden = true;
-      setStatus('Open this section to start live updates. The current log tail remains available below.');
+      setStatus('Canlı güncellemeleri başlatmak için bu bölümü aç. Mevcut günlük kısmı aşağıda görünmeye devam eder.');
     }
 
     if (refreshBtn) {
@@ -989,7 +989,7 @@ function setAdminModalOpen(modal, open, displayValue) {
       clearBtn.addEventListener('click', function () {
         clearedBaseline = lastText;
         clearedFile = fileLabel ? fileLabel.textContent : '';
-        output.textContent = 'Waiting for new log lines\u2026';
+        output.textContent = 'Yeni günlük satırları bekleniyor\u2026';
       });
     }
 
@@ -1166,8 +1166,8 @@ function setAdminModalOpen(modal, open, displayValue) {
         var empty = document.createElement('p');
         empty.className = 'admin-copy';
         empty.textContent = name === 'failed'
-          ? 'No failed jobs recorded.'
-          : 'No completed jobs recorded yet.';
+          ? 'Kayıtlı başarısız iş yok.'
+          : 'Henüz tamamlanmış iş kaydı yok.';
         list.appendChild(empty);
         return;
       }
@@ -1175,7 +1175,7 @@ function setAdminModalOpen(modal, open, displayValue) {
         var card = document.createElement('article');
         card.className = 'admin-health-job-card';
         var title = document.createElement('h4');
-        title.textContent = job.name || job.type || 'Background job';
+        title.textContent = job.name || job.type || 'Arka plan işi';
         card.appendChild(title);
         var meta = document.createElement('div');
         meta.className = 'admin-health-job-meta';
@@ -1384,8 +1384,8 @@ function setAdminModalOpen(modal, open, displayValue) {
           if (options.onStatus) {
             options.onStatus(
               error && error.name === 'AbortError'
-                ? 'Progress request timed out. Retrying in ' + Math.round(delay / 1000) + 's...'
-                : 'Progress unavailable. Retrying in ' + Math.round(delay / 1000) + 's...'
+                ? 'İlerleme isteği zaman aşımına uğradı. Yeniden deneniyor: ' + Math.round(delay / 1000) + 's...'
+                : 'İlerleme kullanılamıyor. Yeniden deneniyor: ' + Math.round(delay / 1000) + 's...'
             );
           }
           schedule(delay);
@@ -1431,7 +1431,7 @@ function setAdminModalOpen(modal, open, displayValue) {
     function setProgress(percent, message) {
       percent = Math.min(100, Math.max(0, Number(percent) || 0));
       if (bar) bar.style.width = percent + '%';
-      if (text) text.textContent = message || 'Working...';
+      if (text) text.textContent = message || 'Çalışıyor...';
     }
 
     function finish(data) {
@@ -1457,7 +1457,7 @@ function setAdminModalOpen(modal, open, displayValue) {
         return true;
       },
       onStatus: function (message) {
-        setProgress(5, 'Still working. ' + message);
+        setProgress(5, 'Hâlâ çalışıyor. ' + message);
       }
     });
     poller.start();
@@ -1473,12 +1473,12 @@ function setAdminModalOpen(modal, open, displayValue) {
   var _downloadMode = false;
 
   var PHASE_LABELS = [
-    'Idle',
-    'Snapshotting database\u2026',
-    'Counting files\u2026',
-    'Compressing files\u2026',
-    'Saving\u2026',
-    'Done!',
+    'Beklemede',
+    'Veritabanı anlık görüntüsü alınıyor\u2026',
+    'Dosyalar sayılıyor\u2026',
+    'Dosyalar sıkıştırılıyor\u2026',
+    'Kaydediliyor\u2026',
+    'Tamamlandı!',
   ];
 
   function showBackupModal(title) {
@@ -1486,12 +1486,12 @@ function setAdminModalOpen(modal, open, displayValue) {
     var titleEl = document.getElementById('backup-modal-title');
     var done = document.getElementById('backup-done-actions');
     if (!modal) return;
-    if (titleEl) titleEl.textContent = title || '\uD83D\uDCBE Creating Backup\u2026';
+    if (titleEl) titleEl.textContent = title || '\uD83D\uDCBE Backup oluşturuluyor\u2026';
     if (done) {
       done.hidden = true;
       done.style.display = 'none';
     }
-    _setBkProgress(0, 'Starting\u2026');
+    _setBkProgress(0, 'Başlatılıyor\u2026');
     setAdminModalOpen(modal, true);
   }
 
@@ -1523,7 +1523,7 @@ function setAdminModalOpen(modal, open, displayValue) {
       timeoutMs: 20000,
       onData: function (data) {
         var phase = data.phase || 0;
-        var label = PHASE_LABELS[phase] || 'Working\u2026';
+        var label = PHASE_LABELS[phase] || 'Çalışıyor\u2026';
         var pct = 0;
         if (data.files_total > 0) {
           pct = Math.min(98, Math.round((data.files_done / data.files_total) * 100));
@@ -1533,26 +1533,26 @@ function setAdminModalOpen(modal, open, displayValue) {
           pct = 10;
         }
         var detail = data.files_total > 0
-          ? ' (' + data.files_done + '/' + data.files_total + ' files)'
+          ? ' (' + data.files_done + '/' + data.files_total + ' dosya)'
           : '';
         _setBkProgress(pct, label + detail);
 
         if (_downloadMode && phase === 5) {
           _stopPolling();
-          _setBkProgress(100, '\u2713 Download ready!');
+          _setBkProgress(100, '\u2713 İndirmeye hazır!');
           setTimeout(hideBackupModal, 1500);
           if (onDone) onDone();
           return false;
         }
         if (phase === 5) {
           _stopPolling();
-          _setBkProgress(100, 'Backup completed. Waiting for final response\u2026');
+          _setBkProgress(100, 'Yedekleme tamamlandı. Nihai yanıt bekleniyor\u2026');
           return false;
         }
         return true;
       },
       onStatus: function (message) {
-        _setBkProgress(5, 'Still working. ' + message);
+        _setBkProgress(5, 'Hâlâ çalışıyor. ' + message);
       }
     });
     _poller.start();
@@ -1615,11 +1615,11 @@ function setAdminModalOpen(modal, open, displayValue) {
 
   function _submitRestoreUploadForm(form, title) {
     var xhr = null;
-    var submitHelper = _createBackupSubmitHelper(form, 'Uploading\u2026');
+    var submitHelper = _createBackupSubmitHelper(form, 'Yükleniyor\u2026');
     _downloadMode = false;
     _stopPolling();
     showBackupModal(title);
-    submitHelper.setProgress(0, 'Starting upload\u2026');
+    submitHelper.setProgress(0, 'Yükleme başlatılıyor\u2026');
     submitHelper.setBusy(true);
 
     xhr = new XMLHttpRequest();
@@ -1633,12 +1633,12 @@ function setAdminModalOpen(modal, open, displayValue) {
         var pct = Math.round((event.loaded / event.total) * 100);
         submitHelper.setProgress(
           pct,
-          'Uploading restore file\u2026 ' +
+          'Geri yükleme dosyası yükleniyor\u2026 ' +
           formatBytes(event.loaded) + ' / ' + formatBytes(event.total) +
           ' (' + pct + '%)'
         );
       } else {
-        submitHelper.setProgress(15, 'Uploading restore file\u2026');
+        submitHelper.setProgress(15, 'Geri yükleme dosyası yükleniyor\u2026');
       }
     });
 
@@ -1648,13 +1648,13 @@ function setAdminModalOpen(modal, open, displayValue) {
       if (payload && payload.error) {
         submitHelper.setProgress(
           0,
-          submitHelper.extractError(xhr, payload, title + ' failed (' + xhr.status + ')')
+          submitHelper.extractError(xhr, payload, title + ' başarısız (' + xhr.status + ')')
         );
         showDoneButton();
         return;
       }
       if (xhr.status >= 200 && xhr.status < 400) {
-        submitHelper.setProgress(100, 'Upload complete. Restoring backup\u2026');
+        submitHelper.setProgress(100, 'Yükleme tamamlandı. Yedek geri yükleniyor\u2026');
         var redirectTarget = _resolveRestoreRedirectTarget(xhr, form);
         if (redirectTarget) {
           window.location.assign(redirectTarget);
@@ -1665,7 +1665,7 @@ function setAdminModalOpen(modal, open, displayValue) {
       }
       submitHelper.setProgress(
         0,
-        submitHelper.extractError(xhr, payload, title + ' failed (' + xhr.status + ')')
+        submitHelper.extractError(xhr, payload, title + ' başarısız (' + xhr.status + ')')
       );
       showDoneButton();
     });
@@ -1695,7 +1695,7 @@ function setAdminModalOpen(modal, open, displayValue) {
     options = options || {};
     var submitHelper = _createBackupSubmitHelper(
       form,
-      options.downloadAfterCreate ? 'Preparing\u2026' : 'Saving\u2026'
+      options.downloadAfterCreate ? 'Hazırlanıyor\u2026' : 'Kaydediliyor\u2026'
     );
     _downloadMode = false;
     showBackupModal(title);
