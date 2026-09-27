@@ -4,7 +4,7 @@ use anyhow::Result;
 ///
 /// # Errors
 /// Returns an error when the header is empty or the file type is not one of
-/// `RustChan`'s accepted upload formats.
+/// `TurkChan`'s accepted upload formats.
 pub(super) fn detect_mime_type(data: &[u8]) -> Result<&'static str> {
     if data.is_empty() {
         return Err(anyhow::anyhow!("File is empty."));
