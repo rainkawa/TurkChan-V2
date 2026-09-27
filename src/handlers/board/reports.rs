@@ -58,21 +58,21 @@ pub(in crate::server) async fn file_report(
             )?;
             if !access_context.can_view {
                 return Err(AppError::Forbidden(
-                    "This board requires a password.".into(),
+                    "Bu board için parola gerekli.".into(),
                 ));
             }
             let board = access_context.board;
             // Verify post exists and belongs to this board to prevent spoofed reports.
             let post = db::get_post(&conn, post_id)?
-                .ok_or_else(|| AppError::NotFound("Post not found.".into()))?;
+                .ok_or_else(|| AppError::NotFound("Gönderi bulunamadı.".into()))?;
             if post.board_id != board.id {
                 return Err(AppError::BadRequest(
-                    "Post does not belong to this board.".into(),
+                    "Gönderi bu board’a ait değil.".into(),
                 ));
             }
             if post.thread_id != form.thread_id {
                 return Err(AppError::BadRequest(
-                    "Reported thread does not match the selected post.".into(),
+                    "Şikayet edilen konu, seçilen gönderiyle eşleşmiyor.".into(),
                 ));
             }
             // Use the DB's thread_id for the redirect — not the user-submitted value.
@@ -125,7 +125,7 @@ pub(in crate::server) async fn submit_appeal(
     let ip_hash = hash_ip(&identity_key(&client_ip, &jar), &CONFIG.cookie_secret);
     let reason = form.reason.trim().chars().take(512).collect::<String>();
     if reason.is_empty() {
-        return AppError::BadRequest("Appeal message cannot be empty.".into()).into_response();
+        return AppError::BadRequest("İtiraz mesajı boş olamaz.".into()).into_response();
     }
 
     let result = tokio::task::spawn_blocking({
@@ -139,13 +139,13 @@ pub(in crate::server) async fn submit_appeal(
 
     let msg = match result {
         Ok(Ok(db::BanAppealSubmission::Filed)) => {
-            "Your appeal has been submitted. An admin will review it."
+            "İtirazın gönderildi. Bir yönetici inceleyecek."
         }
         Ok(Ok(db::BanAppealSubmission::AlreadyFiled)) => {
-            "You have already filed an appeal in the last 24 hours."
+            "Son 24 saat içinde zaten bir itiraz gönderdin."
         }
-        Ok(Ok(db::BanAppealSubmission::NotBanned)) => "Your IP is not currently banned.",
-        _ => "An error occurred. Please try again.",
+        Ok(Ok(db::BanAppealSubmission::NotBanned)) => "IP adresin şu anda yasaklı değil.",
+        _ => "Bir hata oluştu. Lütfen tekrar dene.",
     };
 
     let body = format!(
@@ -156,7 +156,7 @@ pub(in crate::server) async fn submit_appeal(
     let theme = super::current_theme_from_jar(&jar);
     let boards = templates::live_boards();
     let html = templates::base_layout(
-        "Appeal Submitted",
+        "İtiraz Gönderildi",
         None,
         &body,
         form.csrf.as_deref().unwrap_or(""),

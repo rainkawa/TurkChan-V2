@@ -109,7 +109,7 @@ pub(super) fn load_board_page_data(
 ) -> Result<BoardPageData> {
     let is_admin = posting::is_admin_session(conn, admin_session_id);
     let board = db::get_board_by_short(conn, board_short)?
-        .ok_or_else(|| AppError::NotFound(format!("Board /{board_short}/ not found")))?;
+        .ok_or_else(|| AppError::NotFound(format!("Board /{board_short}/ bulunamadı")))?;
     let total = db::count_threads_for_board(conn, board.id)?;
     let pagination = Pagination::new(page, threads_per_page, total);
     let threads = db::get_threads_for_board(conn, board.id, threads_per_page, pagination.offset())?;
@@ -184,11 +184,11 @@ pub(super) fn load_thread_page_data(
 ) -> Result<ThreadPageData> {
     let is_admin = posting::is_admin_session(conn, admin_session_id);
     let board = db::get_board_by_short(conn, board_short)?
-        .ok_or_else(|| AppError::NotFound(format!("Board /{board_short}/ not found")))?;
+        .ok_or_else(|| AppError::NotFound(format!("Board /{board_short}/ bulunamadı")))?;
     let thread = db::get_thread(conn, thread_id)?
         .ok_or_else(|| AppError::NotFound(format!("Thread {thread_id} not found")))?;
     if thread.board_id != board.id {
-        return Err(AppError::NotFound("Thread not found in this board.".into()));
+        return Err(AppError::NotFound("Konu bu board’da bulunamadı.".into()));
     }
     let posts = db::get_posts_for_thread(conn, thread_id)?;
     let ip_hash = hash_ip(client_ip, cookie_secret);

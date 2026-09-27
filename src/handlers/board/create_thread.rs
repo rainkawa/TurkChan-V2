@@ -66,7 +66,7 @@ pub(in crate::server) async fn create_thread(
         ),
     )
     .await
-    .map_err(|_error| AppError::BadRequest("Upload timed out. Please try again.".into()))??;
+    .map_err(|_error| AppError::BadRequest("Yükleme zaman aşımına uğradı. Lütfen tekrar dene.".into()))??;
 
     if !form.csrf_verified {
         return Err(AppError::Forbidden("CSRF token mismatch.".into()));

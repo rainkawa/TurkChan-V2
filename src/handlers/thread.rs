@@ -325,7 +325,7 @@ pub(in crate::server) async fn post_reply(
         ),
     )
     .await
-    .map_err(|_error| AppError::BadRequest("Upload timed out. Please try again.".into()))??;
+    .map_err(|_error| AppError::BadRequest("Yükleme zaman aşımına uğradı. Lütfen tekrar dene.".into()))??;
 
     if !form.csrf_verified {
         return Err(AppError::Forbidden("CSRF token mismatch.".into()));
@@ -518,16 +518,16 @@ async fn load_self_action_post_context(
         move || -> Result<SelfActionPostContext> {
             let conn = pool.get()?;
             let board = db::get_board_by_short(&conn, &board_short)?
-                .ok_or_else(|| AppError::NotFound(format!("Board /{board_short}/ not found")))?;
+                .ok_or_else(|| AppError::NotFound(format!("Board /{board_short}/ bulunamadı")))?;
             let post = db::get_post(&conn, post_id)?
-                .ok_or_else(|| AppError::NotFound("Post not found.".into()))?;
+                .ok_or_else(|| AppError::NotFound("Gönderi bulunamadı.".into()))?;
             if post.board_id != board.id {
-                return Err(AppError::NotFound("Post not found in this board.".into()));
+                return Err(AppError::NotFound("Gönderi bu board’da bulunamadı.".into()));
             }
             let thread = db::get_thread(&conn, post.thread_id)?
-                .ok_or_else(|| AppError::NotFound("Thread not found.".into()))?;
+                .ok_or_else(|| AppError::NotFound("Konu bulunamadı.".into()))?;
             if thread.board_id != board.id {
-                return Err(AppError::NotFound("Thread not found in this board.".into()));
+                return Err(AppError::NotFound("Konu bu board’da bulunamadı.".into()));
             }
             let access_context = crate::handlers::board::load_board_access_context(
                 &conn,
@@ -640,12 +640,12 @@ pub(in crate::server) async fn edit_post_get(
 
     if !context.board.allow_editing {
         return Err(AppError::Forbidden(
-            "Users cannot edit their own posts on this board.".into(),
+            "Bu board’da kullanıcılar kendi gönderilerini düzenleyemez.".into(),
         ));
     }
     if !context.thread_allows_self_actions {
         return Err(AppError::Forbidden(
-            "Self-actions are not available after a thread is locked or archived.".into(),
+            "Konu kilitli veya arşivlendikten sonra kendi gönderini düzenleyemez veya silemezsin.".into(),
         ));
     }
 
@@ -665,13 +665,13 @@ pub(in crate::server) async fn edit_post_get(
         crate::handlers::board::owned_post_grant_from_jar(&jar, &board_short, post_id).ok_or_else(
             || {
                 AppError::Forbidden(
-                    "Edit permission for this post is no longer available in this browser.".into(),
+                    "Bu gönderi için düzenleme izni bu tarayıcıda artık mevcut değil.".into(),
                 )
             },
         )?;
     if owned_grant.expires_at <= now {
         return Err(AppError::Forbidden(
-            "Edit permission for this post is no longer available in this browser.".into(),
+            "Bu gönderi için düzenleme izni bu tarayıcıda artık mevcut değil.".into(),
         ));
     }
 
@@ -726,7 +726,7 @@ pub(in crate::server) async fn edit_post_post(
         crate::handlers::board::owned_post_grant_from_jar(&jar, &board_short, post_id).ok_or_else(
             || {
                 AppError::Forbidden(
-                    "Edit permission for this post is no longer available in this browser.".into(),
+                    "Bu gönderi için düzenleme izni bu tarayıcıda artık mevcut değil.".into(),
                 )
             },
         )?;
@@ -774,19 +774,19 @@ pub(in crate::server) async fn edit_post_post(
             let conn = pool.get()?;
 
             let board = db::get_board_by_short(&conn, &board_short_for_edit)?.ok_or_else(|| {
-                AppError::NotFound(format!("Board /{board_short_for_edit}/ not found"))
+                AppError::NotFound(format!("Board /{board_short_for_edit}/ bulunamadı"))
             })?;
 
             let post = db::get_post(&conn, post_id)?
-                .ok_or_else(|| AppError::NotFound("Post not found.".into()))?;
+                .ok_or_else(|| AppError::NotFound("Gönderi bulunamadı.".into()))?;
 
             if post.board_id != board.id {
-                return Err(AppError::NotFound("Post not found in this board.".into()));
+                return Err(AppError::NotFound("Gönderi bu board’da bulunamadı.".into()));
             }
 
             if !board.allow_editing {
                 return Err(AppError::Forbidden(
-                    "Users cannot edit their own posts on this board.".into(),
+                    "Bu board’da kullanıcılar kendi gönderilerini düzenleyemez.".into(),
                 ));
             }
 
@@ -822,7 +822,7 @@ pub(in crate::server) async fn edit_post_post(
 
             if !success {
                 return Err(AppError::Forbidden(
-                    "Edit permission for this post is no longer available in this browser.".into(),
+                    "Bu gönderi için düzenleme izni bu tarayıcıda artık mevcut değil.".into(),
                 ));
             }
 
@@ -925,12 +925,12 @@ pub(in crate::server) async fn delete_post_get(
 
     if !context.board.allow_self_delete {
         return Err(AppError::Forbidden(
-            "Users cannot delete their own posts on this board.".into(),
+            "Bu board’da kullanıcılar kendi gönderilerini silemez.".into(),
         ));
     }
     if !context.thread_allows_self_actions {
         return Err(AppError::Forbidden(
-            "Self-actions are not available after a thread is locked or archived.".into(),
+            "Konu kilitli veya arşivlendikten sonra kendi gönderini düzenleyemez veya silemezsin.".into(),
         ));
     }
 
@@ -950,14 +950,14 @@ pub(in crate::server) async fn delete_post_get(
         crate::handlers::board::owned_post_grant_from_jar(&jar, &board_short, post_id).ok_or_else(
             || {
                 AppError::Forbidden(
-                    "Delete permission for this post is no longer available in this browser."
+                    "Bu gönderi için silme izni bu tarayıcıda artık mevcut değil."
                         .into(),
                 )
             },
         )?;
     if owned_grant.expires_at <= now {
         return Err(AppError::Forbidden(
-            "Delete permission for this post is no longer available in this browser.".into(),
+            "Bu gönderi için silme izni bu tarayıcıda artık mevcut değil.".into(),
         ));
     }
 
@@ -996,7 +996,7 @@ pub(in crate::server) async fn delete_own_post(
         crate::handlers::board::owned_post_grant_from_jar(&jar, &board_short, post_id).ok_or_else(
             || {
                 AppError::Forbidden(
-                    "Delete permission for this post is no longer available in this browser."
+                    "Bu gönderi için silme izni bu tarayıcıda artık mevcut değil."
                         .into(),
                 )
             },
@@ -1039,23 +1039,23 @@ pub(in crate::server) async fn delete_own_post(
         move || -> Result<(i64, db::posts::SelfDeleteOutcome)> {
             let conn = pool.get()?;
             let post = db::get_post(&conn, post_id)?
-                .ok_or_else(|| AppError::NotFound("Post not found.".into()))?;
+                .ok_or_else(|| AppError::NotFound("Gönderi bulunamadı.".into()))?;
             if post.board_id
                 != db::get_board_by_short(&conn, &board_short_for_delete)?
                     .ok_or_else(|| {
-                        AppError::NotFound(format!("Board /{board_short_for_delete}/ not found"))
+                        AppError::NotFound(format!("Board /{board_short_for_delete}/ bulunamadı"))
                     })?
                     .id
             {
-                return Err(AppError::NotFound("Post not found in this board.".into()));
+                return Err(AppError::NotFound("Gönderi bu board’da bulunamadı.".into()));
             }
             let board =
                 db::get_board_by_short(&conn, &board_short_for_delete)?.ok_or_else(|| {
-                    AppError::NotFound(format!("Board /{board_short_for_delete}/ not found"))
+                    AppError::NotFound(format!("Board /{board_short_for_delete}/ bulunamadı"))
                 })?;
             if !board.allow_self_delete {
                 return Err(AppError::Forbidden(
-                    "Users cannot delete their own posts on this board.".into(),
+                    "Bu board’da kullanıcılar kendi gönderilerini silemez.".into(),
                 ));
             }
 
@@ -1112,15 +1112,15 @@ pub(in crate::server) async fn delete_own_post(
             let redirect_url = format!("/{board_short}/catalog");
             Ok((jar, Redirect::to(&redirect_url)).into_response())
         }
-        db::posts::SelfDeleteOutcome::NotFound => Err(AppError::NotFound("Post not found.".into())),
+        db::posts::SelfDeleteOutcome::NotFound => Err(AppError::NotFound("Gönderi bulunamadı.".into())),
         db::posts::SelfDeleteOutcome::WrongToken => Err(AppError::Forbidden(
-            "Delete permission for this post is no longer available in this browser.".into(),
+            "Bu gönderi için silme izni bu tarayıcıda artık mevcut değil.".into(),
         )),
         db::posts::SelfDeleteOutcome::WindowClosed => Err(AppError::Forbidden(
             "The 60-second self-delete window for this post has closed.".into(),
         )),
         db::posts::SelfDeleteOutcome::ThreadClosed => Err(AppError::Forbidden(
-            "Self-actions are not available after a thread is locked or archived.".into(),
+            "Konu kilitli veya arşivlendikten sonra kendi gönderini düzenleyemez veya silemezsin.".into(),
         )),
         db::posts::SelfDeleteOutcome::ThreadHasReplies => Err(AppError::Forbidden(
             "You can only self-delete a thread starter before anyone replies.".into(),
@@ -1358,9 +1358,9 @@ pub(in crate::server) async fn thread_updates(
             let board = db::get_board_by_short(&conn, &board_short)?
                 .ok_or_else(|| AppError::NotFound("Board not found.".into()))?;
             let thread = db::get_thread(&conn, thread_id)?
-                .ok_or_else(|| AppError::NotFound("Thread not found.".into()))?;
+                .ok_or_else(|| AppError::NotFound("Konu bulunamadı.".into()))?;
             if thread.board_id != board.id {
-                return Err(AppError::NotFound("Thread not found in this board.".into()));
+                return Err(AppError::NotFound("Konu bu board’da bulunamadı.".into()));
             }
             let thread_badges_enabled = db::get_thread_new_reply_badges_enabled(&conn);
             let homepage_thread_badges_enabled = db::get_homepage_new_thread_badges_enabled(&conn);

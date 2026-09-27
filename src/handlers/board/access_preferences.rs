@@ -967,7 +967,7 @@ pub(in crate::server) async fn unlock_board_access(
             &access_context.board,
             &csrf,
             &return_to,
-            Some("Board password must be 256 characters or fewer."),
+            Some("Board parolası en fazla 256 karakter olabilir."),
             current_theme.as_deref(),
         );
         return Ok(board_access_required_response(jar, html));
@@ -980,7 +980,7 @@ pub(in crate::server) async fn unlock_board_access(
             &access_context.board,
             &csrf,
             &return_to,
-            Some("This board is protected, but no password has been configured yet."),
+            Some("Bu board korumalı, ancak henüz bir parola ayarlanmamış."),
             current_theme.as_deref(),
         );
         return Ok(board_access_required_response(jar, html));
@@ -1004,7 +1004,7 @@ pub(in crate::server) async fn unlock_board_access(
                 &access_context.board,
                 &csrf,
                 &return_to,
-                Some("This board password is misconfigured. Please contact an administrator."),
+                Some("Bu board’un parolası hatalı yapılandırılmış. Lütfen bir yöneticiyle iletişime geç."),
                 current_theme.as_deref(),
             );
             return Ok(board_access_required_response(jar, html));
@@ -1031,7 +1031,7 @@ pub(in crate::server) async fn unlock_board_access(
             &access_context.board,
             &csrf,
             &return_to,
-            Some("Incorrect board password."),
+            Some("Board parolası hatalı."),
             current_theme.as_deref(),
         );
         return Ok(board_access_required_response(jar, html));
@@ -1116,14 +1116,14 @@ pub(in crate::server) async fn update_thread_preference(
             )?;
             if !access_context.can_view {
                 return Err(AppError::Forbidden(
-                    "This board requires a password.".into(),
+                    "Bu board için parola gerekli.".into(),
                 ));
             }
             let board = access_context.board;
             let thread = db::get_thread(&conn, thread_id)?
-                .ok_or_else(|| AppError::NotFound("Thread not found.".into()))?;
+                .ok_or_else(|| AppError::NotFound("Konu bulunamadı.".into()))?;
             if thread.board_id != board.id || thread.archived {
-                return Err(AppError::NotFound("Thread not found.".into()));
+                return Err(AppError::NotFound("Konu bulunamadı.".into()));
             }
 
             match action.as_str() {
@@ -1131,7 +1131,7 @@ pub(in crate::server) async fn update_thread_preference(
                 "unpin" => db::set_thread_pinned(&conn, &viewer_key, thread.id, false)?,
                 "hide" => db::set_thread_hidden(&conn, &viewer_key, thread.id, true)?,
                 "unhide" => db::set_thread_hidden(&conn, &viewer_key, thread.id, false)?,
-                _ => return Err(AppError::BadRequest("Unknown thread action.".into())),
+                _ => return Err(AppError::BadRequest("Bilinmeyen konu işlemi.".into())),
             }
             Ok(())
         }

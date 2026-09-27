@@ -34,11 +34,11 @@ fn new_submission_token() -> String {
 /// Renders the initially hidden upload progress row.
 const fn upload_progress_row() -> &'static str {
     r#"    <tr class="upload-progress-row" hidden>
-        <td>upload</td>
+        <td>yükleme</td>
         <td>
           <div class="compress-progress upload-progress-wrap" style="display:block;margin:0">
             <div class="compress-progress-track"><div class="compress-progress-bar upload-progress-bar" style="width:0%"></div></div>
-            <div class="compress-progress-text upload-progress-text">Preparing upload…</div>
+            <div class="compress-progress-text upload-progress-text">Yükleme hazırlanıyor…</div>
           </div>
         </td></tr>"#
 }
@@ -76,8 +76,8 @@ fn form_hint(text: &str) -> String {
 
 /// Renders the row shown when all upload types are disabled.
 const fn render_uploads_disabled_row() -> &'static str {
-    r#"    <tr><td>uploads</td>
-        <td><span class="post-form-mobile-label">Uploads</span><span class="form-field-help">uploads are disabled on this board</span></td></tr>"#
+    r#"    <tr><td>yüklemeler</td>
+        <td><span class="post-form-mobile-label">Yüklemeler</span><span class="form-field-help">bu board’da yüklemeler kapalı</span></td></tr>"#
 }
 
 /// Renders a CAPTCHA challenge row with board-specific element identifiers.
@@ -101,12 +101,12 @@ fn render_captcha_row(board_short: &str, reply_suffix: &str, refresh_href: &str)
         <td>
           <label class="post-form-mobile-label" for="{answer_id}">Captcha</label>
           <div class="captcha-challenge">
-            <img class="captcha-image" src="{image_src}" alt="CAPTCHA challenge image" width="220" height="120">
-            <a class="form-field-help captcha-refresh-link" href="{refresh_href}">new challenge</a>
+            <img class="captcha-image" src="{image_src}" alt="CAPTCHA doğrulama görseli" width="220" height="120">
+            <a class="form-field-help captcha-refresh-link" href="{refresh_href}">yeni doğrulama</a>
           </div>
           <input type="hidden" name="captcha_id" value="{captcha_id}">
           <input type="text" id="{answer_id}" name="captcha_answer" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="16" required>
-          <span class="form-field-help">Enter the text shown in the image. If it expires or fails, request a new challenge.</span>
+          <span class="form-field-help">Görselde gösterilen metni girin. Süresi dolarsa veya hatalı olursa yeni bir doğrulama isteyin.</span>
         </td></tr>"#,
         board = board,
         suffix = reply_suffix,
@@ -120,7 +120,7 @@ fn render_captcha_row(board_short: &str, reply_suffix: &str, refresh_href: &str)
 /// Renders one numbered poll-option input row.
 fn render_poll_option_row(option_number: usize) -> String {
     format!(
-        r#"<div class="poll-option-row"><input type="text" class="poll-option-input" name="poll_option" aria-label="poll option {option_number}" placeholder="Option {option_number}" maxlength="{POLL_OPTION_MAX_LENGTH}"><button type="button" class="poll-remove-btn" data-action="remove-poll-option" aria-label="Remove poll option" hidden>✕</button></div>"#
+        r#"<div class="poll-option-row"><input type="text" class="poll-option-input" name="poll_option" aria-label="{option_number}. anket seçeneği" placeholder="Seçenek {option_number}" maxlength="{POLL_OPTION_MAX_LENGTH}"><button type="button" class="poll-remove-btn" data-action="remove-poll-option" aria-label="Anket seçeneğini kaldır" hidden>✕</button></div>"#
     )
 }
 
@@ -150,26 +150,26 @@ fn single_upload_accept_and_hint(
 
     if board.allow_images {
         accept_parts.push(IMAGE_ACCEPT);
-        hint_parts.push(format!("jpg/png/gif/webp/heic · max {image_mb} MiB"));
+        hint_parts.push(format!("jpg/png/gif/webp/heic · en fazla {image_mb} MiB"));
     }
     if board.allow_video {
         accept_parts.push(VIDEO_ACCEPT);
-        hint_parts.push(format!("mp4/webm/mkv · max {video_mb} MiB"));
+        hint_parts.push(format!("mp4/webm/mkv · en fazla {video_mb} MiB"));
     }
     if board.allow_audio {
         accept_parts.push(AUDIO_ACCEPT);
         hint_parts.push(format!(
-            "mp3/ogg/oga/opus/flac/wav/m4a/aac/webm · max {audio_mb} MiB"
+            "mp3/ogg/oga/opus/flac/wav/m4a/aac/webm · en fazla {audio_mb} MiB"
         ));
     }
     if board.allow_pdf {
         accept_parts.push("application/pdf,.pdf");
-        hint_parts.push(format!("pdf · max {pdf_mb} MiB"));
+        hint_parts.push(format!("pdf · en fazla {pdf_mb} MiB"));
     }
     match (board.allow_images, board.allow_video) {
-        (true, true) => hint_parts.push("oversized images/videos can auto-compress".to_owned()),
-        (true, false) => hint_parts.push("oversized images can auto-compress".to_owned()),
-        (false, true) => hint_parts.push("oversized videos can auto-compress".to_owned()),
+        (true, true) => hint_parts.push("büyük resimler/videolar otomatik sıkıştırılabilir".to_owned()),
+        (true, false) => hint_parts.push("büyük resimler otomatik sıkıştırılabilir".to_owned()),
+        (false, true) => hint_parts.push("büyük videolar otomatik sıkıştırılabilir".to_owned()),
         (false, false) => {}
     }
 
@@ -179,10 +179,10 @@ fn single_upload_accept_and_hint(
         accept_parts.join(",")
     };
     let file_hint = if allow_any_files && hint_parts.is_empty() {
-        format!("other files download safely as attachments · max {generic_upload_mb} MiB")
+        format!("diğer dosyalar eklenti olarak güvenle indirilir · en fazla {generic_upload_mb} MiB")
     } else if allow_any_files {
         format!(
-            "{} &nbsp;|&nbsp; other files download safely as attachments",
+            "{} &nbsp;|&nbsp; diğer dosyalar eklenti olarak güvenle indirilir",
             hint_parts.join(" &nbsp;|&nbsp; ")
         )
     } else {
@@ -206,11 +206,11 @@ fn render_single_upload_row(board: &Board, audio_image_hint: &str) -> String {
     let optional_image_row = if audio_image_dual_mode {
         format!(
             r#"<details class="upload-secondary-toggle">
-              <summary aria-label="Show optional image upload">▾ Optional Image</summary>
+              <summary aria-label="İsteğe bağlı resim yüklemesini göster">▾ İsteğe Bağlı Resim</summary>
               <div class="upload-secondary-panel">
-                <label class="upload-secondary-label" for="post-form-image-file">optional image</label>
+                <label class="upload-secondary-label" for="post-form-image-file">isteğe bağlı resim</label>
                 <input type="file" id="post-form-image-file" name="image_file" data-onchange-check-size="1" accept="{IMAGE_ACCEPT}">
-                <span class="form-field-help">{audio_image_hint} · jpg/png/gif/webp/heic · max {image_mb} MiB · oversized images can auto-compress</span>
+                <span class="form-field-help">{audio_image_hint} · jpg/png/gif/webp/heic · en fazla {image_mb} MiB · büyük resimler otomatik sıkıştırılabilir</span>
               </div>
             </details>"#
         )
@@ -224,9 +224,9 @@ fn render_single_upload_row(board: &Board, audio_image_hint: &str) -> String {
         "file"
     };
     let primary_label = if primary_name == "audio_file" {
-        "audio"
+        "ses"
     } else {
-        "upload"
+        "yükleme"
     };
     let primary_id = if primary_name == "audio_file" {
         "post-form-audio-file"
@@ -239,15 +239,15 @@ fn render_single_upload_row(board: &Board, audio_image_hint: &str) -> String {
         file_accept
     };
     let primary_hint = if audio_image_dual_mode {
-        format!("mp3/ogg/oga/opus/flac/wav/m4a/aac/webm · max {audio_mb} MiB")
+        format!("mp3/ogg/oga/opus/flac/wav/m4a/aac/webm · en fazla {audio_mb} MiB")
     } else {
         file_hint
     };
 
     let mobile_label = if primary_name == "audio_file" {
-        "Audio"
+        "Ses"
     } else {
-        "Upload"
+        "Yükleme"
     };
 
     format!(
@@ -272,7 +272,7 @@ pub(super) fn new_thread_form(
     let submission_token = new_submission_token();
     let upload_policy = build_upload_form_policy(board);
     let upload_row = if upload_policy.uploads_enabled {
-        render_single_upload_row(board, "optional cover image for the audio post")
+        render_single_upload_row(board, "ses gönderisi için isteğe bağlı kapak resmi")
     } else {
         String::new()
     };
@@ -299,25 +299,25 @@ pub(super) fn new_thread_form(
 
     format!(
         r#"<div class="post-form-container">
-<div class="post-form-title">[ new thread ]</div>
+<div class="post-form-title">[ yeni konu ]</div>
 <form class="post-form" method="POST" action="/{board}" enctype="multipart/form-data">
   <input type="hidden" name="_csrf" value="{csrf}">
   <input type="hidden" name="submission_token" value="{submission_token}">
   <table>
-    <tr><td><label for="thread-name">name</label></td>
-        <td><label class="post-form-mobile-label" for="thread-name">Name</label><input type="text" id="thread-name" name="name" value="{name_value}" placeholder="Anonymous" maxlength="64"></td></tr>
-    <tr><td><label for="thread-subject">subject</label></td>
-        <td><label class="post-form-mobile-label" for="thread-subject">Subject</label><input type="text" id="thread-subject" name="subject" value="{subject_value}" maxlength="128">
-            <button type="submit">post thread</button></td></tr>
-    <tr><td><label for="thread-body">body</label></td>
-        <td><label class="post-form-mobile-label" for="thread-body">Body</label><textarea id="thread-body" name="body" rows="5" maxlength="4096">{body_value}</textarea>
+    <tr><td><label for="thread-name">ad</label></td>
+        <td><label class="post-form-mobile-label" for="thread-name">Ad</label><input type="text" id="thread-name" name="name" value="{name_value}" placeholder="Anonim" maxlength="64"></td></tr>
+    <tr><td><label for="thread-subject">konu</label></td>
+        <td><label class="post-form-mobile-label" for="thread-subject">Konu</label><input type="text" id="thread-subject" name="subject" value="{subject_value}" maxlength="128">
+            <button type="submit">konuyu gönder</button></td></tr>
+    <tr><td><label for="thread-body">gövde</label></td>
+        <td><label class="post-form-mobile-label" for="thread-body">Gövde</label><textarea id="thread-body" name="body" rows="5" maxlength="4096">{body_value}</textarea>
             <div class="markup-hint">
               <span title="Greentext">&#62;green</span>
-              <span title="Bold">**bold**</span>
-              <span title="Italic">__italic__</span>
+              <span title="Kalın">**kalın**</span>
+              <span title="İtalik">__italik__</span>
               <span title="Spoiler">[spoiler]text[/spoiler]</span>
-              <span title="Reply">&gt;&gt;123</span>
-              <span title="Cross-thread">&gt;&gt;&gt;/b/123</span>
+              <span title="Yanıt">&gt;&gt;123</span>
+              <span title="Boardlar arası">&gt;&gt;&gt;/b/123</span>
               <span title="Emoji">:fire:</span>
             </div>
         </td></tr>
@@ -327,25 +327,25 @@ pub(super) fn new_thread_form(
     {captcha_row}
     <tr class="poll-row">
         <td colspan="2">
-        <span class="post-form-mobile-label">Poll</span>
+        <span class="post-form-mobile-label">Anket</span>
         <details class="poll-creator">
-          <summary>[ 📊 Add a Poll to this thread ]</summary>
+          <summary>[ 📊 Bu konuya anket ekle ]</summary>
           <div class="poll-creator-inner">
             <div class="poll-creator-row">
-              <label>Question<input type="text" name="poll_question" placeholder="What do you think?" maxlength="500"></label>
+              <label>Soru<input type="text" name="poll_question" placeholder="Ne düşünüyorsun?" maxlength="500"></label>
             </div>
             <div id="poll-options-list" data-poll-option-maxlength="{poll_option_max_length}" data-poll-option-maxcount="{poll_option_max_count}">
               {poll_option_rows}
-              <noscript><details><summary>More poll options</summary>{extra_poll_option_rows}</details></noscript>
+              <noscript><details><summary>Daha fazla anket seçeneği</summary>{extra_poll_option_rows}</details></noscript>
             </div>
-            <button type="button" class="poll-add-btn" data-action="add-poll-option">+ Add Option</button>
+            <button type="button" class="poll-add-btn" data-action="add-poll-option">+ Seçenek Ekle</button>
             <div class="poll-creator-row poll-duration-row">
-              <label>Duration
+              <label>Süre
                 <input type="number" name="poll_duration_value" value="24" min="1" max="720" class="poll-duration-input">
                 <select name="poll_duration_unit" class="poll-duration-unit">
-                  <option value="hours">Hours</option>
-                  <option value="minutes">Minutes</option>
-                  <option value="days">Days</option>
+                  <option value="hours">Saat</option>
+                  <option value="minutes">Dakika</option>
+                  <option value="days">Gün</option>
                 </select>
               </label>
             </div>
@@ -383,7 +383,7 @@ pub(super) fn reply_form(
     let submission_token = new_submission_token();
     let upload_policy = build_upload_form_policy(board);
     let upload_row = if upload_policy.uploads_enabled {
-        render_single_upload_row(board, "optional cover image for the audio reply")
+        render_single_upload_row(board, "ses yanıtı için isteğe bağlı kapak resmi")
     } else {
         String::new()
     };
@@ -413,21 +413,21 @@ pub(super) fn reply_form(
 
     format!(
         r#"<div class="post-form-container reply-form-container">
-<div class="post-form-title">[ reply to thread ]</div>
+<div class="post-form-title">[ konuya yanıt ]</div>
 <form class="post-form" method="POST" action="/{board}/thread/{tid}" enctype="multipart/form-data">
   <input type="hidden" name="_csrf" value="{csrf}">
   <input type="hidden" name="submission_token" value="{submission_token}">
   <table>
-    <tr><td><label for="reply-name">name</label></td>
-        <td><label class="post-form-mobile-label" for="reply-name">Name</label><input type="text" id="reply-name" name="name" value="{name_value}" placeholder="Anonymous" maxlength="64"></td></tr>
-    <tr><td><label for="reply-body">body</label></td>
-        <td><label class="post-form-mobile-label" for="reply-body">Body</label><textarea id="reply-body" name="body" rows="4" maxlength="4096">{body_value}</textarea>
-            <button type="submit">post reply</button></td></tr>
+    <tr><td><label for="reply-name">ad</label></td>
+        <td><label class="post-form-mobile-label" for="reply-name">Ad</label><input type="text" id="reply-name" name="name" value="{name_value}" placeholder="Anonim" maxlength="64"></td></tr>
+    <tr><td><label for="reply-body">gövde</label></td>
+        <td><label class="post-form-mobile-label" for="reply-body">Gövde</label><textarea id="reply-body" name="body" rows="4" maxlength="4096">{body_value}</textarea>
+            <button type="submit">yanıtı gönder</button></td></tr>
     {uploads_disabled_row}
     {upload_row}
     {upload_progress_row}
-    <tr><td>options</td>
-        <td><span class="post-form-mobile-label">Options</span><label class="sage-label"><input type="checkbox" name="sage" value="1"{sage_checked}> sage <span class="sage-hint">(don&apos;t bump thread)</span></label></td></tr>
+    <tr><td>seçenekler</td>
+        <td><span class="post-form-mobile-label">Seçenekler</span><label class="sage-label"><input type="checkbox" name="sage" value="1"{sage_checked}> sage <span class="sage-hint">(konuyu yukarı taşıma)</span></label></td></tr>
     {captcha_row}
   </table>
 </form>
@@ -482,7 +482,7 @@ mod tests {
         assert!(!html.contains("type=\"file\" name=\"file\""));
         assert!(!html.contains("name=\"image_file\""));
         assert!(!html.contains("name=\"audio_file\""));
-        assert!(html.contains("uploads are disabled on this board"));
+        assert!(html.contains("bu board’da yüklemeler kapalı"));
     }
 
     #[test]
@@ -491,7 +491,7 @@ mod tests {
         assert!(!html.contains("type=\"file\" name=\"file\""));
         assert!(!html.contains("name=\"image_file\""));
         assert!(!html.contains("name=\"audio_file\""));
-        assert!(html.contains("uploads are disabled on this board"));
+        assert!(html.contains("bu board’da yüklemeler kapalı"));
     }
 
     #[test]
@@ -502,16 +502,16 @@ mod tests {
         assert!(audio_pos.is_some(), "audio row should be present");
         assert!(image_pos.is_some(), "image row should be present");
         assert!(audio_pos < image_pos);
-        assert!(html.contains(r#"<td><label for="post-form-audio-file">audio</label></td>"#));
-        assert!(html.contains("Optional Image"));
-        assert!(html.contains("optional cover image for the audio post"));
+        assert!(html.contains(r#"<td><label for="post-form-audio-file">ses</label></td>"#));
+        assert!(html.contains("İsteğe Bağlı Resim"));
+        assert!(html.contains("ses gönderisi için isteğe bağlı kapak resmi"));
         assert!(html.contains("image/heic"));
         assert!(html.contains(".heic"));
         assert!(html.contains(&format!("accept=\"{AUDIO_ACCEPT}\"")));
-        assert!(html.contains("mp3/ogg/oga/opus/flac/wav/m4a/aac/webm · max"));
+        assert!(html.contains("mp3/ogg/oga/opus/flac/wav/m4a/aac/webm · en fazla"));
         assert!(
             !html.contains(
-                "jpg/png/gif/webp/heic · max 8 MiB &nbsp;|&nbsp; mp3/ogg/oga/opus/flac/wav/m4a/aac/webm"
+                "jpg/png/gif/webp/heic · en fazla 8 MiB &nbsp;|&nbsp; mp3/ogg/oga/opus/flac/wav/m4a/aac/webm"
             )
         );
         assert!(!html.contains("video/mp4,video/webm"));
@@ -532,7 +532,7 @@ mod tests {
             None,
             "/test",
         );
-        assert!(html.contains("<td>upload</td>"));
+        assert!(html.contains("<td>yükleme</td>"));
         assert!(html.contains("name=\"file\""));
         assert!(!html.contains("name=\"audio_file\""));
         assert!(!html.contains("name=\"image_file\""));
@@ -573,7 +573,7 @@ mod tests {
         assert!(html.contains(
             r#"<tr class="poll-row">
         <td colspan="2">
-        <span class="post-form-mobile-label">Poll</span>"#,
+        <span class="post-form-mobile-label">Anket</span>"#,
         ));
     }
 
@@ -592,14 +592,14 @@ mod tests {
         let thread_html = new_thread_form("test", "csrf", &board, Some(&state), "/test");
         let reply_html = reply_form("test", 42, "csrf", &board, Some(&state));
 
-        assert!(thread_html.contains(r#"<label for="thread-name">name</label>"#));
+        assert!(thread_html.contains(r#"<label for="thread-name">ad</label>"#));
         assert!(thread_html.contains(r#"id="thread-name" name="name" value="anon""#));
-        assert!(thread_html.contains(r#"<label for="thread-subject">subject</label>"#));
+        assert!(thread_html.contains(r#"<label for="thread-subject">konu</label>"#));
         assert!(thread_html.contains(r#"id="thread-subject" name="subject" value="subject""#));
         assert!(thread_html.contains(">draft body</textarea>"));
         assert!(!thread_html.contains(r#"name="deletion_token""#));
 
-        assert!(reply_html.contains(r#"<label for="reply-name">name</label>"#));
+        assert!(reply_html.contains(r#"<label for="reply-name">ad</label>"#));
         assert!(reply_html.contains(r#"id="reply-name" name="name" value="anon""#));
         assert!(reply_html.contains(">draft body</textarea>"));
         assert!(!reply_html.contains(r#"name="deletion_token""#));
@@ -623,7 +623,7 @@ mod tests {
         assert!(html.contains("name=\"captcha_answer\""));
         assert!(html.contains("/captcha/"));
         assert!(html.contains("?captcha_refresh="));
-        assert!(html.contains("new challenge"));
+        assert!(html.contains("yeni doğrulama"));
         assert!(!html.contains("pow_nonce"));
     }
 
@@ -632,6 +632,6 @@ mod tests {
         let html = render_captcha_row("test", "-reply", "/test/thread/7#post-form-wrap");
 
         assert!(html.contains("/test/thread/7?captcha_refresh="));
-        assert!(html.contains("#post-form-wrap\">new challenge</a>"));
+        assert!(html.contains("#post-form-wrap\">yeni doğrulama</a>"));
     }
 }

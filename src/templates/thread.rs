@@ -16,7 +16,7 @@ use super::{
 /// Number of seconds during which a poster may edit or delete a new post.
 const SELF_ACTION_WINDOW_SECS: i64 = 60;
 /// User-facing explanation of the edit and delete window.
-const SELF_ACTION_WINDOW_HINT: &str = "available for up to 60 seconds after posting";
+const SELF_ACTION_WINDOW_HINT: &str = "gönderdikten sonra en fazla 60 saniye boyunca kullanılabilir";
 
 /// Time-limited controls available to the author of a post.
 #[derive(Debug, Clone)]
@@ -95,20 +95,20 @@ pub fn edit_post_page(
     let _ = write!(
         body,
         r#"<div class="page-box self-action-page">
-<div class="board-thread-header">/{board}/ — edit post No.{pid}</div>
+<div class="board-thread-header">/{board}/ — No.{pid} gönderisini düzenle</div>
 <p class="self-action-page-note">{hint}</p>
-<p><a href="/{board}/thread/{tid}#p{pid}">back to the thread</a></p>
+<p><a href="/{board}/thread/{tid}#p{pid}">konuya dön</a></p>
 <div class="self-action-preview">
 {preview}
 </div>
 <form class="post-form self-action-form" method="POST" action="/{board}/post/{pid}/edit">
   <input type="hidden" name="_csrf" value="{csrf}">
   <table>
-    <tr><td>body</td>
-        <td><textarea name="body" aria-label="edit post body" rows="8" maxlength="4096" required>{body_text}</textarea></td></tr>
+    <tr><td>gövde</td>
+        <td><textarea name="body" aria-label="gönderi metnini düzenle" rows="8" maxlength="4096" required>{body_text}</textarea></td></tr>
     <tr><td></td>
-        <td><button type="submit">save edit</button>
-            <a class="edit-btn" href="/{board}/thread/{tid}#p{pid}">cancel</a></td></tr>
+        <td><button type="submit">düzenlemeyi kaydet</button>
+            <a class="edit-btn" href="/{board}/thread/{tid}#p{pid}">vazgeç</a></td></tr>
   </table>
 </form>
 </div>"#,
@@ -122,7 +122,7 @@ pub fn edit_post_page(
     );
 
     base_layout(
-        &format!("/{}/edit post No.{}", board.short_name, post.id),
+        &format!("/{}/ No.{} gönderisini düzenle", board.short_name, post.id),
         Some(&board.short_name),
         &body,
         csrf_token,
@@ -157,17 +157,17 @@ pub fn delete_post_page(
     let _ = write!(
         body,
         r#"<div class="page-box self-action-page">
-<div class="board-thread-header">/{board}/ — delete post No.{pid}</div>
+<div class="board-thread-header">/{board}/ — No.{pid} gönderisini sil</div>
 <p class="self-action-page-note">{hint}</p>
-<p><a href="/{board}/thread/{tid}#p{pid}">back to the thread</a></p>
+<p><a href="/{board}/thread/{tid}#p{pid}">konuya dön</a></p>
 <div class="self-action-preview">
 {preview}
 </div>
 <form class="post-form self-action-form" method="POST" action="/{board}/post/{pid}/delete">
   <input type="hidden" name="_csrf" value="{csrf}">
-  <p class="self-action-confirm">delete this post permanently?</p>
-  <button type="submit" class="del-btn">delete post</button>
-  <a class="edit-btn" href="/{board}/thread/{tid}#p{pid}">cancel</a>
+  <p class="self-action-confirm">bu gönderi kalıcı olarak silinsin mi?</p>
+  <button type="submit" class="del-btn">gönderiyi sil</button>
+  <a class="edit-btn" href="/{board}/thread/{tid}#p{pid}">vazgeç</a>
 </form>
 </div>"#,
         board = escape_html(&board.short_name),
@@ -179,7 +179,7 @@ pub fn delete_post_page(
     );
 
     base_layout(
-        &format!("/{}/delete post No.{}", board.short_name, post.id),
+        &format!("/{}/ No.{} gönderisini sil", board.short_name, post.id),
         Some(&board.short_name),
         &body,
         csrf_token,
@@ -194,7 +194,7 @@ pub fn delete_post_page(
 /// Renders the top or bottom thread navigation controls.
 fn render_thread_nav(board: &Board, thread: &Thread, is_bottom: bool) -> String {
     let jump_link = if is_bottom { "#top" } else { "#bottom" };
-    let jump_label = if is_bottom { "Top" } else { "Bottom" };
+    let jump_label = if is_bottom { "Başa" } else { "Sona" };
     let nav_class = if is_bottom {
         "board-header thread-nav thread-nav-bottom"
     } else {
@@ -203,21 +203,21 @@ fn render_thread_nav(board: &Board, thread: &Thread, is_bottom: bool) -> String 
     format!(
         r#"<div class="{nav_class}">
   <div class="thread-nav-group thread-nav-links">
-    <a href="/{board_short}">[ Return ]</a>
-    <a href="/{board_short}/catalog">[ Catalog ]</a>
+    <a href="/{board_short}">[ Geri ]</a>
+    <a href="/{board_short}/catalog">[ Katalog ]</a>
     <a href="{jump_link}">[ {jump_label} ]</a>
   </div>
   <div class="thread-nav-group thread-nav-refresh">
-    <noscript><a href="/{board_short}/thread/{thread_id}">[ Update now ]</a></noscript>
-    <button class="thread-nav-btn" type="button" data-action="fetch-updates" data-busy-label="[ Updating… ]">[ Update now ]</button>
+    <noscript><a href="/{board_short}/thread/{thread_id}">[ Şimdi Güncelle ]</a></noscript>
+    <button class="thread-nav-btn" type="button" data-action="fetch-updates" data-busy-label="[ Güncelleniyor… ]">[ Şimdi Güncelle ]</button>
     <label class="autoupdate-label">
       <input type="checkbox" data-role="autoupdate-toggle" data-action="autoupdate-toggle">
-      <span>Auto refresh</span>
+      <span>Otomatik yenileme</span>
     </label>
   </div>
   <div class="thread-nav-group thread-nav-state">
     <span class="autoupdate-status" data-role="autoupdate-status" role="status" aria-live="polite"></span>
-    <span class="thread-reply-stat" title="Reply count"><span class="thread-reply-stat-label">Replies</span>: <span data-role="thread-reply-count">{reply_count}</span></span>
+    <span class="thread-reply-stat" title="Yanıt sayısı"><span class="thread-reply-stat-label">Yanıtlar</span>: <span data-role="thread-reply-count">{reply_count}</span></span>
   </div>
 </div>
 "#,
@@ -237,17 +237,17 @@ pub fn render_thread_state_badges_full(sticky: bool, locked: bool, archived: boo
 
     if sticky {
         badges.push_str(
-            r#"<span class="thread-state-badge thread-state-badge-pin" title="Pinned" aria-label="Pinned">&#128204;</span>"#,
+            r#"<span class="thread-state-badge thread-state-badge-pin" title="Sabitlendi" aria-label="Sabitlendi">&#128204;</span>"#,
         );
     }
 
     if archived {
         badges.push_str(
-            r#"<span class="thread-state-badge thread-state-badge-archive" title="Archived" aria-label="Archived">&#128190;</span>"#,
+            r#"<span class="thread-state-badge thread-state-badge-archive" title="Arşivlendi" aria-label="Arşivlendi">&#128190;</span>"#,
         );
     } else if locked {
         badges.push_str(
-            r#"<span class="thread-state-badge thread-state-badge-lock" title="Locked" aria-label="Locked">&#128274;</span>"#,
+            r#"<span class="thread-state-badge thread-state-badge-lock" title="Kilitli" aria-label="Kilitli">&#128274;</span>"#,
         );
     }
 
@@ -271,12 +271,12 @@ pub fn render_archive_state_badges(sticky: bool) -> String {
 
     if sticky {
         badges.push_str(
-            r#"<span class="thread-state-badge thread-state-badge-pin" title="Pinned" aria-label="Pinned">&#128204;</span>"#,
+            r#"<span class="thread-state-badge thread-state-badge-pin" title="Sabitlendi" aria-label="Sabitlendi">&#128204;</span>"#,
         );
     }
 
     badges.push_str(
-        r#"<span class="thread-state-badge thread-state-badge-archive" title="Archived" aria-label="Archived">&#128190;</span>"#,
+        r#"<span class="thread-state-badge thread-state-badge-archive" title="Arşivlendi" aria-label="Arşivlendi">&#128190;</span>"#,
     );
 
     format!(r#"<span class="thread-state-badges">{badges}</span>"#)
@@ -316,18 +316,18 @@ pub fn thread_page(
     let admin_form_csrf = admin_csrf_token.unwrap_or(csrf_token);
     let admin_toolbar = if is_admin {
         let sticky_action = if thread.sticky {
-            ("unsticky", "&#128204; Unsticky")
+            ("unsticky", "&#128204; Sabitlemeyi Kaldır")
         } else {
-            ("sticky", "&#128204; Sticky")
+            ("sticky", "&#128204; Sabitle")
         };
         let lock_action = if thread.locked {
-            ("unlock", "&#128275; Unlock")
+            ("unlock", "&#128275; Kilidi Aç")
         } else {
-            ("lock", "&#128274; Lock")
+            ("lock", "&#128274; Kilitle")
         };
         format!(
             r#"<div class="admin-toolbar">
-<span class="admin-toolbar-label">&#9632; ADMIN</span>
+<span class="admin-toolbar-label">&#9632; YÖNETİCİ</span>
 <form method="POST" action="/admin/thread/action" style="display:inline">
 <input type="hidden" name="_csrf" value="{csrf}">
 <input type="hidden" name="thread_id" value="{tid}">
@@ -348,12 +348,12 @@ pub fn thread_page(
 <input type="hidden" name="thread_id" value="{tid}">
 <input type="hidden" name="board" value="{board}">
 <button type="submit" class="admin-toolbar-btn admin-toolbar-danger"
-        data-confirm="Delete this entire thread and all its posts?">&#x2715; delete thread</button>
+        data-confirm="Bu konu ve tüm gönderileri silinsin mi?">&#x2715; konuyu sil</button>
 </form>
 <form method="POST" action="/admin/logout" style="display:inline">
 <input type="hidden" name="_csrf" value="{csrf}">
 <input type="hidden" name="return_to" value="/{board}/thread/{tid}">
-<button type="submit" class="admin-toolbar-btn">logout</button>
+<button type="submit" class="admin-toolbar-btn">çıkış yap</button>
 </form>
 </div>"#,
             csrf = escape_html(admin_form_csrf),
@@ -373,8 +373,8 @@ pub fn thread_page(
 <input type="hidden" name="action" value="archive">
 <input type="hidden" name="board" value="{board}">
 <button type="submit" class="admin-toolbar-btn"
-        data-confirm="Archive this thread? It will be locked and moved to the board archive.">
-  &#128451; Archive Thread
+        data-confirm="Bu konu arşivlensin mi? Kilitlenecek ve board arşivine taşınacak.">
+  &#128451; Konuyu Arşivle
 </button>
 </form>"#,
                     csrf = escape_html(admin_form_csrf),
@@ -404,9 +404,9 @@ pub fn thread_page(
     }
 
     let thread_notice = if thread.archived {
-        r#"<div class="notice locked-notice">This thread is archived. - You cannot reply anymore.</div>"#
+        r#"<div class="notice locked-notice">Bu konu arşivlendi. - Artık yanıt veremezsin.</div>"#
     } else if thread.locked {
-        r#"<div class="notice locked-notice">this thread is locked — no new replies allowed</div>"#
+        r#"<div class="notice locked-notice">bu konu kilitli — yeni yanıtlara izin verilmiyor</div>"#
     } else {
         ""
     };
@@ -491,7 +491,7 @@ pub fn thread_page(
         let _ = write!(
             body,
             r##"<div class="post-toggle-bar reply">
-  <a class="post-toggle-btn" href="#post-form-wrap" data-action="toggle-post-form">[ Reply ]</a>
+  <a class="post-toggle-btn" href="#post-form-wrap" data-action="toggle-post-form">[ Yanıt ]</a>
 </div>
 <div class="{post_form_class}" id="post-form-wrap" style="{post_form_style}">
   {form_html}
@@ -513,7 +513,7 @@ pub fn thread_page(
             board,
             csrf_token,
             &format!("/{}/thread/{}", board.short_name, thread.id),
-            "unlock posting",
+            "gönderi kilidini aç",
         ));
     }
     body.push_str("<div id=\"bottom\"></div>\n");
@@ -546,7 +546,7 @@ pub fn thread_page(
         &format!(
             "/{}/ - {}",
             board.short_name,
-            thread.subject.as_deref().unwrap_or("thread")
+            thread.subject.as_deref().unwrap_or("konu")
         ),
         Some(&board.short_name),
         &body,
@@ -571,17 +571,17 @@ fn render_poll(
     let now = chrono::Utc::now().timestamp();
     let time_left = pd.poll.expires_at.saturating_sub(now);
     let expires_str = if pd.is_expired {
-        "closed".to_owned()
+        "kapatıldı".to_owned()
     } else if time_left < 3600 {
-        format!("closes in {}m", time_left / 60)
+        format!("{} dk sonra kapanıyor", time_left / 60)
     } else if time_left < 86400 {
         format!(
-            "closes in {}h {}m",
+            "{} sa {} dk sonra kapanıyor",
             time_left / 3600,
             (time_left % 3600) / 60
         )
     } else {
-        format!("closes {}", fmt_ts(pd.poll.expires_at))
+        format!("{} tarihinde kapanıyor", fmt_ts(pd.poll.expires_at))
     };
 
     let show_results = pd.is_expired || pd.user_voted_option.is_some();
@@ -635,9 +635,8 @@ fn render_poll(
         }
         let _ = write!(
             html,
-            r#"<div class="poll-total">{} total vote{}</div></div>"#,
+            r#"<div class="poll-total">{} toplam oy</div></div>"#,
             pd.total_votes,
-            if pd.total_votes == 1 { "" } else { "s" }
         );
     } else {
         let _ = write!(
@@ -662,7 +661,7 @@ fn render_poll(
             );
         }
         html.push_str(
-            r#"<button type="submit" class="poll-vote-btn">[ Cast Vote ]</button></form>"#,
+            r#"<button type="submit" class="poll-vote-btn">[ Oy Ver ]</button></form>"#,
         );
     }
 
@@ -948,22 +947,22 @@ pub fn render_post(
     };
     let media_processing_badge = match post.media_processing_state.as_deref() {
         Some("pending") => {
-            r#" <span class="post-edited" title="Background media processing is still running.">(processing media)</span>"#.to_owned()
+            r#" <span class="post-edited" title="Arka plandaki medya işleme hâlâ sürüyor.">(medya işleniyor)</span>"#.to_owned()
         }
         Some("failed") => {
             let title = post
                 .media_processing_error
                 .as_deref()
                 .map_or_else(
-                    || "Background media processing failed.".to_owned(),
+                    || "Arka plandaki medya işlemesi başarısız oldu.".to_owned(),
                     escape_html,
                 );
             format!(
-                r#" <span class="post-edited" title="{title}">(media processing failed)</span>"#
+                r#" <span class="post-edited" title="{title}">(medya işlemesi başarısız)</span>"#
             )
         }
         Some("pruned") => {
-            r#" <span class="post-edited" title="Original file removed by active media pruning.">(original file removed)</span>"#.to_owned()
+            r#" <span class="post-edited" title="Asıl dosya, etkin medya temizliğiyle kaldırıldı.">(asıl dosya kaldırıldı)</span>"#.to_owned()
         }
         _ => String::new(),
     };
@@ -1004,7 +1003,7 @@ pub fn render_post(
     // Image / Video / Audio
     if show_media {
         if original_pruned {
-            let name_str = post.file_name.as_deref().unwrap_or("file");
+            let name_str = post.file_name.as_deref().unwrap_or("dosya");
             let size_str = post.file_size.map(format_file_size).unwrap_or_default();
             let thumb_html = post
                 .thumb_path
@@ -1016,9 +1015,9 @@ pub fn render_post(
                             "thumb",
                             "thumb",
                             thumb,
-                            "pruned media preview",
+                            "temizlenmiş medya önizlemesi",
                             thumb_loading,
-                            "original removed",
+                            "asıl dosya kaldırıldı",
                         )
                     )
                 });
@@ -1026,8 +1025,8 @@ pub fn render_post(
                 html,
                 r#"<div class="file-container media-pruned">
 <div class="file-info">
-  File: <span title="{orig}">{name}</span> ({sz})
-  <span class="post-edited" title="Original full-size file was removed by active media pruning.">original file removed</span>
+  Dosya: <span title="{orig}">{name}</span> ({sz})
+  <span class="post-edited" title="Asıl tam boy dosya, etkin medya temizliğiyle kaldırıldı.">asıl dosya kaldırıldı</span>
 </div>
 {thumb_html}
 </div>"#,
@@ -1038,7 +1037,7 @@ pub fn render_post(
             );
         } else if let (Some(file), Some(thumb)) = (&post.file_path, &post.thumb_path) {
             let size_str = post.file_size.map(format_file_size).unwrap_or_default();
-            let name_str = post.file_name.as_deref().unwrap_or("file");
+            let name_str = post.file_name.as_deref().unwrap_or("dosya");
             let file_link = render_file_link(file, name_str);
             let mime = post
                 .mime_type
@@ -1053,7 +1052,7 @@ pub fn render_post(
                     (Some(aud_file), Some(aud_mime)) => Some((
                         aud_file.as_str(),
                         aud_mime.as_str(),
-                        post.audio_file_name.as_deref().unwrap_or("audio"),
+                        post.audio_file_name.as_deref().unwrap_or("ses"),
                         post.audio_file_size
                             .map(format_file_size)
                             .unwrap_or_default(),
@@ -1069,14 +1068,14 @@ pub fn render_post(
                     html,
                     r#"<div class="file-container audio-container">
 <div class="file-info">
-  File: {file_link} ({sz})
+  Dosya: {file_link} ({sz})
 </div>
 <div class="audio-thumb">
   {thumb_html}
 </div>
 <audio controls preload="none" class="audio-player" data-audio-title="{orig}">
   <source src="/boards/{f}" type="{mime}">
-  Your browser does not support the audio element.
+  Tarayıcınız ses öğesini desteklemiyor.
 </audio>
 </div>"#,
                     file_link = file_link,
@@ -1085,9 +1084,9 @@ pub fn render_post(
                         "thumb",
                         "thumb",
                         thumb,
-                        "audio",
+                        "ses",
                         thumb_loading,
-                        "preview unavailable",
+                        "önizleme kullanılamıyor",
                     ),
                     orig = escape_html(name_str),
                     sz = escape_html(&size_str),
@@ -1098,10 +1097,10 @@ pub fn render_post(
                     html,
                     r#"<div class="file-container video-container">
 <div class="file-info">
-  File: {file_link} ({sz})
-  <button type="button" class="media-close-btn" data-action="collapse-media" style="display:none" aria-label="Collapse media">&#x2715; close</button>
+  Dosya: {file_link} ({sz})
+  <button type="button" class="media-close-btn" data-action="collapse-media" style="display:none" aria-label="Medyayı küçült">&#x2715; kapat</button>
 </div>
-<a class="media-preview video-preview" data-action="expand-media" href="/boards/{f}" title="click to play" aria-expanded="false">
+<a class="media-preview video-preview" data-action="expand-media" href="/boards/{f}" title="oynatmak için tıkla" aria-expanded="false">
   {thumb_html}
   <div class="media-expand-overlay">&#9654;</div>
 </a>
@@ -1115,9 +1114,9 @@ pub fn render_post(
                         "thumb",
                         "thumb",
                         thumb,
-                        "video thumbnail",
+                        "video küçük resmi",
                         thumb_loading,
-                        "preview unavailable",
+                        "önizleme kullanılamıyor",
                     ),
                     sz = escape_html(&size_str),
                     mime = escape_html(mime),
@@ -1128,10 +1127,10 @@ pub fn render_post(
                     html,
                     r#"<div class="file-container pdf-container">
 <div class="file-info">
-  File: {file_link} ({sz})
-  <button type="button" class="media-close-btn" data-action="collapse-media" style="display:none" aria-label="Collapse media">&#x2715; close</button>
+  Dosya: {file_link} ({sz})
+  <button type="button" class="media-close-btn" data-action="collapse-media" style="display:none" aria-label="Medyayı küçült">&#x2715; kapat</button>
 </div>
-<a class="media-preview pdf-preview" data-action="expand-media" href="/boards/{f}" title="click to expand" aria-expanded="false">
+<a class="media-preview pdf-preview" data-action="expand-media" href="/boards/{f}" title="büyütmek için tıkla" aria-expanded="false">
   {thumb_html}
   <div class="media-expand-overlay">&#x2922;</div>
 </a>
@@ -1143,9 +1142,9 @@ pub fn render_post(
                         "thumb",
                         "thumb",
                         thumb,
-                        "pdf preview",
+                        "pdf önizlemesi",
                         thumb_loading,
-                        "Open PDF",
+                        "PDF’yi aç",
                     ),
                     sz = escape_html(&size_str),
                     orig = escape_html(name_str)
@@ -1159,15 +1158,15 @@ pub fn render_post(
                     html,
                     r#"<div class="file-container{combo_class}">
 <div class="file-info">
-  File: {file_link} ({sz})
-  <button type="button" class="media-close-btn" data-action="collapse-media" style="display:none" aria-label="Collapse media">&#x2715; close</button>
+  Dosya: {file_link} ({sz})
+  <button type="button" class="media-close-btn" data-action="collapse-media" style="display:none" aria-label="Medyayı küçült">&#x2715; kapat</button>
 </div>
-<a class="media-preview image-preview" data-action="expand-media" href="/boards/{f}" title="click to expand" aria-expanded="false">
+<a class="media-preview image-preview" data-action="expand-media" href="/boards/{f}" title="büyütmek için tıkla" aria-expanded="false">
   {thumb_html}
   <div class="media-expand-overlay">&#x2922;</div>
 </a>
 <img class="media-expanded media-expanded-image" src="" data-src="/boards/{f}" style="display:none"
-     alt="image" draggable="false">
+     alt="resim" draggable="false">
 {audio_combo_html}
 </div>"#,
                     combo_class = if combo_audio.is_some() {
@@ -1181,9 +1180,9 @@ pub fn render_post(
                         "thumb",
                         "thumb",
                         thumb,
-                        "image",
+                        "resim",
                         thumb_loading,
-                        "preview unavailable",
+                        "önizleme kullanılamıyor",
                     ),
                     sz = escape_html(&size_str),
                     audio_combo_html = combo_audio.map_or_else(
@@ -1193,11 +1192,11 @@ pub fn render_post(
                             format!(
                                 r#"<div class="audio-combo audio-combo-inline">
 <div class="file-info">
-  Audio: {audio_link} ({sz})
+  Ses: {audio_link} ({sz})
 </div>
 <audio controls preload="none" class="audio-player audio-player-combo" data-audio-title="{orig}" data-artwork-src="/boards/{th}">
   <source src="/boards/{f}" type="{mime}">
-  Your browser does not support the audio element.
+  Tarayıcınız ses öğesini desteklemiyor.
 </audio>
 </div>"#,
                                 audio_link = audio_link,
@@ -1213,18 +1212,18 @@ pub fn render_post(
             }
         } else if let Some(file) = &post.file_path {
             let size_str = post.file_size.map(format_file_size).unwrap_or_default();
-            let name_str = post.file_name.as_deref().unwrap_or("file");
+            let name_str = post.file_name.as_deref().unwrap_or("dosya");
             let file_link = render_file_link(file, name_str);
             let status_note = match post.media_processing_state.as_deref() {
-                Some("pending") => "Preview still processing.",
-                Some("failed") => "Preview generation failed; original file is still available.",
-                _ => "Preview unavailable.",
+                Some("pending") => "Önizleme hâlâ işleniyor.",
+                Some("failed") => "Önizleme oluşturulamadı; asıl dosya hâlâ kullanılabilir.",
+                _ => "Önizleme kullanılamıyor.",
             };
             let _ = write!(
                 html,
                 r#"<div class="file-container">
 <div class="file-info">
-  File: {file_link} ({sz})
+  Dosya: {file_link} ({sz})
   <span class="post-edited" title="{status}">{status}</span>
 </div>
 </div>"#,
@@ -1241,13 +1240,13 @@ pub fn render_post(
     {
         if let Some(file) = &post.file_path {
             let size_str = post.file_size.map(format_file_size).unwrap_or_default();
-            let name_str = post.file_name.as_deref().unwrap_or("download");
+            let name_str = post.file_name.as_deref().unwrap_or("indirme");
             let file_link = render_file_link(file, name_str);
             let _ = write!(
                 html,
                 r#"<div class="file-container file-download">
 <div class="file-info">
-  File: {file_link} ({sz})
+  Dosya: {file_link} ({sz})
 </div>
 </div>"#,
                 file_link = file_link,
@@ -1262,7 +1261,7 @@ pub fn render_post(
         && !matches!(primary_media_type, crate::models::MediaType::Image)
     {
         if let (Some(aud_file), Some(aud_mime)) = (&post.audio_file_path, &post.audio_mime_type) {
-            let aud_name = post.audio_file_name.as_deref().unwrap_or("audio");
+            let aud_name = post.audio_file_name.as_deref().unwrap_or("ses");
             let aud_size = post
                 .audio_file_size
                 .map(format_file_size)
@@ -1276,7 +1275,7 @@ pub fn render_post(
 </div>
 <audio controls preload="none" class="audio-player" data-audio-title="{orig}">
   <source src="/boards/{f}" type="{mime}">
-  Your browser does not support the audio element.
+  Tarayıcınız ses öğesini desteklemiyor.
 </audio>
 </div>"#,
                 audio_link = audio_link,
@@ -1303,7 +1302,7 @@ pub fn render_post(
             .map_or_else(String::new, |controls| {
                 let edit_button = if allow_editing {
                     format!(
-                        r#"<a class="edit-btn" href="/{board}/post/{pid}/edit" data-action="open-edit-modal" data-edit-post-id="{pid}" data-edit-expiry="{expires_at}" title="Edit post" aria-haspopup="dialog">edit</a>
+                        r#"<a class="edit-btn" href="/{board}/post/{pid}/edit" data-action="open-edit-modal" data-edit-post-id="{pid}" data-edit-expiry="{expires_at}" title="Gönderiyi düzenle" aria-haspopup="dialog">düzenle</a>
 <textarea id="edit-body-{pid}" data-role="edit-body-source" hidden>{body}</textarea>"#,
                         board = escape_html(board_short),
                         pid = post.id,
@@ -1315,7 +1314,7 @@ pub fn render_post(
                 };
                 let delete_button = if allow_self_delete {
                     format!(
-                        r#"<a class="del-btn" href="/{board}/post/{pid}/delete" data-confirm="Delete your post No.{pid}?" data-delete-csrf="{csrf}">delete</a>"#,
+                        r#"<a class="del-btn" href="/{board}/post/{pid}/delete" data-confirm="No.{pid} numaralı gönderin silinsin mi?" data-delete-csrf="{csrf}">sil</a>"#,
                         board = escape_html(board_short),
                         pid = post.id,
                         csrf = escape_html(csrf_token),
@@ -1338,7 +1337,7 @@ pub fn render_post(
 
         let report_btn = format!(
             r#" <button type="button" class="report-btn"
-                data-action="open-report" data-pid="{pid}" data-tid="{tid}" data-board="{board}" data-csrf="{csrf}">report</button>"#,
+                data-action="open-report" data-pid="{pid}" data-tid="{tid}" data-board="{board}" data-csrf="{csrf}">şikayet et</button>"#,
             pid = post.id,
             tid = post.thread_id,
             board = escape_html(board_short),
@@ -1349,7 +1348,7 @@ pub fn render_post(
             post.id,
             post.thread_id,
             csrf_token,
-            "submit report",
+            "şikayet gönder",
         );
 
         let _ = write!(
@@ -1371,7 +1370,7 @@ pub fn render_post(
 <input type="hidden" name="post_id" value="{pid}">
 <input type="hidden" name="board"   value="{board}">
 <button type="submit" class="admin-del-btn"
-        data-confirm="Admin delete post No.{pid}?">&#x2715; del</button>
+        data-confirm="No.{pid} gönderisi yönetici tarafından silinsin mi?">&#x2715; sil</button>
 </form>
 <form method="POST" action="/admin/post/ban-delete"
       data-ban-delete-pid="{pid}">
@@ -1383,9 +1382,9 @@ pub fn render_post(
 <input type="hidden" name="is_op"      value="{is_op}">
 <input type="hidden" name="reason"     id="ban-reason-{pid}" value="">
 <input type="hidden" name="duration_hours" id="ban-dur-{pid}" value="0">
-<button type="submit" class="admin-del-btn btn-danger">&#x26D4; ban+del</button>
+<button type="submit" class="admin-del-btn btn-danger">&#x26D4; yasakla+sil</button>
 </form>
-<a class="admin-ip-link" href="/admin/ip/{ip_hash}?return_to={return_to}" title="View all posts from this hashed IP">&#x1F50D; ip</a>
+<a class="admin-ip-link" href="/admin/ip/{ip_hash}?return_to={return_to}" title="Bu karma IP’den tüm gönderileri gör">&#x1F50D; ip</a>
 </div>"#,
             csrf = escape_html(admin_form_csrf),
             pid = post.id,
@@ -1452,17 +1451,17 @@ fn render_edit_overlay(
         r#"<div id="edit-modal" class="{modal_class}" data-thread-id="{thread_id}" data-board="{board}" aria-hidden="{aria_hidden}"{hidden_attr}>
   <div class="edit-modal-backdrop" data-action="close-edit-modal"></div>
   <div class="edit-modal-box" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
-    <div class="post-form-title" id="edit-modal-title">[ edit your post <span class="self-delete-countdown" data-role="edit-modal-countdown" aria-live="polite"></span> ]</div>
+    <div class="post-form-title" id="edit-modal-title">[ gönderini düzenle <span class="self-delete-countdown" data-role="edit-modal-countdown" aria-live="polite"></span> ]</div>
     {error_html}
     <form id="edit-modal-form" class="post-form" method="POST" action="/{board}/post/{post_id}/edit">
       <input type="hidden" name="_csrf" value="{csrf}">
       <input type="hidden" name="thread_id" value="{thread_id}">
       <table>
-        <tr><td>body</td>
-            <td><textarea id="edit-modal-body" name="body" aria-label="edit post body" rows="6" maxlength="4096">{current_body}</textarea></td></tr>
+        <tr><td>gövde</td>
+            <td><textarea id="edit-modal-body" name="body" aria-label="gönderi metnini düzenle" rows="6" maxlength="4096">{current_body}</textarea></td></tr>
         <tr><td></td>
-            <td><button type="submit">save edit</button>
-                <button type="button" class="edit-btn" data-action="close-edit-modal" style="margin-left:1rem">cancel</button></td></tr>
+            <td><button type="submit">düzenlemeyi kaydet</button>
+                <button type="button" class="edit-btn" data-action="close-edit-modal" style="margin-left:1rem">vazgeç</button></td></tr>
       </table>
     </form>
   </div>
@@ -1567,10 +1566,10 @@ mod tests {
             crate::templates::UserPreferences::default(),
         );
 
-        assert!(html.contains(r#"href="/test">[ Return ]</a>"#));
-        assert!(html.contains(r#"href="/test/catalog">[ Catalog ]</a>"#));
-        assert!(html.contains(r##"href="#bottom">[ Bottom ]</a>"##));
-        assert!(html.contains(r##"href="#top">[ Top ]</a>"##));
+        assert!(html.contains(r#"href="/test">[ Geri ]</a>"#));
+        assert!(html.contains(r#"href="/test/catalog">[ Katalog ]</a>"#));
+        assert!(html.contains(r##"href="#bottom">[ Sona ]</a>"##));
+        assert!(html.contains(r##"href="#top">[ Başa ]</a>"##));
         assert!(html.contains(r#"data-activity-page="thread""#));
         assert!(html.contains(r#"data-action="toggle-post-form""#));
     }
@@ -1608,11 +1607,11 @@ mod tests {
             crate::templates::UserPreferences::default(),
         );
 
-        assert!(html.contains(r#"href="/test">[ Return ]</a>"#));
-        assert!(html.contains(r#"href="/test/catalog">[ Catalog ]</a>"#));
+        assert!(html.contains(r#"href="/test">[ Geri ]</a>"#));
+        assert!(html.contains(r#"href="/test/catalog">[ Katalog ]</a>"#));
         assert!(html.contains(r#"id="board-access-gate""#));
         assert!(html.contains(
-            r#"name="password" aria-label="board password" maxlength="256" autocomplete="current-password" required"#
+            r#"name="password" aria-label="board parolası" maxlength="256" autocomplete="current-password" required"#
         ));
     }
 
@@ -1792,7 +1791,7 @@ mod tests {
         );
 
         assert!(html.contains("file-container image-audio-combo"));
-        assert!(html.contains(r#"Audio: <a href="/boards/test/song.flac""#));
+        assert!(html.contains(r#"Ses: <a href="/boards/test/song.flac""#));
         assert!(html.contains(r#"data-artwork-src="/boards/test/thumbs/image.webp""#));
         assert!(!html.contains("file-container audio-container audio-combo"));
     }
@@ -1832,7 +1831,7 @@ mod tests {
         );
 
         assert!(html.contains("file-container image-audio-combo"));
-        assert!(html.contains(r#"Audio: <a href="/boards/test/song.mp3""#));
+        assert!(html.contains(r#"Ses: <a href="/boards/test/song.mp3""#));
         assert!(html.contains(r#"class="audio-player audio-player-combo""#));
         assert!(!html.contains("file-container audio-container audio-combo"));
         assert!(!html.contains(r#"class="audio-player" data-audio-title="song.mp3""#));
@@ -1940,8 +1939,8 @@ mod tests {
             0,
         );
 
-        assert!(html.contains("media processing failed"));
-        assert!(html.contains("Preview generation failed; original file is still available."));
+        assert!(html.contains("medya işlemesi başarısız"));
+        assert!(html.contains("Önizleme oluşturulamadı; asıl dosya hâlâ kullanılabilir."));
         assert!(html.contains(r#"href="/boards/test/image.webp""#));
     }
 
@@ -1949,7 +1948,7 @@ mod tests {
     fn pruned_original_renders_thumbnail_without_original_link() {
         let mut post = sample_post();
         post.media_processing_state = Some(crate::db::MEDIA_ORIGINAL_PRUNED.into());
-        post.media_processing_error = Some("original file removed".into());
+        post.media_processing_error = Some("asıl dosya kaldırıldı".into());
 
         let html = render_post(
             &post,
@@ -1972,7 +1971,7 @@ mod tests {
             0,
         );
 
-        assert!(html.contains("original file removed"));
+        assert!(html.contains("asıl dosya kaldırıldı"));
         assert!(html.contains("/boards/test/thumbs/image.webp"));
         assert!(!html.contains(r#"href="/boards/test/image.webp""#));
         assert!(!html.contains(r#"data-src="/boards/test/image.webp""#));
@@ -1987,7 +1986,7 @@ mod tests {
         post.mime_type = Some("application/zip".into());
         post.media_type = Some(MediaType::Other);
         post.media_processing_state = Some(crate::db::MEDIA_ORIGINAL_PRUNED.into());
-        post.media_processing_error = Some("original file removed".into());
+        post.media_processing_error = Some("asıl dosya kaldırıldı".into());
 
         let html = render_post(
             &post,
@@ -2010,7 +2009,7 @@ mod tests {
             0,
         );
 
-        assert!(html.contains("original file removed"));
+        assert!(html.contains("asıl dosya kaldırıldı"));
         assert!(!html.contains(r#"href="/boards/test/archive.zip""#));
     }
 
@@ -2129,9 +2128,9 @@ mod tests {
         assert!(html.contains(r#"data-action="collapse-media""#));
         assert!(html.contains(r#"<iframe class="media-expanded media-expanded-pdf""#));
         assert!(html.contains(r#"data-src="/boards/test/doc.pdf""#));
-        assert!(html.contains("Open PDF"));
+        assert!(html.contains("PDF’yi aç"));
         assert!(!html.contains(">PDF</div>"));
-        assert!(!html.contains("post-edited\">Open PDF"));
+        assert!(!html.contains("post-edited\">PDF’yi aç"));
     }
 
     #[test]
@@ -2309,7 +2308,7 @@ mod tests {
         assert!(html.contains(r#"data-delete-csrf=""#));
         assert!(html.contains(r#"data-role="self-action-countdown""#));
         assert!(html.contains(r#"href="/test/post/1/delete""#));
-        assert!(html.contains("available for up to 60 seconds after posting"));
+        assert!(html.contains("gönderdikten sonra en fazla 60 saniye boyunca kullanılabilir"));
         assert!(!html.contains("?token="));
 
         let expiry_attr = r#"data-action-expiry=""#;
@@ -2402,7 +2401,7 @@ mod tests {
         assert!(html.contains(
             r#"name="body" aria-label="edit post body" rows="8" maxlength="4096" required"#
         ));
-        assert!(html.contains("available for up to 60 seconds after posting"));
+        assert!(html.contains("gönderdikten sonra en fazla 60 saniye boyunca kullanılabilir"));
         assert!(html.contains(r#"href="/test/thread/87#p1""#));
     }
 
@@ -2424,8 +2423,8 @@ mod tests {
 
         assert!(html.contains(r#"method="POST" action="/test/post/1/delete""#));
         assert!(html.contains(r#"name="_csrf" value="csrf""#));
-        assert!(html.contains(r#"class="del-btn">delete post</button>"#));
-        assert!(html.contains("available for up to 60 seconds after posting"));
+        assert!(html.contains(r#"class="del-btn">gönderiyi sil</button>"#));
+        assert!(html.contains("gönderdikten sonra en fazla 60 saniye boyunca kullanılabilir"));
         assert!(html.contains(r#"href="/test/thread/87#p1""#));
     }
 

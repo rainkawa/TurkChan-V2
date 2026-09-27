@@ -24,7 +24,7 @@ pub(super) fn build_router(state: AppState, direct_https: bool) -> Router {
     let behind_proxy = crate::config::CONFIG.behind_proxy;
 
     Router::new()
-        .fallback(|| async { crate::error::AppError::NotFound("Page not found.".into()) })
+        .fallback(|| async { crate::error::AppError::NotFound("Sayfa bulunamadı.".into()) })
         .route("/static/style.css", get(serve_css))
         .route("/static/main.js", get(serve_main_js))
         .route("/static/admin.css", get(serve_admin_css))

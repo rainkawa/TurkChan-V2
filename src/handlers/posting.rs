@@ -538,7 +538,7 @@ pub(super) fn submit_post(
     } = command;
 
     let board = db::get_board_by_short(conn, &board_short)?
-        .ok_or_else(|| AppError::NotFound(format!("Board /{board_short}/ not found")))?;
+        .ok_or_else(|| AppError::NotFound(format!("Board /{board_short}/ bulunamadı")))?;
     let effective_max_image_size = board.max_image_size_bytes();
     let effective_max_video_size = board.max_video_size_bytes();
     let effective_max_audio_size = board.max_audio_size_bytes();
@@ -547,16 +547,16 @@ pub(super) fn submit_post(
     let reply_context = match &mode {
         SubmitPostMode::Reply { thread_id, sage } => {
             let thread = db::get_thread(conn, *thread_id)?
-                .ok_or_else(|| AppError::NotFound("Thread not found.".into()))?;
+                .ok_or_else(|| AppError::NotFound("Konu bulunamadı.".into()))?;
 
             if thread.board_id != board.id {
-                return Err(AppError::NotFound("Thread not found in this board.".into()));
+                return Err(AppError::NotFound("Konu bu board’da bulunamadı.".into()));
             }
             if thread.locked {
-                return Err(AppError::Forbidden("This thread is locked.".into()));
+                return Err(AppError::Forbidden("Bu konu kilitli.".into()));
             }
             if thread.archived {
-                return Err(AppError::Forbidden("This thread is archived.".into()));
+                return Err(AppError::Forbidden("Bu konu arşivlenmiş.".into()));
             }
 
             Some((*thread_id, *sage, thread.reply_count))
@@ -586,8 +586,7 @@ pub(super) fn submit_post(
             let remaining = board.post_cooldown_secs.saturating_sub(secs);
             if remaining > 0 {
                 return Err(AppError::BadRequest(format!(
-                    "Please wait {remaining} more second{} before posting again.",
-                    if remaining == 1 { "" } else { "s" }
+                    "Lütfen tekrar gönderi yapmadan önce {remaining} saniye daha bekle.",
                 )));
             }
         }
@@ -674,13 +673,13 @@ pub(super) fn submit_post(
                 if q.is_empty() {
                     uploads.rollback_new_files(conn, &upload_dir)?;
                     return Err(AppError::BadRequest(
-                        "Polls need a question and at least two options.".into(),
+                        "Anketler için bir soru ve en az iki seçenek gerekiyor.".into(),
                     ));
                 }
                 if valid_opts.len() < 2 {
                     uploads.rollback_new_files(conn, &upload_dir)?;
                     return Err(AppError::BadRequest(
-                        "Polls need a question and at least two options.".into(),
+                        "Anketler için bir soru ve en az iki seçenek gerekiyor.".into(),
                     ));
                 }
                 let Some(secs) = poll_duration_secs else {
@@ -764,11 +763,11 @@ pub(super) fn submit_post(
                 Err(error) => {
                     let stale_state_error = error.to_string();
                     uploads.rollback_new_files(conn, &upload_dir)?;
-                    if stale_state_error.contains("This thread is locked.") {
-                        return Err(AppError::Forbidden("This thread is locked.".into()));
+                    if stale_state_error.contains("Bu konu kilitli.") {
+                        return Err(AppError::Forbidden("Bu konu kilitli.".into()));
                     }
-                    if stale_state_error.contains("This thread is archived.") {
-                        return Err(AppError::Forbidden("This thread is archived.".into()));
+                    if stale_state_error.contains("Bu konu arşivlenmiş.") {
+                        return Err(AppError::Forbidden("Bu konu arşivlenmiş.".into()));
                     }
                     return Err(error.into());
                 }
@@ -1335,7 +1334,7 @@ mod tests {
             AppError::BadRequest(message) => {
                 assert_eq!(
                     message,
-                    "CAPTCHA verification failed. Enter the text from the image and try again."
+                    "CAPTCHA doğrulaması başarısız oldu. Görseldeki metni girip tekrar dene."
                 );
             }
             other => bail!("expected BadRequest, got {other:?}"),
@@ -1485,7 +1484,7 @@ mod tests {
 
         match error {
             AppError::BadRequest(message) => {
-                assert_eq!(message, "Polls need a question and at least two options.");
+                assert_eq!(message, "Anketler için bir soru ve en az iki seçenek gerekiyor.");
             }
             other => bail!("expected BadRequest, got {other:?}"),
         }
@@ -1840,7 +1839,7 @@ mod tests {
 
         match error {
             AppError::BadRequest(message) => {
-                assert_eq!(message, "Polls need a question and at least two options.");
+                assert_eq!(message, "Anketler için bir soru ve en az iki seçenek gerekiyor.");
             }
             other => bail!("expected BadRequest, got {other:?}"),
         }

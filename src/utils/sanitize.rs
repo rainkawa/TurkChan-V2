@@ -352,14 +352,14 @@ pub fn sanitize_filename(name: &str) -> String {
 pub fn validate_body(body: &str) -> Result<&str, String> {
     let trimmed = body.trim();
     if trimmed.is_empty() {
-        return Err("Post body cannot be empty.".into());
+        return Err("Gönderi gövdesi boş olamaz.".into());
     }
     // Use .chars().count() rather than .len() (byte count) so that multi-byte
     // characters (e.g. CJK) are measured correctly.  A post of 1,366 CJK
     // characters is 4,098 UTF-8 bytes and would be wrongly rejected by a
     // byte-length check despite being well within the 4,096-character limit.
     if trimmed.chars().count() > 4096 {
-        return Err("Post body exceeds 4096 characters.".into());
+        return Err("Gönderi gövdesi 4096 karakteri aşıyor.".into());
     }
     Ok(trimmed)
 }
@@ -378,10 +378,10 @@ pub fn validate_body(body: &str) -> Result<&str, String> {
 pub fn validate_body_with_file(body: &str, has_file: bool) -> Result<String, String> {
     let trimmed = body.trim();
     if trimmed.chars().count() > 4096 {
-        return Err("Post body exceeds 4096 characters.".into());
+        return Err("Gönderi gövdesi 4096 karakteri aşıyor.".into());
     }
     if trimmed.is_empty() && !has_file {
-        return Err("Post must include either text or an attached file.".into());
+        return Err("Gönderi metin ya da ek dosya içermelidir.".into());
     }
     Ok(trimmed.to_owned())
 }

@@ -22,21 +22,21 @@ fn board_reorder_controls(
 ) -> String {
     format!(
         r#"<details class="board-reorder-menu">
-  <summary class="board-reorder-toggle" aria-label="Reorder /{short}/">&#8645;</summary>
+  <summary class="board-reorder-toggle" aria-label="/{short}/ yeniden sırala">&#8645;</summary>
   <div class="board-reorder-controls">
     <form method="POST" action="/admin/board/reorder">
       <input type="hidden" name="_csrf" value="{csrf}">
       <input type="hidden" name="board_id" value="{board_id}">
       <input type="hidden" name="direction" value="up">
       <input type="hidden" name="return_to" value="{return_to}">
-      <button type="submit"{up_disabled} aria-label="Move /{short}/ earlier">&#8593;</button>
+      <button type="submit"{up_disabled} aria-label="/{short}/ boardunu öne taşı">&#8593;</button>
     </form>
     <form method="POST" action="/admin/board/reorder">
       <input type="hidden" name="_csrf" value="{csrf}">
       <input type="hidden" name="board_id" value="{board_id}">
       <input type="hidden" name="direction" value="down">
       <input type="hidden" name="return_to" value="{return_to}">
-      <button type="submit"{down_disabled} aria-label="Move /{short}/ later">&#8595;</button>
+      <button type="submit"{down_disabled} aria-label="/{short}/ boardunu sonra taşı">&#8595;</button>
     </form>
   </div>
 </details>"#,
@@ -125,9 +125,9 @@ fn render_board_card(
         String::new()
     };
     let thread_word = if stats.thread_count == 1 {
-        "thread"
+        "konu"
     } else {
-        "threads"
+        "konu"
     };
     let reorder_controls = if show_reorder_controls {
         board_reorder_controls(
@@ -146,7 +146,7 @@ fn render_board_card(
             render_new_activity_badge(
                 count,
                 "new-activity-badge board-card-activity-badge board-card-new-thread-badge",
-                "New Threads",
+                "Yeni Konular",
             )
         })
         .unwrap_or_default();
@@ -155,7 +155,7 @@ fn render_board_card(
             render_new_activity_badge(
                 count,
                 "new-activity-badge board-card-activity-badge board-card-new-reply-badge",
-                "New Replies",
+                "Yeni Yanıtlar",
             )
         })
         .unwrap_or_default();
@@ -205,10 +205,10 @@ pub(super) fn board_access_badge(board: &Board) -> String {
     match board.access_mode {
         crate::models::BoardAccessMode::Public => String::new(),
         crate::models::BoardAccessMode::ViewPassword => {
-            r#" <span class="tag locked">PASSWORD</span>"#.to_owned()
+            r#" <span class="tag locked">PAROLA</span>"#.to_owned()
         }
         crate::models::BoardAccessMode::PostPassword => {
-            r#" <span class="tag sticky">POST PASSWORD</span>"#.to_owned()
+            r#" <span class="tag sticky">GÖNDERİ PAROLA</span>"#.to_owned()
         }
     }
 }
@@ -217,19 +217,19 @@ pub(super) fn board_access_badge(board: &Board) -> String {
 const fn board_access_copy(board: &Board) -> (&'static str, &'static str, &'static str) {
     match board.access_mode {
         crate::models::BoardAccessMode::Public => (
-            "public board",
-            "This board does not require a password.",
-            "continue",
+            "herkese açık board",
+            "Bu board için parola gerekmiyor.",
+            "devam et",
         ),
         crate::models::BoardAccessMode::ViewPassword => (
-            "password protected board",
-            "You need the board password to view this board, its threads, search, archive, and media.",
-            "unlock board",
+            "parola korumalı board",
+            "Bu board'u, konularını, aramasını, arşivini ve medyasını görmek için board parolasına ihtiyacın var.",
+            "board kilidini aç",
         ),
         crate::models::BoardAccessMode::PostPassword => (
-            "posting is password protected",
-            "Viewing is public, but creating threads and replies on this board requires the board password.",
-            "unlock posting",
+            "gönderiler parola korumalı",
+            "Görüntüleme herkese açık, ancak bu board'da konu ve yanıt oluşturmak board parolası gerektiriyor.",
+            "gönderi kilidini aç",
         ),
     }
 }
@@ -249,10 +249,10 @@ pub(super) fn render_post_access_gate(
   <input type="hidden" name="_csrf" value="{csrf}">
   <input type="hidden" name="return_to" value="{return_to}">
   <table>
-    <tr><td>status</td>
+    <tr><td>durum</td>
         <td><span style="font-size:0.8rem;color:var(--text-dim)">{description}</span></td></tr>
-    <tr><td>password</td>
-        <td><input type="password" name="password" aria-label="board password" maxlength="256" autocomplete="current-password" required>
+    <tr><td>parola</td>
+        <td><input type="password" name="password" aria-label="board parolası" maxlength="256" autocomplete="current-password" required>
             <button type="submit">{button_label}</button></td></tr>
   </table>
 </form>
@@ -302,11 +302,11 @@ pub fn board_access_page(
   <input type="hidden" name="_csrf" value="{csrf}">
   <input type="hidden" name="return_to" value="{return_to}">
   <table class="admin-login-table">
-    <tr><td>password</td><td><input type="password" name="password" aria-label="board password" maxlength="256" autocomplete="current-password" autofocus required></td></tr>
+    <tr><td>parola</td><td><input type="password" name="password" aria-label="board parolası" maxlength="256" autocomplete="current-password" autofocus required></td></tr>
     <tr><td></td><td><button type="submit">{button_label}</button></td></tr>
   </table>
 </form>
-<p style="margin-top:1rem"><a href="/">return home</a></p>
+<p style="margin-top:1rem"><a href="/">ana sayfaya dön</a></p>
 </div>"#,
         error_html = error_html,
         short = escape_html(&board.short_name),
@@ -321,7 +321,7 @@ pub fn board_access_page(
     );
 
     base_layout(
-        &format!("/{}/ access", board.short_name),
+        &format!("/{}/ erişim", board.short_name),
         None,
         &body,
         csrf_token,
@@ -381,18 +381,18 @@ fn render_catalog_thumb(thread: &Thread) -> String {
                 .as_deref()
                 .and_then(embed_thumb_from_body)
                 .map_or_else(
-                    || r#"<div class="catalog-no-image">no img</div>"#.to_owned(),
+                    || r#"<div class="catalog-no-image">resim yok</div>"#.to_owned(),
                     |embed_thumb| {
                         render_catalog_media_thumb(
                             "catalog-thumb embed-catalog-thumb",
                             &embed_thumb,
-                            "video thumbnail",
-                            "no img",
+                            "video küçük resmi",
+                            "resim yok",
                         )
                     },
                 )
         },
-        |thumb| render_catalog_media_thumb("catalog-thumb", thumb, "", "no img"),
+        |thumb| render_catalog_media_thumb("catalog-thumb", thumb, "", "resim yok"),
     );
 
     format!(r#"<div class="catalog-card-media">{media}{badges}</div>"#)
@@ -418,9 +418,9 @@ fn render_catalog_actions(
         super::report_fallback_form(board_short, report_post_id, thread.id, csrf_token, "submit");
     format!(
         r#"<div class="catalog-card-actions">
-  <button type="button" class="catalog-thread-menu-toggle" data-action="toggle-thread-menu" aria-haspopup="true" aria-expanded="false" aria-controls="catalog-thread-menu-{thread_id}" aria-label="Thread actions"></button>
+  <button type="button" class="catalog-thread-menu-toggle" data-action="toggle-thread-menu" aria-haspopup="true" aria-expanded="false" aria-controls="catalog-thread-menu-{thread_id}" aria-label="Konu işlemleri"></button>
   <div class="catalog-thread-menu" id="catalog-thread-menu-{thread_id}" hidden inert aria-hidden="true">
-    <button type="button" class="catalog-thread-menu-item" data-action="open-report" data-pid="{post_id}" data-tid="{thread_id}" data-board="{board}" data-csrf="{csrf}" data-report-label="Reporting thread No.{thread_id}">Report thread</button>
+    <button type="button" class="catalog-thread-menu-item" data-action="open-report" data-pid="{post_id}" data-tid="{thread_id}" data-board="{board}" data-csrf="{csrf}" data-report-label="No.{thread_id} konusu şikayet ediliyor">Konuyu şikayet et</button>
     <form method="POST" action="/{board}/thread-preference">
       <input type="hidden" name="_csrf" value="{csrf}">
       <input type="hidden" name="thread_id" value="{thread_id}">
@@ -438,8 +438,8 @@ fn render_catalog_actions(
       <button type="submit" class="catalog-thread-menu-item">{hide_label}</button>
     </form>
   </div>
-  <details class="catalog-thread-fallback-actions" aria-label="Thread actions" open>
-    <summary class="catalog-thread-fallback-summary">actions</summary>
+  <details class="catalog-thread-fallback-actions" aria-label="Konu işlemleri" open>
+    <summary class="catalog-thread-fallback-summary">işlemler</summary>
     <div class="catalog-thread-fallback-group">
       {report_fallback}
       <form class="catalog-thread-fallback-form" method="POST" action="/{board}/thread-preference">
@@ -527,7 +527,7 @@ fn render_catalog_card(
     );
     let activity_badge = unread_reply_count
         .map(|count| {
-            render_new_activity_badge(count, "new-activity-badge catalog-activity-badge", "New")
+            render_new_activity_badge(count, "new-activity-badge catalog-activity-badge", "Yeni")
         })
         .unwrap_or_default();
     let activity_row = if activity_badge.is_empty() {
@@ -588,7 +588,7 @@ fn render_archive_row(board_short: &str, thread: &Thread) -> String {
     });
     let thumb_html = thread.op_thumb.as_ref().map_or_else(String::new, |thumb| {
         format!(
-            r#"<div class="archive-row-media"><img src="/boards/{}" class="archive-thumb" alt="thumb" loading="lazy" decoding="async"></div>"#,
+            r#"<div class="archive-row-media"><img src="/boards/{}" class="archive-thumb" alt="küçük resim" loading="lazy" decoding="async"></div>"#,
             escape_html(thumb),
         )
     });
@@ -601,7 +601,7 @@ fn render_archive_row(board_short: &str, thread: &Thread) -> String {
     <span class="archive-thread-link-text">
       {subject}<span class="archive-preview">{preview}</span>
     </span>
-    <span class="archive-meta">No.{thread_id}{state_badges} - {replies} replies - {created_at}</span>
+    <span class="archive-meta">No.{thread_id}{state_badges} - {replies} yanıt - {created_at}</span>
   </div>
 </a>"#,
         board = escape_html(board_short),
@@ -684,7 +684,7 @@ pub fn index_page<S: std::hash::BuildHasher>(
         String::new()
     } else {
         format!(
-            "<div class=\"index-section\"><h2 class=\"index-section-title\">// Boards</h2><div class=\"board-cards\">{}</div></div>",
+            "<div class=\"index-section\"><h2 class=\"index-section-title\">// Boardlar</h2><div class=\"board-cards\">{}</div></div>",
             board_cards(&sfw, board_badges, board_reply_badges, nsfw_consent, csrf_token, admin_csrf_token, is_admin, user_preferences)
         )
     };
@@ -693,13 +693,13 @@ pub fn index_page<S: std::hash::BuildHasher>(
         String::new()
     } else {
         format!(
-            "<div class=\"index-section\" data-board-nsfw=\"1\"><h2 class=\"index-section-title\">// Adult Boards <span class=\"nsfw-badge\">NSFW</span></h2><div class=\"board-cards\">{}</div></div>",
+            "<div class=\"index-section\" data-board-nsfw=\"1\"><h2 class=\"index-section-title\">// Yetişkin Boardları <span class=\"nsfw-badge\">NSFW</span></h2><div class=\"board-cards\">{}</div></div>",
             board_cards(&nsfw, board_badges, board_reply_badges, nsfw_consent, csrf_token, admin_csrf_token, is_admin, user_preferences)
         )
     };
 
     let empty = if board_stats.is_empty() {
-        "<p class=\"index-empty\">no boards yet — admin must create boards first.</p>"
+        "<p class=\"index-empty\">henüz board yok — önce yönetici board oluşturmalı.</p>"
     } else {
         ""
     };
@@ -707,8 +707,8 @@ pub fn index_page<S: std::hash::BuildHasher>(
     let stats_sec = site_stats.map_or_else(
         || {
             r#"<div class="index-section index-stats-section">
-<h2 class="index-section-title">// Stats</h2>
-<p class="index-stats-unavailable">site statistics are temporarily unavailable.</p>
+<h2 class="index-section-title">// İstatistikler</h2>
+<p class="index-stats-unavailable">site istatistikleri geçici olarak kullanılamıyor.</p>
 </div>"#.to_owned()
         },
         |site_stats| {
@@ -726,11 +726,11 @@ pub fn index_page<S: std::hash::BuildHasher>(
                 r#"<div class="index-section index-stats-section">
 <h2 class="index-section-title">// Stats</h2>
 <div class="index-stats-grid">
-  <div class="index-stat"><span class="index-stat-value">{tp}</span><span class="index-stat-label">total posts</span></div>
-  <div class="index-stat"><span class="index-stat-value">{ti}</span><span class="index-stat-label">images uploaded</span></div>
-  <div class="index-stat"><span class="index-stat-value">{tv}</span><span class="index-stat-label">videos uploaded</span></div>
-  <div class="index-stat"><span class="index-stat-value">{ta}</span><span class="index-stat-label">audio files uploaded</span></div>
-  <div class="index-stat"><span class="index-stat-value">{active_gb_whole}.{active_gb_fraction:02} GB</span><span class="index-stat-label">active content</span></div>
+  <div class="index-stat"><span class="index-stat-value">{tp}</span><span class="index-stat-label">toplam gönderi</span></div>
+  <div class="index-stat"><span class="index-stat-value">{ti}</span><span class="index-stat-label">yüklenen resim</span></div>
+  <div class="index-stat"><span class="index-stat-value">{tv}</span><span class="index-stat-label">yüklenen video</span></div>
+  <div class="index-stat"><span class="index-stat-value">{ta}</span><span class="index-stat-label">yüklenen ses dosyası</span></div>
+  <div class="index-stat"><span class="index-stat-value">{active_gb_whole}.{active_gb_fraction:02} GB</span><span class="index-stat-label">aktif içerik</span></div>
 </div>
 </div>"#,
                 tp = site_stats.total_posts,
@@ -748,7 +748,7 @@ pub fn index_page<S: std::hash::BuildHasher>(
         let escaped_addr = escape_html(addr);
         let _ = write!(
             access_links,
-            r#"<p class="index-onion"><code class="onion-addr">{escaped_addr}</code><button type="button" class="tor-copy-button" data-tor-address="{escaped_addr}" aria-label="Copy Tor address" hidden>Copy</button><span class="tor-copy-status" aria-live="polite"></span></p>"#
+            r#"<p class="index-onion"><code class="onion-addr">{escaped_addr}</code><button type="button" class="tor-copy-button" data-tor-address="{escaped_addr}" aria-label="Tor adresini kopyala" hidden>Kopyala</button><span class="tor-copy-status" aria-live="polite"></span></p>"#
         );
     }
     let onion_html = if access_links.is_empty() {
@@ -789,22 +789,22 @@ pub fn index_page<S: std::hash::BuildHasher>(
         format!(
             r#"<div id="nsfw-disclaimer-overlay" class="compress-modal nsfw-disclaimer-overlay{open_class}" role="dialog" aria-modal="true" aria-labelledby="nsfw-disclaimer-title" aria-describedby="nsfw-disclaimer-info"{hidden_attr}>
   <div class="compress-modal-box nsfw-disclaimer-box">
-    <div class="compress-modal-title" id="nsfw-disclaimer-title">Disclaimer</div>
+    <div class="compress-modal-title" id="nsfw-disclaimer-title">Uyarı</div>
     <div class="compress-modal-info" id="nsfw-disclaimer-info">
-      <p class="nsfw-disclaimer-intro">To access this section, you understand and agree to the following:</p>
+      <p class="nsfw-disclaimer-intro">Bu bölüme erişerek aşağıdakileri anladığınızı ve kabul ettiğinizi beyan edersiniz:</p>
       <ol class="nsfw-disclaimer-list">
-        <li>The content of this website is for mature audiences only and may not be suitable for minors. If you are a minor or it is illegal for you to access mature images and language, do not proceed.</li>
-        <li>This website is presented to you AS IS, with no warranty, express or implied. By clicking &quot;I Agree,&quot; you agree not to hold this website responsible for any damages from your use of the platform, and you understand that the content posted is not owned or generated by the website, but rather by its users.</li>
-        <li>As a condition of using this website, you agree to comply with the &quot;Rules&quot; of the threads you access.</li>
+        <li>Bu sitenin içeriği yalnızca olgunlaşmış izleyiciler içindir ve reşit olmayanlar için uygun olmayabilir. Reşit değilseniz veya olgun görsellere ve dile erişmeniz yasaksa devam etmeyin.</li>
+        <li>Bu site size olduğu gibi (AS IS) sunulur; açık veya zımni hiçbir garanti verilmez. &quot;Kabul Ediyorum&quot; düğmesine tıklayarak, platformun kullanımından doğan zararlardan bu siteyi sorumlu tutmamayı kabul edersiniz; ayrıca yayımlanan içeriğin siteye ait olmadığını, sitenin onu üretmediğini, içeriğin kullanıcılar tarafından oluşturulduğunu anlarsınız.</li>
+        <li>Bu siteyi kullanmanın koşulu olarak, eriştiğiniz konuların &quot;Kurallar&quot;ına uymayı kabul edersiniz.</li>
       </ol>
     </div>
     <div class="compress-modal-actions">
       <form method="POST" action="/nsfw/accept" class="nsfw-disclaimer-form">
         <input type="hidden" name="_csrf" value="{csrf}">
         <input type="hidden" id="nsfw-return-to" name="return_to" value="{return_to}">
-        <button type="submit" class="compress-do-btn">I Agree</button>
+        <button type="submit" class="compress-do-btn">Kabul Ediyorum</button>
       </form>
-      <a class="compress-cancel-btn btn" href="/" data-action="close-nsfw-disclaimer">Cancel</a>
+      <a class="compress-cancel-btn btn" href="/" data-action="close-nsfw-disclaimer">Vazgeç</a>
     </div>
     <div id="nsfw-board-label" class="nsfw-disclaimer-board">{board_label}</div>
   </div>
@@ -894,11 +894,11 @@ pub fn board_page<S: std::hash::BuildHasher>(
         let _ = write!(
             body,
             r#"<div class="admin-toolbar">
-<span class="admin-toolbar-label">&#9632; ADMIN</span>
+<span class="admin-toolbar-label">&#9632; YÖNETİCİ</span>
 <form method="POST" action="/admin/logout" style="display:inline">
 <input type="hidden" name="_csrf" value="{csrf}">
 <input type="hidden" name="return_to" value="/{board}">
-<button type="submit" class="admin-toolbar-btn">logout</button>
+<button type="submit" class="admin-toolbar-btn">çıkış yap</button>
 </form>
 </div>"#,
             csrf = escape_html(admin_form_csrf),
@@ -912,7 +912,7 @@ pub fn board_page<S: std::hash::BuildHasher>(
         let desc = escape_html(&board.description);
         let access_badge = board_access_badge(board);
         let nav_archive = if board.allow_archive {
-            format!(r#"<a class="board-nav-link" href="/{short}/archive">[Archive]</a>"#)
+            format!(r#"<a class="board-nav-link" href="/{short}/archive">[Arşiv]</a>"#)
         } else {
             String::new()
         };
@@ -920,7 +920,7 @@ pub fn board_page<S: std::hash::BuildHasher>(
             body,
             r#"<div class="board-header board-index-header" data-activity-page="board-index"><h1>/{short}/  — {name}{access_badge}</h1><p class="board-desc">{desc}</p></div>
 {board_banner_html}
-<div class="board-nav"><a class="board-nav-link active" href="/{short}">[Index]</a><a class="board-nav-link" href="/{short}/catalog">[Catalog]</a>{nav_archive}</div>"#
+<div class="board-nav"><a class="board-nav-link active" href="/{short}">[Liste]</a><a class="board-nav-link" href="/{short}/catalog">[Katalog]</a>{nav_archive}</div>"#
         );
     }
 
@@ -929,7 +929,7 @@ pub fn board_page<S: std::hash::BuildHasher>(
         let _ = write!(
             body,
             r##"<div class="post-toggle-bar centered catalog-toggle-bar">
-  <a class="post-toggle-btn" href="#post-form-wrap" data-action="toggle-post-form">[ Post a New Thread ]</a>
+  <a class="post-toggle-btn" href="#post-form-wrap" data-action="toggle-post-form">[ Yeni Konu Aç ]</a>
 </div>
 <div class="{post_form_class}" id="post-form-wrap" style="{post_form_style}">
   {}
@@ -957,7 +957,7 @@ pub fn board_page<S: std::hash::BuildHasher>(
             board,
             csrf_token,
             &format!("/{}", board.short_name),
-            "unlock posting",
+            "gönderi kilidini aç",
         ));
     }
 
@@ -991,7 +991,7 @@ pub fn board_page<S: std::hash::BuildHasher>(
     ));
 
     base_layout_with_preferences(
-        &format!("/{}/ — {} - Index", board.short_name, board.name),
+        &format!("/{}/ — {} - Liste", board.short_name, board.name),
         Some(&board.short_name),
         &body,
         csrf_token,
@@ -1027,12 +1027,12 @@ fn render_thread_summary(
     let admin_form_csrf = admin_csrf_token.unwrap_or(csrf_token);
 
     let sticky_label = if t.sticky {
-        r#"<span class="tag sticky">STICKY</span> "#
+        r#"<span class="tag sticky">SABİT</span> "#
     } else {
         ""
     };
     let locked_label = if t.locked {
-        r#"<span class="tag locked">LOCKED</span> "#
+        r#"<span class="tag locked">KİLİTLİ</span> "#
     } else {
         ""
     };
@@ -1050,7 +1050,7 @@ fn render_thread_summary(
     if let (Some(_file), Some(thumb)) = (&t.op_file, &t.op_thumb) {
         let _ = write!(
             html,
-            r#"<div class="file-container thread-summary-thumb-wrap"><a href="/{board}/thread/{tid}"><img class="thumb" src="/boards/{th}" loading="lazy" decoding="async" alt="image"></a>{badges}</div>"#,
+            r#"<div class="file-container thread-summary-thumb-wrap"><a href="/{board}/thread/{tid}"><img class="thumb" src="/boards/{th}" loading="lazy" decoding="async" alt="resim"></a>{badges}</div>"#,
             board = escape_html(board_short),
             tid = t.id,
             th = escape_html(thumb),
@@ -1059,7 +1059,7 @@ fn render_thread_summary(
     } else if let Some(embed_thumb) = t.op_body.as_deref().and_then(embed_thumb_from_body) {
         let _ = write!(
             html,
-            r#"<div class="file-container thread-summary-thumb-wrap"><a href="/{board}/thread/{tid}"><img class="thumb embed-index-thumb" src="{src}" loading="lazy" decoding="async" alt="video thumbnail"></a>{badges}</div>"#,
+            r#"<div class="file-container thread-summary-thumb-wrap"><a href="/{board}/thread/{tid}"><img class="thumb embed-index-thumb" src="{src}" loading="lazy" decoding="async" alt="video küçük resmi"></a>{badges}</div>"#,
             board = escape_html(board_short),
             tid = t.id,
             src = escape_html(&embed_thumb),
@@ -1074,11 +1074,11 @@ fn render_thread_summary(
 <strong class="name">{name}</strong>
 <span class="post-time" data-utc="{ts}">{time}</span>
 <a class="post-num" href="/{board}/thread/{tid}">No.{op_id}</a>
-<a class="thread-id-link" href="/{board}/thread/{tid}" title="Thread #{tid}">[ #{tid} ]</a>
+<a class="thread-id-link" href="/{board}/thread/{tid}" title="Konu #{tid}">[ #{tid} ]</a>
 </div>"#,
         sticky = sticky_label,
         locked = locked_label,
-        name = escape_html(t.op_name.as_deref().unwrap_or("Anonymous")),
+        name = escape_html(t.op_name.as_deref().unwrap_or("Anonim")),
         ts = t.created_at,
         time = fmt_ts_short(t.created_at),
         board = escape_html(board_short),
@@ -1104,7 +1104,7 @@ fn render_thread_summary(
         let truncated = if char_count > 300 {
             let safe: String = body.chars().take(300).collect();
             format!(
-                r#"{} <a href="/{b}/thread/{tid}">…[Read more]</a>"#,
+                r#"{} <a href="/{b}/thread/{tid}">…[Devamını oku]</a>"#,
                 escape_html(&safe),
                 b = escape_html(board_short),
                 tid = t.id,
@@ -1120,7 +1120,7 @@ fn render_thread_summary(
             render_new_activity_badge(
                 count,
                 "new-activity-badge thread-summary-activity-badge",
-                "New",
+                "Yeni",
             )
         })
         .unwrap_or_default();
@@ -1134,29 +1134,29 @@ fn render_thread_summary(
     let _ = write!(
         html,
         r#"<div class="thread-footer">
-<a href="/{board}/thread/{tid}">[reply] ({n} {word})</a>"#,
+<a href="/{board}/thread/{tid}">[yanıt] ({n} {word})</a>"#,
         board = escape_html(board_short),
         tid = t.id,
         n = t.reply_count,
         word = if t.reply_count == 1 {
-            "reply"
+            "yanıt"
         } else {
-            "replies"
+            "yanıt"
         },
     );
 
     if is_admin {
         let sticky_act = if t.sticky { "unsticky" } else { "sticky" };
         let sticky_lbl = if t.sticky {
-            "&#128204; unsticky"
+            "&#128204; sabitlemeyi kaldır"
         } else {
-            "&#128204; sticky"
+            "&#128204; sabitle"
         };
         let lock_act = if t.locked { "unlock" } else { "lock" };
         let lock_lbl = if t.locked {
-            "&#128275; unlock"
+            "&#128275; kilidi aç"
         } else {
-            "&#128274; lock"
+            "&#128274; kilitle"
         };
         let _ = write!(
             html,
@@ -1179,7 +1179,7 @@ fn render_thread_summary(
 <input type="hidden" name="thread_id"  value="{tid}">
 <input type="hidden" name="board"      value="{board}">
 <button type="submit" class="admin-del-btn"
-        data-confirm="Delete thread No.{tid} and all its posts?">&#x2715; del</button>
+        data-confirm="No.{tid} konusu ve tüm gönderileri silinsin mi?">&#x2715; sil</button>
 </form>"#,
             csrf = escape_html(admin_form_csrf),
             tid = t.id,
@@ -1196,7 +1196,7 @@ fn render_thread_summary(
     if summary.omitted > 0 {
         let _ = write!(
             html,
-            r#"<div class="omitted">{} posts omitted. <a href="/{b}/thread/{tid}">view thread</a></div>"#,
+            r#"<div class="omitted">{} gönderi gizlendi. <a href="/{b}/thread/{tid}">konuyu görüntüle</a></div>"#,
             summary.omitted,
             b = escape_html(board_short),
             tid = t.id
@@ -1271,11 +1271,11 @@ pub fn catalog_page<S: std::hash::BuildHasher>(
         let _ = write!(
             body,
             r#"<div class="admin-toolbar">
-<span class="admin-toolbar-label">&#9632; ADMIN</span>
+<span class="admin-toolbar-label">&#9632; YÖNETİCİ</span>
 <form method="POST" action="/admin/logout" style="display:inline">
 <input type="hidden" name="_csrf" value="{csrf}">
 <input type="hidden" name="return_to" value="/{board}/catalog">
-<button type="submit" class="admin-toolbar-btn">logout</button>
+<button type="submit" class="admin-toolbar-btn">çıkış yap</button>
 </form>
 </div>"#,
             csrf = escape_html(admin_form_csrf),
@@ -1284,23 +1284,23 @@ pub fn catalog_page<S: std::hash::BuildHasher>(
     }
 
     let nav_archive = if board.allow_archive {
-        format!(r#"<a class="board-nav-link" href="/{bs}/archive">[Archive]</a>"#)
+        format!(r#"<a class="board-nav-link" href="/{bs}/archive">[Arşiv]</a>"#)
     } else {
         String::new()
     };
     let hidden_nav = if hidden_count > 0 {
         let active_class = if hidden_view { " active" } else { "" };
         format!(
-            r#"<span class="board-nav-hidden">Hidden Threads: {hidden_count} <a class="board-nav-link{active_class}" href="/{bs}/hidden">[Show]</a></span>"#,
+            r#"<span class="board-nav-hidden">Gizli Konular: {hidden_count} <a class="board-nav-link{active_class}" href="/{bs}/hidden">[Göster]</a></span>"#,
         )
     } else {
         String::new()
     };
-    let title_suffix = if hidden_view { " hidden threads" } else { "" };
+    let title_suffix = if hidden_view { " gizli konular" } else { "" };
     let empty_message = if hidden_view {
-        "No hidden threads right now."
+        "Şu anda gizli konu yok."
     } else {
-        "No threads yet."
+        "Henüz konu yok."
     };
     let access_badge = board_access_badge(board);
 
@@ -1315,24 +1315,24 @@ pub fn catalog_page<S: std::hash::BuildHasher>(
 {board_banner_html}
 <div class="catalog-controls">
   <div class="catalog-control-group">
-    <label class="catalog-sort-label" for="catalog-sort">Sort By:</label>
+    <label class="catalog-sort-label" for="catalog-sort">Sıralama:</label>
     <select id="catalog-sort" class="catalog-sort-select" data-action="sort-catalog" disabled>
-    <option value="bump" selected>bump order</option>
-    <option value="replies">reply count</option>
-    <option value="created">creation date</option>
-    <option value="last_reply">last reply</option>
+    <option value="bump" selected>son hareket</option>
+    <option value="replies">yanıt sayısı</option>
+    <option value="created">oluşturma tarihi</option>
+    <option value="last_reply">son yanıt</option>
     </select>
   </div>
   <div class="catalog-control-group">
-    <label class="catalog-sort-label" for="catalog-show-comment">Show OP Comment:</label>
+    <label class="catalog-sort-label" for="catalog-show-comment">İlk Gönderiyi Göster:</label>
     <select id="catalog-show-comment" class="catalog-sort-select" data-action="catalog-show-comment" disabled>
-      <option value="on" selected>On</option>
-      <option value="off">Off</option>
+      <option value="on" selected>Açık</option>
+      <option value="off">Kapalı</option>
     </select>
   </div>
-  <noscript><p class="form-field-help">Sorting and comment toggles require JavaScript. Threads use bump order with comments shown.</p></noscript>
+  <noscript><p class="form-field-help">Sıralama ve yorum seçenekleri JavaScript gerektirir. Konular son hareket sırasına göre ve yorumlar görünür durumda listelenir.</p></noscript>
 </div>
-<div class="board-nav"><a class="board-nav-link" href="/{bs}">[Index]</a><a class="board-nav-link{catalog_active}" href="/{bs}/catalog">[Catalog]</a>{nav_archive}{hidden_nav}</div>"#,
+<div class="board-nav"><a class="board-nav-link" href="/{bs}">[Liste]</a><a class="board-nav-link{catalog_active}" href="/{bs}/catalog">[Katalog]</a>{nav_archive}{hidden_nav}</div>"#,
         bs = bs,
         bn = bn,
         access_badge = access_badge,
@@ -1347,7 +1347,7 @@ pub fn catalog_page<S: std::hash::BuildHasher>(
         let _ = write!(
             body,
             r##"<div class="post-toggle-bar centered catalog-toggle-bar">
-  <a class="post-toggle-btn" href="#post-form-wrap" data-action="toggle-post-form">[ Start a New Thread ]</a>
+  <a class="post-toggle-btn" href="#post-form-wrap" data-action="toggle-post-form">[ Yeni Konu Aç ]</a>
 </div>
 <div class="post-form-wrap" id="post-form-wrap" style="display:none">
   {form}
@@ -1373,7 +1373,7 @@ pub fn catalog_page<S: std::hash::BuildHasher>(
             } else {
                 format!("/{}/catalog", board.short_name)
             },
-            "unlock posting",
+            "gönderi kilidini aç",
         ));
     }
     body.push_str(r#"<div class="catalog-grid" id="catalog-grid">"#);
@@ -1382,15 +1382,15 @@ pub fn catalog_page<S: std::hash::BuildHasher>(
         let is_pinned = pinned_ids.contains(&t.id);
         let menu_hide_action = if hidden_view { "unhide" } else { "hide" };
         let menu_hide_label = if hidden_view {
-            "Unhide thread"
+            "Konuyu gizli etmeyi kaldır"
         } else {
-            "Hide thread"
+            "Konuyu gizle"
         };
         let pin_action = if is_pinned { "unpin" } else { "pin" };
         let pin_label = if is_pinned {
-            "Unpin thread"
+            "Sabitlemeyi kaldır"
         } else {
-            "Pin thread"
+            "Konuyu sabitle"
         };
         let return_to = if hidden_view && menu_hide_action == "unhide" {
             format!("/{}/catalog", board.short_name)
@@ -1437,9 +1437,9 @@ pub fn catalog_page<S: std::hash::BuildHasher>(
             board.short_name,
             board.name,
             if hidden_view {
-                "Hidden Threads"
+                "Gizli Konular"
             } else {
-                "Catalog"
+                "Katalog"
             }
         ),
         Some(&board.short_name),
@@ -1477,20 +1477,20 @@ pub fn search_page(
     user_preferences: crate::templates::UserPreferences,
 ) -> String {
     let result_label = if pagination.total == 1 {
-        "1 result".to_owned()
+        "1 sonuç".to_owned()
     } else {
-        format!("{} results", pagination.total)
+        format!("{} sonuç", pagination.total)
     };
     let mut body = format!(
         r#"<div class="page-box">
 <div class="board-search-header">
-  <h2 class="board-search-title">Search /{}/</h2>
-  <p class="board-search-summary">Showing results for "{}".</p>
+  <h2 class="board-search-title">Ara: /{}/</h2>
+  <p class="board-search-summary">"{}" için sonuçlar gösteriliyor.</p>
 </div>
 <form method="GET" action="/{}/search" class="search-form board-search-form">
-  <label class="catalog-sort-label board-search-label" for="board-search-input">Query:</label>
+  <label class="catalog-sort-label board-search-label" for="board-search-input">Sorgu:</label>
   <input id="board-search-input" type="text" name="q" value="{}" maxlength="{}">
-  <button type="submit">search</button>
+  <button type="submit">ara</button>
 </form>"#,
         escape_html(&board.short_name),
         escape_html(query),
@@ -1501,7 +1501,7 @@ pub fn search_page(
 
     if posts.is_empty() {
         body.push_str(
-            r#"<p class="catalog-empty-state board-search-empty">no results found. try a different query.</p>"#,
+            r#"<p class="catalog-empty-state board-search-empty">sonuç bulunamadı. farklı bir sorgu dene.</p>"#,
         );
     } else {
         let _ = write!(
@@ -1543,7 +1543,7 @@ pub fn search_page(
 
     body.push_str("</div>");
     base_layout_with_preferences(
-        &format!("search — /{}/", board.short_name),
+        &format!("arama — /{}/", board.short_name),
         Some(&board.short_name),
         &body,
         csrf_token,
@@ -1578,12 +1578,12 @@ pub fn archive_page(
     let mut body = format!(
         r#"<div class="board-header board-index-header"><h1>/{bs}/  — {bn}</h1><p class="board-desc">{desc}</p></div>
 <div class="board-nav">
-  <a class="board-nav-link" href="/{bs}">[Index]</a>
-  <a class="board-nav-link" href="/{bs}/catalog">[Catalog]</a>
-  <a class="board-nav-link active" href="/{bs}/archive">[Archive]</a>
+  <a class="board-nav-link" href="/{bs}">[Liste]</a>
+  <a class="board-nav-link" href="/{bs}/catalog">[Katalog]</a>
+  <a class="board-nav-link active" href="/{bs}/archive">[Arşiv]</a>
 </div>
 <div class="page-box">
-<p class="archive-subtext">Threads cycled off the board index — read-only, retained up to this board's archive limit.</p>
+<p class="archive-subtext">Board listesinden düşen konular — salt okunur, bu board'un arşiv sınırına kadar saklanır.</p>
 </div>"#,
         bs = bs,
         bn = bn,
@@ -1592,7 +1592,7 @@ pub fn archive_page(
 
     if threads.is_empty() {
         body.push_str(
-            r#"<div class="page-box"><p style="color:var(--text-dim)">no archived threads yet.</p></div>"#,
+            r#"<div class="page-box"><p style="color:var(--text-dim)">henüz arşivlenmiş konu yok.</p></div>"#,
         );
     } else {
         body.push_str(r#"<div class="archive-list">"#);
@@ -1608,7 +1608,7 @@ pub fn archive_page(
     }
 
     base_layout_with_preferences(
-        &format!("/{}/  archive", board.short_name),
+        &format!("/{}/  arşiv", board.short_name),
         Some(&board.short_name),
         &body,
         csrf_token,
@@ -1770,7 +1770,7 @@ mod tests {
         );
         assert!(stats_idx < badge_idx && badge_idx < link_close_idx);
         assert!(html.contains(r#"<span class="board-card-slug">/test/</span>"#));
-        assert!(html.contains("2 New Threads"));
+        assert!(html.contains("2 Yeni Konular"));
     }
 
     #[test]
@@ -1844,10 +1844,10 @@ mod tests {
             crate::templates::UserPreferences::default(),
         );
 
-        assert!(html.contains("site statistics are temporarily unavailable."));
+        assert!(html.contains("site istatistikleri geçici olarak kullanılamıyor."));
         assert!(html.contains(r#"data-activity-page="home""#));
         assert!(!html.contains("0.00 GB"));
-        assert!(!html.contains("audio files uploaded</span></div>"));
+        assert!(!html.contains("yüklenen ses dosyası</span></div>"));
     }
 
     #[test]
@@ -1879,8 +1879,8 @@ mod tests {
             crate::templates::UserPreferences::default(),
         );
 
-        assert!(html.contains("audio files uploaded"));
-        assert!(html.contains(">3</span><span class=\"index-stat-label\">audio files uploaded"));
+        assert!(html.contains("yüklenen ses dosyası"));
+        assert!(html.contains(">3</span><span class=\"index-stat-label\">yüklenen ses dosyası"));
         assert!(html.contains("2.00 GB"));
     }
 
@@ -1908,7 +1908,7 @@ mod tests {
         assert!(html.contains(
             r#"data-tor-address="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaam2dqd.onion""#
         ));
-        assert!(html.contains(r#"aria-label="Copy Tor address" hidden>Copy</button>"#));
+        assert!(html.contains(r#"aria-label="Tor adresini kopyala" hidden>Kopyala</button>"#));
         assert!(html.contains(r#"<span class="tor-copy-status" aria-live="polite"></span>"#));
     }
 
@@ -1964,9 +1964,9 @@ mod tests {
             None,
             "csrf",
             "pin",
-            "Pin thread",
+            "Konuyu sabitle",
             "hide",
-            "Hide thread",
+            "Konuyu gizle",
             "/test/catalog",
         );
 
@@ -1987,9 +1987,9 @@ mod tests {
             None,
             "csrf",
             "pin",
-            "Pin thread",
+            "Konuyu sabitle",
             "hide",
-            "Hide thread",
+            "Konuyu gizle",
             "/test/catalog",
         );
 
@@ -2015,17 +2015,17 @@ mod tests {
             None,
             "csrf",
             "pin",
-            "Pin thread",
+            "Konuyu sabitle",
             "hide",
-            "Hide thread",
+            "Konuyu gizle",
             "/test/catalog",
         );
 
         let actions_start = html.find(r#"<div class="catalog-card-actions">"#);
         let menu_start = html.find(r#"class="catalog-thread-menu""#);
-        let report_idx = html.find("Report thread");
-        let pin_idx = html.find("Pin thread");
-        let hide_idx = html.find("Hide thread");
+        let report_idx = html.find("Konuyu şikayet et");
+        let pin_idx = html.find("Konuyu sabitle");
+        let hide_idx = html.find("Konuyu gizle");
 
         assert!(
             actions_start.is_some(),
@@ -2054,9 +2054,9 @@ mod tests {
             None,
             "csrf",
             "pin",
-            "Pin thread",
+            "Konuyu sabitle",
             "hide",
-            "Hide thread",
+            "Konuyu gizle",
             "/test/catalog",
         );
 
@@ -2082,9 +2082,9 @@ mod tests {
             None,
             "csrf",
             "pin",
-            "Pin thread",
+            "Konuyu sabitle",
             "hide",
-            "Hide thread",
+            "Konuyu gizle",
             "/test/catalog",
         );
 
@@ -2113,9 +2113,9 @@ mod tests {
             Some(3),
             "csrf",
             "pin",
-            "Pin thread",
+            "Konuyu sabitle",
             "hide",
-            "Hide thread",
+            "Konuyu gizle",
             "/test/catalog",
         );
 

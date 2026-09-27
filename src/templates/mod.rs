@@ -444,18 +444,18 @@ pub fn compress_modal_script(max_image_bytes: usize, max_video_bytes: usize) -> 
 <div id="compress-modal" class="compress-modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="compress-modal-title" aria-hidden="true" hidden inert
      data-max-image="{max_image_bytes}" data-max-video="{max_video_bytes}">
   <div class="compress-modal-box">
-    <div class="compress-modal-title" id="compress-modal-title">&#9888; File Too Large</div>
+    <div class="compress-modal-title" id="compress-modal-title">&#9888; Dosya Çok Büyük</div>
     <div class="compress-modal-info" id="compress-info"></div>
     <div class="compress-progress" id="compress-progress" style="display:none">
       <div class="compress-progress-track"><div class="compress-progress-bar" id="compress-progress-bar"></div></div>
-      <div class="compress-progress-text" id="compress-progress-text">Preparing…</div>
+      <div class="compress-progress-text" id="compress-progress-text">Hazırlanıyor…</div>
     </div>
     <div class="compress-modal-actions" id="compress-actions">
-      <button class="compress-cancel-btn" data-action="dismiss-compress">Cancel</button>
-      <button class="compress-do-btn" id="compress-do-btn" data-action="start-compress">&#9881; Auto-compress</button>
+      <button class="compress-cancel-btn" data-action="dismiss-compress">Vazgeç</button>
+      <button class="compress-do-btn" id="compress-do-btn" data-action="start-compress">&#9881; Otomatik Sıkıştır</button>
     </div>
     <div class="compress-done-actions" id="compress-done-actions" style="display:none">
-      <button class="compress-cancel-btn" data-action="dismiss-compress">Close</button>
+      <button class="compress-cancel-btn" data-action="dismiss-compress">Kapat</button>
     </div>
   </div>
 </div>"#,
@@ -468,11 +468,11 @@ pub const fn confirmation_modal_script() -> &'static str {
     r#"
 <div id="confirm-modal" class="compress-modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-hidden="true" hidden inert>
   <div class="compress-modal-box confirm-modal-box">
-    <div class="compress-modal-title" id="confirm-modal-title">Confirm action</div>
+    <div class="compress-modal-title" id="confirm-modal-title">İşlemi Onayla</div>
     <div class="compress-modal-info confirm-modal-info" id="confirm-modal-message"></div>
     <div class="compress-modal-actions">
-      <button type="button" class="compress-cancel-btn" id="confirm-modal-cancel">Cancel</button>
-      <button type="button" class="compress-do-btn" id="confirm-modal-continue">Continue</button>
+      <button type="button" class="compress-cancel-btn" id="confirm-modal-cancel">Vazgeç</button>
+      <button type="button" class="compress-do-btn" id="confirm-modal-continue">Devam Et</button>
     </div>
   </div>
 </div>"#
@@ -484,26 +484,26 @@ pub const fn admin_ban_delete_modal_script() -> &'static str {
     r#"
 <div id="ban-delete-modal" class="compress-modal ban-delete-modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="ban-delete-modal-title" aria-describedby="ban-delete-modal-info" aria-hidden="true" hidden inert>
   <div class="compress-modal-box ban-delete-modal-box">
-    <div class="compress-modal-title ban-delete-modal-title" id="ban-delete-modal-title">Ban IP + delete post</div>
+    <div class="compress-modal-title ban-delete-modal-title" id="ban-delete-modal-title">IP’yi Yasakla + Gönderiyi Sil</div>
     <form id="ban-delete-modal-form" novalidate>
       <div class="compress-modal-info confirm-modal-info ban-delete-modal-info" id="ban-delete-modal-info">
-        This will ban the hashed IP and delete post <strong id="ban-delete-post-label">No.</strong>.
+        Bu işlem, karma IP’yi yasaklar ve <strong id="ban-delete-post-label">No.</strong> gönderisini siler.
       </div>
-      <div class="ban-delete-warning" role="note">Destructive moderation action. Cancel is safe.</div>
+      <div class="ban-delete-warning" role="note">Yıkıcı bir moderasyon işlemi. Vazgeçmek güvenlidir.</div>
       <div class="ban-delete-field">
-        <label for="ban-delete-reason">Ban reason</label>
-        <input type="text" id="ban-delete-reason" maxlength="256" autocomplete="off" placeholder="Rule violation">
-        <div class="ban-delete-help">Leave blank to use Rule violation.</div>
+        <label for="ban-delete-reason">Yasaklama sebebi</label>
+        <input type="text" id="ban-delete-reason" maxlength="256" autocomplete="off" placeholder="Kural ihlali">
+        <div class="ban-delete-help">Boş bırakırsan Kural ihlali kullanılır.</div>
       </div>
       <div class="ban-delete-field">
-        <label for="ban-delete-duration">Duration in hours</label>
+        <label for="ban-delete-duration">Süre (saat)</label>
         <input type="text" id="ban-delete-duration" inputmode="numeric" pattern="[0-9]*" value="0" autocomplete="off">
-        <div class="ban-delete-help">Use 0 for a permanent ban.</div>
+        <div class="ban-delete-help">Kalıcı yasaklama için 0 yaz.</div>
       </div>
       <div class="post-error-banner ban-delete-error" id="ban-delete-error" role="alert" hidden></div>
       <div class="compress-modal-actions ban-delete-actions">
         <button type="button" class="compress-cancel-btn" id="ban-delete-cancel">Cancel</button>
-        <button type="submit" class="compress-do-btn btn-danger" id="ban-delete-submit">Ban IP + delete</button>
+        <button type="submit" class="compress-do-btn btn-danger" id="ban-delete-submit">IP’yi Yasakla + Sil</button>
       </div>
     </form>
   </div>
@@ -518,7 +518,7 @@ pub const fn report_modal_script() -> &'static str {
     r#"
 <div id="report-modal" class="compress-modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="report-modal-title" aria-describedby="report-info" aria-hidden="true" hidden inert>
   <div class="compress-modal-box">
-    <div class="compress-modal-title" id="report-modal-title">Report Thread/Post</div>
+    <div class="compress-modal-title" id="report-modal-title">Konu/Gönderi Şikayet Et</div>
     <form method="POST" action="/report" id="report-form">
       <input type="hidden" name="_csrf"     id="report-csrf">
       <input type="hidden" name="post_id"   id="report-post-id">
@@ -526,16 +526,16 @@ pub const fn report_modal_script() -> &'static str {
       <input type="hidden" name="board"     id="report-board">
       <input type="hidden" name="ip_hash"   id="report-ip-hash">
       <div class="compress-modal-info confirm-modal-info" id="report-info"></div>
-      <label class="modal-field-label" for="report-reason">reason</label>
+      <label class="modal-field-label" for="report-reason">sebep</label>
       <input type="text" name="reason" id="report-reason"
-             placeholder="reason (optional)" maxlength="256"
+             placeholder="sebep (isteğe bağlı)" maxlength="256"
              style="width:100%;background:var(--bg-input);border:1px solid var(--border);
                     color:var(--text);padding:8px 10px;font-family:var(--font);font-size:16px;
                     min-height:38px;
                     box-sizing:border-box;margin-bottom:0.75rem">
       <div class="compress-modal-actions">
-        <button type="button" class="compress-cancel-btn" data-action="close-report">Cancel</button>
-        <button type="submit" class="compress-do-btn" id="report-submit-btn">Submit Report</button>
+        <button type="button" class="compress-cancel-btn" data-action="close-report">Vazgeç</button>
+        <button type="submit" class="compress-do-btn" id="report-submit-btn">Şikayeti Gönder</button>
       </div>
     </form>
   </div>
@@ -558,10 +558,10 @@ fn report_fallback_form(
   <input type="hidden" name="thread_id" value="{thread_id}">
   <input type="hidden" name="board" value="{board}">
   <details class="report-fallback-details">
-    <summary class="report-fallback-summary">report</summary>
+    <summary class="report-fallback-summary">şikayet et</summary>
     <label class="report-fallback-reason-label">
-      <span>reason</span>
-      <input class="report-fallback-reason" type="text" name="reason" maxlength="256" placeholder="reason (optional)">
+      <span>sebep</span>
+      <input class="report-fallback-reason" type="text" name="reason" maxlength="256" placeholder="sebep (isteğe bağlı)">
     </label>
     <button type="submit" class="report-fallback-submit">{submit_label}</button>
   </details>
@@ -633,17 +633,17 @@ pub fn render_pagination(p: &Pagination, base_url: &str) -> String {
     if p.has_prev() {
         let _ = write!(
             html,
-            r#"<a href="{}{sep}page={}">[prev]</a> "#,
+            r#"<a href="{}{sep}page={}">[önceki]</a> "#,
             safe_base,
             p.page.saturating_sub(1),
             sep = sep
         );
     }
-    let _ = write!(html, "page {} / {}", p.page, p.total_pages());
+    let _ = write!(html, "sayfa {} / {}", p.page, p.total_pages());
     if p.has_next() {
         let _ = write!(
             html,
-            r#" <a href="{}{sep}page={}">[next]</a>"#,
+            r#" <a href="{}{sep}page={}">[sonraki]</a>"#,
             safe_base,
             p.page.saturating_add(1),
             sep = sep
@@ -720,7 +720,7 @@ pub fn base_layout_with_preferences(
         let items = mobile_board_nav_html_for_preferences(boards, preferences);
         format!(
             r#"<details class="mobile-board-menu">
-  <summary class="mobile-board-menu-btn" aria-label="Open board menu" aria-controls="mobile-board-menu-panel"><span class="mobile-board-menu-label">Boards</span></summary>
+  <summary class="mobile-board-menu-btn" aria-label="Board menüsünü aç" aria-controls="mobile-board-menu-panel"><span class="mobile-board-menu-label">Boardlar</span></summary>
   <nav class="mobile-board-menu-panel" id="mobile-board-menu-panel">{items}</nav>
 </details>"#
         )
@@ -729,8 +729,8 @@ pub fn base_layout_with_preferences(
     let search_bar = board_short.map_or_else(String::new, |b| {
         format!(
             r#"<form class="search-form" method="GET" action="/{b}/search">
-<input type="text" name="q" aria-label="search /{b}/" placeholder="search /{b}/…" maxlength="{max_len}">
-<button type="submit">go</button>
+<input type="text" name="q" aria-label="/{b}/ içinde ara" placeholder="/{b}/ içinde ara…" maxlength="{max_len}">
+<button type="submit">git</button>
 </form>"#,
             b = escape_html(b),
             max_len = SEARCH_QUERY_MAX_CHARS
@@ -889,7 +889,7 @@ pub fn base_layout_with_preferences(
 
     format!(
         r#"<!DOCTYPE html>
-<html lang="en" class="no-js" data-theme-css-slugs="{custom_theme_slugs}"{default_theme_attr}{theme_slugs_attr}{active_theme_value_attr}{active_theme_attr}>
+<html lang="tr" class="no-js" data-theme-css-slugs="{custom_theme_slugs}"{default_theme_attr}{theme_slugs_attr}{active_theme_value_attr}{active_theme_attr}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -905,7 +905,7 @@ pub fn base_layout_with_preferences(
 <body{collapse_attr}>
 <header class="site-header">
   <span class="site-name">{forum_name}</span>
-  <a class="home-btn" href="/">&#8962; Home</a>
+  <a class="home-btn" href="/">&#8962; Ana Sayfa</a>
   {board_menu}
   <nav class="board-list">
     {board_links}
@@ -916,81 +916,81 @@ pub fn base_layout_with_preferences(
 {body}
 </main>
 <footer class="site-footer">
-  <p class="site-footer-copy">{forum_name} &mdash; <a href="/">home</a> <span aria-hidden="true">&middot;</span> <a class="admin-footer-link" href="/admin" aria-label="Administrator login">admin</a></p>
+  <p class="site-footer-copy">{forum_name} &mdash; <a href="/">ana sayfa</a> <span aria-hidden="true">&middot;</span> <a class="admin-footer-link" href="/admin" aria-label="Yönetici girişi">admin</a></p>
   <div class="site-footer-theme">
     <details class="user-preferences-panel">
-      <summary id="theme-picker-btn" class="user-preferences-summary">&#9881; User Preferences</summary>
+      <summary id="theme-picker-btn" class="user-preferences-summary">&#9881; Kullanıcı Tercihleri</summary>
       <form class="user-preferences-form" id="user-preferences-form" method="POST" action="/preferences">
-        <button type="button" class="user-preferences-mobile-close" aria-label="Close preferences">&times;</button>
-        <p class="user-preferences-status" role="status" aria-live="polite">Changes apply immediately.</p>
+        <button type="button" class="user-preferences-mobile-close" aria-label="Tercihleri kapat">&times;</button>
+        <p class="user-preferences-status" role="status" aria-live="polite">Değişiklikler hemen uygulanır.</p>
         <input type="hidden" name="preferences_form" value="1">
         <input type="hidden" name="_csrf" value="{csrf_token}">
         <input type="hidden" name="return_to" value="{current_path}">
-        <label>Theme
+        <label>Tema
           <select name="theme"{theme_select_disabled}>{theme_select_options}</select>
         </label>
         <input type="hidden" name="hide_nsfw_boards_present" value="1">
-        <label><input type="checkbox" name="hide_nsfw_boards" value="1"{hide_nsfw_checked}> Hide NSFW boards</label>
+        <label><input type="checkbox" name="hide_nsfw_boards" value="1"{hide_nsfw_checked}> NSFW boardları gizle</label>
         <fieldset>
-          <legend>Video audio by default</legend>
-          <label><input type="radio" name="video_audio" value="on"{audio_on_checked}> On</label>
-          <label><input type="radio" name="video_audio" value="mute"{audio_muted_checked}> Mute</label>
+          <legend>Video sesi varsayılan olarak</legend>
+          <label><input type="radio" name="video_audio" value="on"{audio_on_checked}> Açık</label>
+          <label><input type="radio" name="video_audio" value="mute"{audio_muted_checked}> Sessiz</label>
         </fieldset>
         <fieldset>
-          <legend>Board links</legend>
-          <label><input type="radio" name="preferred_board_view" value="catalog"{catalog_checked}> Prefer catalog</label>
-          <label><input type="radio" name="preferred_board_view" value="index"{index_checked}> Prefer index</label>
+          <legend>Board bağlantıları</legend>
+          <label><input type="radio" name="preferred_board_view" value="catalog"{catalog_checked}> Katalog tercih et</label>
+          <label><input type="radio" name="preferred_board_view" value="index"{index_checked}> Liste tercih et</label>
         </fieldset>
         <input type="hidden" name="show_activity_badges_present" value="1">
-        <label><input type="checkbox" name="show_activity_badges" value="1"{badges_checked}> Show new activity badges</label>
+        <label><input type="checkbox" name="show_activity_badges" value="1"{badges_checked}> Yeni etkinlik rozetlerini göster</label>
       </form>
       <noscript>
         <div class="user-preferences-noscript">
-          <p class="user-preferences-status">JavaScript is off. Each choice below applies immediately.</p>
+          <p class="user-preferences-status">JavaScript kapalı. Aşağıdaki seçimlerin her biri hemen uygulanır.</p>
           <form class="user-preferences-noscript-form" method="POST" action="/preferences">
             <input type="hidden" name="_csrf" value="{csrf_token}">
             <input type="hidden" name="return_to" value="{current_path}">
-            <fieldset><legend>Theme</legend><div class="user-preferences-choice-row">{theme_noscript_buttons}</div></fieldset>
+            <fieldset><legend>Tema</legend><div class="user-preferences-choice-row">{theme_noscript_buttons}</div></fieldset>
           </form>
           <form class="user-preferences-noscript-form" method="POST" action="/preferences">
             <input type="hidden" name="_csrf" value="{csrf_token}">
             <input type="hidden" name="return_to" value="{current_path}">
             <input type="hidden" name="hide_nsfw_boards_present" value="1">
-            <fieldset><legend>NSFW boards</legend><div class="user-preferences-choice-row">
-              <button type="submit" name="hide_nsfw_boards" value="0" aria-pressed="{show_nsfw_pressed}">Show</button>
-              <button type="submit" name="hide_nsfw_boards" value="1" aria-pressed="{hide_nsfw_pressed}">Hide</button>
+            <fieldset><legend>NSFW boardları</legend><div class="user-preferences-choice-row">
+              <button type="submit" name="hide_nsfw_boards" value="0" aria-pressed="{show_nsfw_pressed}">Göster</button>
+              <button type="submit" name="hide_nsfw_boards" value="1" aria-pressed="{hide_nsfw_pressed}">Gizle</button>
             </div></fieldset>
           </form>
           <form class="user-preferences-noscript-form" method="POST" action="/preferences">
             <input type="hidden" name="_csrf" value="{csrf_token}">
             <input type="hidden" name="return_to" value="{current_path}">
-            <fieldset><legend>Video audio by default</legend><div class="user-preferences-choice-row">
-              <button type="submit" name="video_audio" value="on" aria-pressed="{audio_on_pressed}">On</button>
-              <button type="submit" name="video_audio" value="mute" aria-pressed="{audio_muted_pressed}">Mute</button>
+            <fieldset><legend>Video sesi varsayılan olarak</legend><div class="user-preferences-choice-row">
+              <button type="submit" name="video_audio" value="on" aria-pressed="{audio_on_pressed}">Açık</button>
+              <button type="submit" name="video_audio" value="mute" aria-pressed="{audio_muted_pressed}">Sessiz</button>
             </div></fieldset>
           </form>
           <form class="user-preferences-noscript-form" method="POST" action="/preferences">
             <input type="hidden" name="_csrf" value="{csrf_token}">
             <input type="hidden" name="return_to" value="{current_path}">
-            <fieldset><legend>Board links</legend><div class="user-preferences-choice-row">
-              <button type="submit" name="preferred_board_view" value="catalog" aria-pressed="{catalog_pressed}">Catalog</button>
-              <button type="submit" name="preferred_board_view" value="index" aria-pressed="{index_pressed}">Index</button>
+            <fieldset><legend>Board bağlantıları</legend><div class="user-preferences-choice-row">
+              <button type="submit" name="preferred_board_view" value="catalog" aria-pressed="{catalog_pressed}">Katalog</button>
+              <button type="submit" name="preferred_board_view" value="index" aria-pressed="{index_pressed}">Liste</button>
             </div></fieldset>
           </form>
           <form class="user-preferences-noscript-form" method="POST" action="/preferences">
             <input type="hidden" name="_csrf" value="{csrf_token}">
             <input type="hidden" name="return_to" value="{current_path}">
             <input type="hidden" name="show_activity_badges_present" value="1">
-            <fieldset><legend>New activity badges</legend><div class="user-preferences-choice-row">
-              <button type="submit" name="show_activity_badges" value="1" aria-pressed="{show_badges_pressed}">Show</button>
-              <button type="submit" name="show_activity_badges" value="0" aria-pressed="{hide_badges_pressed}">Hide</button>
+            <fieldset><legend>Yeni etkinlik rozetleri</legend><div class="user-preferences-choice-row">
+              <button type="submit" name="show_activity_badges" value="1" aria-pressed="{show_badges_pressed}">Göster</button>
+              <button type="submit" name="show_activity_badges" value="0" aria-pressed="{hide_badges_pressed}">Gizle</button>
             </div></fieldset>
           </form>
         </div>
       </noscript>
     </details>
     <div id="theme-picker-panel" hidden inert aria-hidden="true">
-      <div class="tp-title">// SELECT THEME</div>
+      <div class="tp-title">// TEMA SEÇ</div>
       {theme_picker_panel}
     </div>
   </div>
@@ -1129,29 +1129,29 @@ pub(crate) fn ban_page_with_theme(
     };
     format!(
         r#"<!DOCTYPE html>
-<html lang="en" class="no-js" data-active-theme="{active_theme}"{default_theme_attr}{theme_slugs_attr}{active_theme_attr}>
+<html lang="tr" class="no-js" data-active-theme="{active_theme}"{default_theme_attr}{theme_slugs_attr}{active_theme_attr}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>You Are Banned</title>
+<title>Yasaklandınız</title>
 <link rel="stylesheet" href="{stylesheet_href}">
 {theme_stylesheet_link}
 <script src="{theme_init_src}"></script>
 </head>
 <body>
 <div class="page-box error-page">
-<h1>you are banned</h1>
-<p style="color:var(--text-dim)">reason: <strong>{reason}</strong></p>
-<p style="margin-top:1.5rem;font-size:0.9rem">if you believe this ban was made in error, you may submit an appeal below.<br>
-appeals are reviewed by site staff. one appeal per 24 hours.</p>
+<h1>yasaklandınız</h1>
+<p style="color:var(--text-dim)">sebep: <strong>{reason}</strong></p>
+<p style="margin-top:1.5rem;font-size:0.9rem">bu yasağın hatalı yapıldığını düşünüyorsan aşağıdan itiraz gönderebilirsin.<br>
+itirazlar site yetkilileri tarafından incelenir. 24 saatte bir itiraz gönderebilirsin.</p>
 <form method="POST" action="/appeal" class="appeal-form">
 <input type="hidden" name="_csrf" id="appeal-csrf-field" value="{csrf}">
 <textarea name="reason" rows="4" maxlength="512"
-  placeholder="Briefly explain why you believe this ban should be lifted…"
+  placeholder="Bu yasağın kaldırılması gerektiğini düşündüğün nedeni kısaca açıkla…"
   style="width:100%;box-sizing:border-box;margin:0.75rem 0;background:var(--bg-post);color:var(--text);border:1px solid var(--border);padding:0.5rem;resize:none"></textarea>
-<button type="submit" style="margin-top:0.25rem">submit appeal</button>
+<button type="submit" style="margin-top:0.25rem">itiraz gönder</button>
 </form>
-<p style="margin-top:1.5rem"><a href="/">return home</a></p>
+<p style="margin-top:1.5rem"><a href="/">ana sayfaya dön</a></p>
 </div>
 <input type="hidden" id="csrf_global" value="{csrf}">
 <script src="{main_js_src}" defer></script>
@@ -1185,10 +1185,10 @@ pub fn rate_limit_page_with_preferences(
     preferences: UserPreferences,
 ) -> String {
     let body = r#"<div class="page-box error-page">
-<h1>Slow down</h1><p>You are navigating too fast. Please try again shortly.</p>
-<p><a href="/">return home</a></p></div>"#;
+<h1>Yavaş ol</h1><p>Çok hızlı geziniyorsun. Lütfen kısa süre sonra tekrar dene.</p>
+<p><a href="/">ana sayfaya dön</a></p></div>"#;
     base_layout_with_preferences(
-        "Slow down",
+        "Yavaş ol",
         None,
         body,
         csrf,
