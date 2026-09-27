@@ -482,6 +482,11 @@ pub struct AppState {
     pub chan_ledger: Option<Arc<parking_lot::Mutex<crate::chan_net::ledger::TxLedger>>>,
     /// Current Tor onion address, when onion service is enabled.
     pub onion_address: Arc<tokio::sync::RwLock<Option<String>>>,
+    /// Whether board pages require a signed-in anonymous account.
+    ///
+    /// Held on the state rather than read from `CONFIG` so tests can build a
+    /// router that exercises board pages without first registering an account.
+    pub require_user_account: bool,
 }
 
 #[cfg(test)]

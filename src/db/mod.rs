@@ -29,6 +29,8 @@ pub mod setup;
 pub mod themes;
 /// Thread creation, mutation, pruning, and archive queries.
 pub mod threads;
+/// Anonymous board-account persistence and session management.
+pub mod users;
 /// Shared database input and output types.
 mod types;
 /// Anonymous per-thread display preferences.
@@ -49,6 +51,7 @@ pub use setup::*;
 pub use themes::*;
 pub use threads::*;
 pub use user_thread_prefs::*;
+pub use users::*;
 
 /// Return the database schema version for the current release baseline.
 #[must_use]

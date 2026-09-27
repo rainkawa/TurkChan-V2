@@ -116,6 +116,22 @@ const BASE_SCHEMA_SQL: &str = "
         expires_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS users (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        username      TEXT NOT NULL UNIQUE,
+        display_name  TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        avatar_file   TEXT,
+        created_at    INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+
+    CREATE TABLE IF NOT EXISTS user_sessions (
+        id         TEXT PRIMARY KEY,
+        user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        expires_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS bans (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         ip_hash    TEXT NOT NULL,
@@ -281,6 +297,10 @@ const INDEX_SCHEMA_SQL: &str = "
         ON bans(ip_hash);
     CREATE INDEX IF NOT EXISTS idx_sessions_expires
         ON admin_sessions(expires_at);
+    CREATE INDEX IF NOT EXISTS idx_user_sessions_expires
+        ON user_sessions(expires_at);
+    CREATE INDEX IF NOT EXISTS idx_user_sessions_user
+        ON user_sessions(user_id);
     CREATE INDEX IF NOT EXISTS idx_posts_file_path
         ON posts(file_path) WHERE file_path IS NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_posts_thumb_path
@@ -332,7 +352,9 @@ const INDEX_SCHEMA_SQL: &str = "
 /// Obsolete theme index accepted only during the known legacy repair path.
 const LEGACY_THEME_SORT_INDEX: &str = "idx_themes_enabled_sort";
 /// Additive indexes introduced after the first package-version baseline.
-const ADDITIVE_BASELINE_INDEXES: [&str; 9] = [
+const ADDITIVE_BASELINE_INDEXES: [&str; 11] = [
+    "idx_user_sessions_expires",
+    "idx_user_sessions_user",
     "idx_posts_file_path",
     "idx_posts_thumb_path",
     "idx_posts_audio_file_path",
@@ -910,6 +932,7 @@ fn schema_objects_are_legacy_repairable(expected: &SchemaShape, actual: &SchemaS
         let Some(actual_object) = actual.objects.get(name) else {
             if ADDITIVE_BASELINE_INDEXES.contains(&name.as_str())
                 || (expected_object.kind == "trigger" && is_additive_domain_trigger(name))
+                || (expected_object.kind == "table" && is_additive_user_table(name))
             {
                 continue;
             }
@@ -1061,8 +1084,44 @@ fn apply_additive_schema_repairs_in_transaction(conn: &rusqlite::Connection) -> 
          DROP INDEX IF EXISTS idx_posts_thread_id;",
     )
     .context("Remove obsolete indexes failed")?;
+    create_additive_user_tables(conn).context("Install anonymous account tables failed")?;
     create_indexes(conn).context("Install additive indexes failed")?;
     ensure_domain_invariants(conn).context("Install additive domain invariants")
+}
+
+/// Anonymous-account tables introduced after the original release baseline.
+///
+/// A database created by an earlier build has none of these, so they are
+/// installed by the additive repair path rather than by a full rebuild.
+/// The definition is kept identical to the baseline SQL above; a fresh
+/// database gets the same shape through `install_baseline_schema_in_transaction`.
+const ADDITIVE_USER_TABLES_SQL: &str = "
+    CREATE TABLE IF NOT EXISTS users (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        username      TEXT NOT NULL UNIQUE,
+        display_name  TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        avatar_file   TEXT,
+        created_at    INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+
+    CREATE TABLE IF NOT EXISTS user_sessions (
+        id         TEXT PRIMARY KEY,
+        user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        expires_at INTEGER NOT NULL
+    );
+";
+
+/// Install the anonymous-account tables on a database that predates them.
+fn create_additive_user_tables(conn: &rusqlite::Connection) -> Result<()> {
+    conn.execute_batch(ADDITIVE_USER_TABLES_SQL)
+        .context("Failed to install anonymous account tables")
+}
+
+/// Return whether a missing table is one the additive repair path installs.
+fn is_additive_user_table(name: &str) -> bool {
+    matches!(name, "users" | "user_sessions")
 }
 
 /// Return whether a legacy boards table can be safely rebuilt.

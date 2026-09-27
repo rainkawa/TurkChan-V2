@@ -494,6 +494,8 @@ struct SettingsFile {
     ffprobe_path: Option<String>,
     /// Whether boards may enable arbitrary-file uploads.
     enable_any_file_uploads_feature: Option<bool>,
+    /// Whether anonymous accounts are required to reach the board pages.
+    require_user_account: Option<bool>,
     /// How often to run PRAGMA `wal_checkpoint(TRUNCATE)`, in seconds.
     /// Set to 0 to disable. Default: 3600 (hourly).
     wal_checkpoint_interval_secs: Option<u64>,
@@ -866,6 +868,14 @@ pub struct Config {
     /// Global feature gate for arbitrary uploads. Boards can only enable the
     /// per-board toggle when this is true.
     pub enable_any_file_uploads_feature: bool,
+    /// Require an anonymous account before any board page is served.
+    ///
+    /// When true, every request that would render a board, thread, or post
+    /// page is redirected to the sign-in screen unless it carries a valid
+    /// `chan_user_session` cookie. Health probes, the sign-in and
+    /// registration screens, static assets, and the administration panel
+    /// stay reachable so an operator can always get back in.
+    pub require_user_account: bool,
     // Internal / env-only settings
     /// Interface or host used by the primary listener.
     pub bind_addr: String,
@@ -1015,6 +1025,7 @@ impl std::fmt::Debug for Config {
                 "enable_any_file_uploads_feature",
                 &self.enable_any_file_uploads_feature,
             )
+            .field("require_user_account", &self.require_user_account)
             .field("bind_addr", &self.bind_addr)
             .field("database_path", &self.database_path)
             .field("upload_dir", &self.upload_dir)
@@ -1283,6 +1294,10 @@ impl Config {
             enable_any_file_uploads_feature: env_bool(
                 "CHAN_ENABLE_ANY_FILE_UPLOADS_FEATURE",
                 s.enable_any_file_uploads_feature.unwrap_or(false),
+            ),
+            require_user_account: env_bool(
+                "CHAN_REQUIRE_USER_ACCOUNT",
+                s.require_user_account.unwrap_or(true),
             ),
             bind_addr,
             database_path: env_str("CHAN_DB", &default_db),
@@ -2392,6 +2407,7 @@ mod tests {
             ffmpeg_path: "ffmpeg".to_owned(),
             ffprobe_path: "ffprobe".to_owned(),
             enable_any_file_uploads_feature: false,
+            require_user_account: false,
             bind_addr: "0.0.0.0:8080".to_owned(),
             database_path: "chan.db".to_owned(),
             upload_dir: "__rustchan_test_uploads_does_not_exist__".to_owned(),

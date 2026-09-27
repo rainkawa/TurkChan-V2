@@ -13,6 +13,8 @@ use std::time::UNIX_EPOCH;
 
 /// Administrative page templates.
 pub mod admin;
+/// Registration and sign-in screens.
+pub mod auth;
 /// Board index, catalog, search, and archive templates.
 pub mod board;
 /// New-thread and reply form fragments.
@@ -21,6 +23,7 @@ pub mod forms;
 pub mod thread;
 
 pub use admin::*;
+pub use auth::*;
 pub use board::*;
 pub use thread::*;
 

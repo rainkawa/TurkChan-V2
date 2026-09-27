@@ -72,6 +72,32 @@ pub(super) fn public_routes() -> Router<AppState> {
             "/banner/external/{id}/continue",
             get(crate::handlers::banner::external_banner_continue),
         )
+        // Sign-in and registration are the only pages a signed-out visitor can
+        // reach, so they carry the CSRF cookie and their own scoped tokens.
+        .route(
+            "/login",
+            get(crate::handlers::auth::login_page)
+                .post(crate::handlers::auth::login_submit)
+                .layer(DefaultBodyLimit::max(65_536)),
+        )
+        .route(
+            "/register",
+            get(crate::handlers::auth::register_page)
+                .post(crate::handlers::auth::register_submit)
+                // The wizard accepts one optional avatar, so the body bound
+                // is modest but still finite.
+                .layer(DefaultBodyLimit::max(3 * 1024 * 1024)),
+        )
+        .route("/register/welcome", get(crate::handlers::auth::register_welcome))
+        .route("/logout", post(crate::handlers::auth::logout))
+        .route(
+            "/auth/username",
+            get(crate::handlers::auth::username_available),
+        )
+        .route(
+            "/auth/avatar/{user_id}",
+            get(crate::handlers::auth::serve_avatar),
+        )
         .route("/setup", get(crate::handlers::setup::setup_get))
         .route("/setup/review", post(crate::handlers::setup::setup_review))
         .route("/setup/finish", post(crate::handlers::setup::setup_finish))

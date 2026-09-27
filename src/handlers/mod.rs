@@ -4,6 +4,7 @@
 const LOG_TARGET: &str = concat!(env!("CARGO_CRATE_NAME"), "::handlers");
 
 pub(crate) mod admin;
+pub(crate) mod auth;
 pub(crate) mod banner;
 pub(crate) mod board;
 pub(crate) mod captcha;

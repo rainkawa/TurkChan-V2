@@ -591,6 +591,40 @@ pub struct AdminSession {
     pub expires_at: i64,
 }
 
+/// An anonymous board account.
+///
+/// Registration never asks for a real name, an address, or any other
+/// identifying detail, so this record holds nothing beyond a chosen display
+/// name, a unique login name, and the credential hash.
+#[derive(Debug, Clone, Serialize)]
+pub struct User {
+    /// Database primary key.
+    pub id: i64,
+    /// Unique login name chosen during registration.
+    pub username: String,
+    /// Name shown on posts.
+    pub display_name: String,
+    /// Excluded from Serialize in practice — be careful not to expose this.
+    pub password_hash: String,
+    /// Stored avatar file name, or `None` when the default avatar is used.
+    pub avatar_file: Option<String>,
+    /// Account creation time as a Unix timestamp.
+    pub created_at: i64,
+}
+
+/// Active anonymous-account session.
+#[derive(Debug, Clone, Serialize)]
+pub struct UserSession {
+    /// Opaque session identifier stored in the authentication cookie.
+    pub id: String,
+    /// Identifier of the authenticated account.
+    pub user_id: i64,
+    /// Session creation time as a Unix timestamp.
+    pub created_at: i64,
+    /// Session expiration time as a Unix timestamp.
+    pub expires_at: i64,
+}
+
 /// A banned IP hash
 #[derive(Debug, Clone, Serialize)]
 pub struct Ban {

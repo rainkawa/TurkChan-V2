@@ -100,6 +100,9 @@ pub(crate) fn app_state() -> crate::middleware::AppState {
         db_maintenance_jobs: crate::middleware::DbMaintenanceJobs::new(),
         chan_ledger: None,
         onion_address: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
+        // Board-page tests exercise rendering and posting, not the account
+        // gate, so the state used by tests starts with the gate disabled.
+        require_user_account: false,
     }
 }
 

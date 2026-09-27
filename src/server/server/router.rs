@@ -8,7 +8,9 @@ use crate::middleware::AppState;
 mod routes;
 
 use super::{
-    assets::{serve_admin_css, serve_admin_js, serve_css, serve_main_js, serve_theme_init_js},
+    assets::{
+        serve_admin_css, serve_admin_js, serve_auth_js, serve_css, serve_main_js, serve_theme_init_js,
+    },
     headers::{
         admin_cache_middleware, hsts_middleware_with_mode, public_cache_middleware,
         request_boundary_middleware, safe_timeout_middleware, text_response_compression_predicate,
@@ -27,10 +29,18 @@ pub(super) fn build_router(state: AppState, direct_https: bool) -> Router {
         .fallback(|| async { crate::error::AppError::NotFound("Sayfa bulunamadı.".into()) })
         .route("/static/style.css", get(serve_css))
         .route("/static/main.js", get(serve_main_js))
+        .route("/static/auth.js", get(serve_auth_js))
         .route("/static/admin.css", get(serve_admin_css))
         .route("/static/admin.js", get(serve_admin_js))
         .route("/static/theme-init.js", get(serve_theme_init_js))
-        .merge(public_routes().layer(axum_middleware::from_fn(public_cache_middleware)))
+        .merge(
+            public_routes()
+                .layer(axum_middleware::from_fn_with_state(
+                    state.clone(),
+                    crate::handlers::auth::require_user_account_middleware,
+                ))
+                .layer(axum_middleware::from_fn(public_cache_middleware)),
+        )
         .merge(admin_routes().layer(axum_middleware::from_fn(admin_cache_middleware)))
         .layer(axum_middleware::from_fn(
             crate::middleware::rate_limit_middleware,

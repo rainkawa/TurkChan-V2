@@ -9,6 +9,8 @@ use axum::{
 static STYLE_CSS: &str = include_str!("../../../static/style.css");
 /// Embedded public JavaScript bundle.
 static MAIN_JS: &str = include_str!("../../../static/main.js");
+/// Embedded registration-wizard JavaScript enhancement.
+static AUTH_JS: &str = include_str!("../../../static/auth.js");
 /// Embedded administrator stylesheet.
 static ADMIN_CSS: &str = include_str!("../../../static/admin.css");
 /// Embedded administrator JavaScript bundle.
@@ -58,6 +60,11 @@ pub(super) async fn serve_css(req: axum::extract::Request) -> impl IntoResponse 
 /// Serve the public JavaScript bundle.
 pub(super) async fn serve_main_js(req: axum::extract::Request) -> impl IntoResponse {
     static_asset_response(&req, MAIN_JS, "application/javascript; charset=utf-8")
+}
+
+/// Serve the registration-wizard JavaScript enhancement.
+pub(super) async fn serve_auth_js(req: axum::extract::Request) -> impl IntoResponse {
+    static_asset_response(&req, AUTH_JS, "application/javascript; charset=utf-8")
 }
 
 /// Serve the administrator stylesheet.
