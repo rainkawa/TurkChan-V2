@@ -83,8 +83,6 @@ const AVATAR_MIME_TYPES: [&str; 6] = [
 /// A registered account as the request handlers need it.
 #[derive(Debug, Clone)]
 pub(crate) struct AuthenticatedUser {
-    /// Row id in `users`.
-    pub id: i64,
     /// Unique login name.
     pub username: String,
     /// Name shown on posts.
@@ -94,7 +92,6 @@ pub(crate) struct AuthenticatedUser {
 impl From<crate::models::User> for AuthenticatedUser {
     fn from(user: crate::models::User) -> Self {
         Self {
-            id: user.id,
             username: user.username,
             display_name: user.display_name,
         }
