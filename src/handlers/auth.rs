@@ -89,9 +89,6 @@ pub(crate) struct AuthenticatedUser {
     pub username: String,
     /// Name shown on posts.
     pub display_name: String,
-    /// Stored avatar file name, or `None` when the account uses the default
-    /// avatar.
-    pub avatar_file: Option<String>,
 }
 
 impl From<crate::models::User> for AuthenticatedUser {
@@ -100,7 +97,6 @@ impl From<crate::models::User> for AuthenticatedUser {
             id: user.id,
             username: user.username,
             display_name: user.display_name,
-            avatar_file: user.avatar_file,
         }
     }
 }
@@ -125,7 +121,7 @@ pub(crate) struct LoginForm {
 /// The screen itself never needs a password, so the field is optional here
 /// and a bare `GET /login` still renders.
 #[derive(Debug, Default, Deserialize)]
-struct LoginQuery {
+pub(crate) struct LoginQuery {
     /// Username to pre-fill.
     #[serde(default)]
     username: String,
@@ -136,14 +132,14 @@ struct LoginQuery {
 
 /// Username availability query.
 #[derive(Debug, Deserialize)]
-struct UsernameQuery {
+pub(crate) struct UsernameQuery {
     /// Username to test.
     username: String,
 }
 
 /// CSRF-only form body shared by the sign-out control.
 #[derive(Debug, Deserialize)]
-struct CsrfOnlyForm {
+pub(crate) struct CsrfOnlyForm {
     /// Scoped CSRF token.
     #[serde(rename = "_csrf")]
     csrf: Option<String>,
@@ -312,7 +308,7 @@ pub(crate) async fn login_submit(
         let Some(user) = db::find_user_by_username(&conn, &username)? else {
             // Spend the same work on an unknown name as on a known one so the
             // response time does not reveal whether the account exists.
-            let _ = verify_password(&password, &DUMMY_PASSWORD_HASH);
+            let _timing_equalizer = verify_password(&password, &DUMMY_PASSWORD_HASH);
             return Ok(None);
         };
         if verify_password(&password, &user.password_hash)? {
