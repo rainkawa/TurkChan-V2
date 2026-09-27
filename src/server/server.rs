@@ -918,7 +918,7 @@ pub async fn run_server(port_override: Option<u16>, chan_net: bool) -> anyhow::R
                             );
                             continue;
                         }
-                        let Ok(_guard) = maintenance_state.maintenance_gate.try_begin("Scheduled VACUUM") else {
+                        let Ok(_guard) = maintenance_state.maintenance_gate.try_begin("Zamanlanmış VACUUM") else {
                             tracing::debug!(target: "db", "Skipping scheduled VACUUM because maintenance is already running");
                             continue;
                         };
@@ -1010,7 +1010,7 @@ pub async fn run_server(port_override: Option<u16>, chan_net: bool) -> anyhow::R
                             );
                             continue;
                         }
-                        let Ok(_guard) = maintenance_state.maintenance_gate.try_begin("Scheduled full backup") else {
+                        let Ok(_guard) = maintenance_state.maintenance_gate.try_begin("Zamanlanmış tam yedekleme") else {
                             tracing::debug!(target: "admin", "Skipping scheduled full backup because maintenance is already running");
                             continue;
                         };

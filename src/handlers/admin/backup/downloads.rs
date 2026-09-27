@@ -335,7 +335,7 @@ pub(in crate::server) async fn delete_backup(
 ) -> Result<Response> {
     let session_id = jar.get(SESSION_COOKIE).map(|c| c.value().to_owned());
     require_admin_post_origin_and_csrf(&jar, &headers, Some(peer), form.csrf.as_deref())?;
-    let _maintenance_guard = state.maintenance_gate.try_begin("Saved backup deletion")?;
+    let _maintenance_guard = state.maintenance_gate.try_begin("Kayıtlı yedek silme")?;
 
     let safe_filename = validate_saved_backup_reference(&form.filename)?;
 

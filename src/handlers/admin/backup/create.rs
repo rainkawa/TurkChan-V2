@@ -720,7 +720,7 @@ pub(in crate::server) async fn create_full_backup(
     axum::extract::ConnectInfo(peer): axum::extract::ConnectInfo<std::net::SocketAddr>,
     Form(form): Form<FullBackupCreateForm>,
 ) -> Result<Response> {
-    let _maintenance_guard = state.maintenance_gate.try_begin("Full backup creation")?;
+    let _maintenance_guard = state.maintenance_gate.try_begin("Tam yedek oluşturma")?;
     let session_id = jar
         .get(SESSION_COOKIE)
         .map(|cookie| cookie.value().to_owned());
@@ -753,7 +753,7 @@ pub(in crate::server) async fn create_full_backup(
     .await
     .map_err(|error| AppError::Internal(anyhow::anyhow!(error)))??;
 
-    Ok(super::super::admin_panel_redirect("Full backup saved on the server.").into_response())
+    Ok(super::super::admin_panel_redirect("Tam yedek sunucuya kaydedildi.").into_response())
 }
 
 #[derive(Deserialize)]
@@ -779,7 +779,7 @@ pub(in crate::server) async fn create_board_backup(
     axum::extract::ConnectInfo(peer): axum::extract::ConnectInfo<std::net::SocketAddr>,
     Form(form): Form<BoardBackupCreateForm>,
 ) -> Result<Response> {
-    let _maintenance_guard = state.maintenance_gate.try_begin("Board backup creation")?;
+    let _maintenance_guard = state.maintenance_gate.try_begin("Board yedeği oluşturma")?;
 
     let session_id = jar
         .get(SESSION_COOKIE)
@@ -793,7 +793,7 @@ pub(in crate::server) async fn create_board_backup(
         .take(8)
         .collect::<String>();
     if board_short.is_empty() {
-        return Err(AppError::BadRequest("Invalid board name.".into()));
+        return Err(AppError::BadRequest("Geçersiz board adı.".into()));
     }
     let board_short_for_flash = board_short.clone();
     let download_after_create = form.download_after_create.as_deref() == Some("1");
@@ -1018,7 +1018,7 @@ pub(in crate::server) async fn create_board_backup(
     }
 
     Ok(admin_panel_redirect_anchor_open(
-        &format!("Board /{board_short_for_flash}/ backup saved on the server."),
+        &format!("Board /{board_short_for_flash}/ yedeği sunucuya kaydedildi."),
         &format!("board-backup-{board_short_for_flash}"),
         "board-backup-restore",
     )

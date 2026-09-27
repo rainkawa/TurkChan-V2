@@ -1560,7 +1560,7 @@ fn dashboard_backup_status(
 ) -> (String, String, crate::templates::AdminDashboardState) {
     let Some(warning) = backup_summary.warning.as_deref() else {
         return (
-            "current".to_owned(),
+            "güncel".to_owned(),
             backup_summary.status_line.clone(),
             crate::templates::AdminDashboardState::Ok,
         );
@@ -1701,27 +1701,27 @@ fn dashboard_job_status(
         crate::templates::AdminDashboardState::Ok
     };
     let status = if !site_health.background_jobs_available {
-        "status unavailable".to_owned()
+        "durum kullanılamıyor".to_owned()
     } else if site_health.failed_jobs > 0 {
-        format!("{} failed", site_health.failed_jobs)
+        format!("{} başarısız", site_health.failed_jobs)
     } else if site_health.running_jobs > 0 || site_health.queued_jobs > 0 {
         format!(
-            "{} running / {} queued",
+            "{} çalışıyor / {} kuyrukta",
             site_health.running_jobs, site_health.queued_jobs
         )
     } else if backup_active {
-        format!("backup {}", site_health.backup_jobs)
+        format!("yedekleme {}", site_health.backup_jobs)
     } else {
-        "idle — ready".to_owned()
+        "boşta — hazır".to_owned()
     };
     let detail = if site_health.background_jobs_available {
         format!(
-            "Recently completed {}; backup job {}; restore jobs {}.",
+            "Yakın tamamlanan {}; yedekleme işi {}; geri yükleme işi {}.",
             site_health.recent_completed_jobs, site_health.backup_jobs, site_health.restore_jobs
         )
     } else {
         format!(
-            "Background-job summary unavailable; backup job {}; restore jobs {}.",
+            "Arka plan işi özeti kullanılamıyor; yedekleme işi {}; geri yükleme işi {}.",
             site_health.backup_jobs, site_health.restore_jobs
         )
     };
@@ -2074,17 +2074,17 @@ pub(in crate::server) async fn admin_panel(
     } else if let Some(msg) = params.flash {
         Some((false, msg))
     } else if let Some(err) = params.restore_error {
-        Some((true, format!("Restore failed: {err}")))
+        Some((true, format!("Geri yükleme başarısız: {err}")))
     } else if let Some(board) = params.board_restored {
-        Some((false, format!("Board /{board}/ restored successfully.")))
+        Some((false, format!("Board /{board}/ başarıyla geri yüklendi.")))
     } else if params.backup_created.is_some() {
-        Some((false, "Backup saved on the server.".to_owned()))
+        Some((false, "Yedek sunucuya kaydedildi.".to_owned()))
     } else if params.backup_deleted.is_some() {
-        Some((false, "Backup deleted.".to_owned()))
+        Some((false, "Yedek silindi.".to_owned()))
     } else if params.restored.is_some() {
-        Some((false, "Restore completed successfully.".to_owned()))
+        Some((false, "Geri yükleme başarıyla tamamlandı.".to_owned()))
     } else if params.settings_saved.is_some() {
-        Some((false, "Site settings saved.".to_owned()))
+        Some((false, "Site ayarları kaydedildi.".to_owned()))
     } else {
         None
     };
@@ -2210,9 +2210,9 @@ pub(in crate::server) async fn dismiss_failed_site_health_jobs(
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
 
     let message = if failed_before == 0 {
-        "Failed job counter was already clear."
+        "Başarısız iş sayacı zaten temizdi."
     } else {
-        "Failed job counter dismissed."
+        "Başarısız iş sayacı kapatıldı."
     };
     Ok(admin_panel_redirect_anchor_open(message, "site-health", "site-health").into_response())
 }
@@ -2236,8 +2236,8 @@ pub(in crate::server) async fn admin_live_log(
             let Some(path) = latest_log_file(&logs_dir) else {
                 return Ok(
                     serde_json::json!({
-                        "filename": "no log file",
-                        "content": "No live log file found yet.",
+                        "filename": "günlük dosyası yok",
+                        "content": "Henüz canlı günlük dosyası bulunamadı.",
                         "truncated": false
                     })
                     .to_string(),
@@ -2541,27 +2541,27 @@ mod tests {
     fn dashboard_backup_status_classifies_warning_and_ok_states() {
         let missing = BackupSummary {
             warning: Some(
-                "No saved full backup found. Create and download a verified full backup before relying on this node."
+                "Kayıtlı tam yedek bulunamadı. Bu düğüme güvenmeden önce doğrulanmış bir tam yedek oluştur ve indir."
                     .to_owned(),
             ),
-            status_line: "Latest full backup: none saved.".to_owned(),
+            status_line: "En son tam yedek: hiçbiri kayıtlı değil.".to_owned(),
         };
         let stale = BackupSummary {
             warning: Some(
-                "Latest verified full backup 'backup.zip' is older than 72 hours (96h ago)."
+                "En son doğrulanmış tam yedek 'backup.zip' 72 saatten eski (96 saat önce)."
                     .to_owned(),
             ),
-            status_line: "Latest full backup: backup.zip (96h ago) - verified.".to_owned(),
+            status_line: "En son tam yedek: backup.zip (96 saat önce) - doğrulandı.".to_owned(),
         };
         let ok = BackupSummary {
             warning: None,
-            status_line: "Latest full backup: backup.zip (1h ago) - verified.".to_owned(),
+            status_line: "En son tam yedek: backup.zip (1 saat önce) - doğrulandı.".to_owned(),
         };
         let failed = BackupSummary {
             warning: Some(
-                "Latest full backup 'backup.zip' failed verification: digest mismatch".to_owned(),
+                "En son tam yedek 'backup.zip' doğrulamadan geçemedi: özet uyuşmazlığı".to_owned(),
             ),
-            status_line: "Latest full backup: backup.zip - invalid.".to_owned(),
+            status_line: "En son tam yedek: backup.zip - geçersiz.".to_owned(),
         };
 
         assert_eq!(
@@ -2616,7 +2616,7 @@ mod tests {
         let (status, _detail, state) =
             dashboard_job_status(&site_health_with_jobs(0, 0, 0, "idle"));
 
-        assert_eq!(status, "idle — ready");
+        assert_eq!(status, "boşta — hazır");
         assert_eq!(state, crate::templates::AdminDashboardState::Ok);
     }
 
@@ -2625,7 +2625,7 @@ mod tests {
         let (status, _detail, state) =
             dashboard_job_status(&site_health_with_jobs(0, 3, 0, "idle"));
 
-        assert_eq!(status, "0 running / 3 queued");
+        assert_eq!(status, "0 çalışıyor / 3 kuyrukta");
         assert_eq!(state, crate::templates::AdminDashboardState::Pending);
     }
 
@@ -2634,7 +2634,7 @@ mod tests {
         let (status, _detail, state) =
             dashboard_job_status(&site_health_with_jobs(0, 0, 0, "compressing (2/10 files)"));
 
-        assert_eq!(status, "backup compressing (2/10 files)");
+        assert_eq!(status, "yedekleme compressing (2/10 files)");
         assert_eq!(state, crate::templates::AdminDashboardState::Pending);
     }
 
@@ -2645,8 +2645,8 @@ mod tests {
 
         let (status, detail, state) = dashboard_job_status(&health);
 
-        assert_eq!(status, "status unavailable");
-        assert!(detail.contains("Background-job summary unavailable"));
+        assert_eq!(status, "durum kullanılamıyor");
+        assert!(detail.contains("Arka plan işi özeti kullanılamıyor"));
         assert_eq!(state, crate::templates::AdminDashboardState::Unknown);
     }
 

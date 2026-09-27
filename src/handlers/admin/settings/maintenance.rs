@@ -58,7 +58,7 @@ fn create_pre_repair_backup(
         progress,
         "db_repair",
         job_id,
-        "Automatic DB + config safety backup before database repair.",
+        "Veritabanı onarımından önce otomatik veritabanı + yapılandırma güvenlik yedeği.",
     )
 }
 
@@ -66,9 +66,9 @@ fn parse_ffmpeg_timeout_secs_input(input: Option<&str>) -> Result<u64> {
     let raw = input
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .ok_or_else(|| AppError::BadRequest("Video re-encoding timeout is required.".into()))?;
+        .ok_or_else(|| AppError::BadRequest("Video yeniden kodlama zaman aşımı zorunludur.".into()))?;
     let timeout_secs = raw.parse::<u64>().map_err(|_error| {
-        AppError::BadRequest("Video re-encoding timeout must be a whole number of seconds.".into())
+        AppError::BadRequest("Video yeniden kodlama zaman aşımı saniye cinsinden bir tam sayı olmalı.".into())
     })?;
     crate::config::validate_ffmpeg_timeout_secs(timeout_secs)
         .map_err(|error| AppError::BadRequest(error.to_string()))
@@ -87,18 +87,18 @@ fn parse_media_prune_size_input(
     if raw.is_empty() {
         if enabled {
             return Err(AppError::BadRequest(
-                "Maximum active content size is required when pruning is enabled.".into(),
+                "Temizleme etkinken en büyük etkin içerik boyutu zorunludur.".into(),
             ));
         }
         return Ok(0);
     }
     if raw.starts_with('-') {
         return Err(AppError::BadRequest(
-            "Maximum active content size cannot be negative.".into(),
+            "En büyük etkin içerik boyutu negatif olamaz.".into(),
         ));
     }
     let amount = raw.parse::<u64>().map_err(|_error| {
-        AppError::BadRequest("Maximum active content size must be a whole number.".into())
+        AppError::BadRequest("En büyük etkin içerik boyutu bir tam sayı olmalı.".into())
     })?;
     let multiplier = match unit.unwrap_or("mib") {
         "bytes" => 1,
@@ -106,16 +106,16 @@ fn parse_media_prune_size_input(
         "gib" => GIB,
         _ => {
             return Err(AppError::BadRequest(
-                "Maximum active content size unit is invalid.".into(),
+                "En büyük etkin içerik boyutu birimi geçersiz.".into(),
             ));
         }
     };
     let bytes = amount
         .checked_mul(multiplier)
-        .ok_or_else(|| AppError::BadRequest("Maximum active content size is too large.".into()))?;
+        .ok_or_else(|| AppError::BadRequest("En büyük etkin içerik boyutu çok büyük.".into()))?;
     if enabled && bytes < MIN_ENABLED_BYTES {
         return Err(AppError::BadRequest(
-            "Maximum active content size must be at least 1 MiB when pruning is enabled.".into(),
+            "Temizleme etkinken en büyük etkin içerik boyutu en az 1 MiB olmalı.".into(),
         ));
     }
     Ok(bytes)
@@ -177,7 +177,7 @@ pub(in crate::server) async fn update_media_settings(
     .map_err(|error| AppError::Internal(anyhow::anyhow!(error)))??;
 
     Ok(
-        admin_panel_redirect_anchor("Media processing settings saved.", "maintenance")
+        admin_panel_redirect_anchor("Medya işleme ayarları kaydedildi.", "maintenance")
             .into_response(),
     )
 }
@@ -197,7 +197,7 @@ pub(in crate::server) async fn admin_vacuum(
         jar,
         super::super::should_set_secure_cookie(&headers, secure_context),
     )?;
-    let _maintenance_guard = state.maintenance_gate.try_begin("Database VACUUM")?;
+    let _maintenance_guard = state.maintenance_gate.try_begin("Veritabanı VACUUM")?;
 
     let html = tokio::task::spawn_blocking({
         let pool = state.db.clone();
@@ -309,7 +309,7 @@ pub(in crate::server) async fn admin_db_repair(
 
     let maintenance_guard = state
         .maintenance_gate
-        .try_begin("Database maintenance rebuild")?;
+        .try_begin("Veritabanı bakım yeniden oluşturma")?;
     let job_id = state.db_maintenance_jobs.mark_running();
     let progress = std::sync::Arc::clone(&state.backup_progress);
     let pool = state.db.clone();
@@ -425,7 +425,7 @@ fn db_repair_progress_payload(
         let label = if current_job_id.is_some() {
             "A newer maintenance rebuild is active. Opening current status..."
         } else {
-            "This maintenance rebuild is no longer active. Opening repair page..."
+            "Bu bakım yeniden oluşturması artık etkin değil. Onarım sayfası açılıyor..."
         };
         return serde_json::json!({
             "state": "stale",
@@ -444,7 +444,7 @@ fn db_repair_progress_payload(
     match status {
         crate::middleware::DbMaintenanceJobStatus::Idle => serde_json::json!({
             "state": "idle",
-            "label": "No maintenance rebuild is running.",
+            "label": "Çalışan bir bakım yeniden oluşturma yok.",
             "percent": 0,
             "done": false,
         }),
@@ -455,7 +455,7 @@ fn db_repair_progress_payload(
         } => serde_json::json!({
             "state": "running",
             "job_id": job_id,
-            "label": "Starting maintenance rebuild...",
+            "label": "Bakım yeniden oluşturması başlatılıyor...",
             "percent": 5,
             "done": false,
         }),
@@ -482,14 +482,14 @@ fn db_repair_progress_payload(
         } => serde_json::json!({
             "state": "running",
             "job_id": job_id,
-            "label": "Rebuilding indexes and checking database health...",
+            "label": "Dizinler yeniden kuruluyor ve veritabanı sağlığı denetleniyor...",
             "percent": 82,
             "done": false,
         }),
         crate::middleware::DbMaintenanceJobStatus::Finished { job_id, .. } => serde_json::json!({
             "state": "finished",
             "job_id": job_id,
-            "label": "Maintenance rebuild complete. Opening report...",
+            "label": "Bakım yeniden oluşturması tamamlandı. Rapor açılıyor...",
             "percent": 100,
             "done": true,
             "redirect_url": db_repair_status_url(Some(job_id)),
@@ -523,24 +523,24 @@ fn backup_percent(phase: u64, files_done: u64, files_total: u64) -> u64 {
 fn backup_progress_label(phase: u64, files_done: u64, files_total: u64) -> String {
     match phase {
         crate::middleware::backup_phase::SNAPSHOT_DB => {
-            "Creating Backup v4 DB snapshot...".to_owned()
+            "Backup v4 veritabanı anlık görüntüsü oluşturuluyor...".to_owned()
         }
         crate::middleware::backup_phase::COUNT_FILES => {
-            "Writing Backup v4 maintenance metadata...".to_owned()
+            "Backup v4 bakım üstverisi yazılıyor...".to_owned()
         }
         crate::middleware::backup_phase::COMPRESS => {
             if files_total == 0 {
                 "Copying files into the Backup v4 folder...".to_owned()
             } else {
                 format!(
-                    "Copying files into the Backup v4 folder... {files_done}/{files_total} files"
+                    "Dosyalar Backup v4 klasörüne kopyalanıyor... {files_done}/{files_total} dosya"
                 )
             }
         }
         crate::middleware::backup_phase::DONE => {
-            "Backup v4 pre-maintenance backup complete...".to_owned()
+            "Backup v4 bakım öncesi yedekleme tamamlandı...".to_owned()
         }
-        _ => "Preparing Backup v4 pre-maintenance backup...".to_owned(),
+        _ => "Backup v4 bakım öncesi yedekleme hazırlanıyor...".to_owned(),
     }
 }
 
@@ -1039,12 +1039,12 @@ mod tests {
         }
 
         ensure!(body.contains("[ database repair ]"));
-        ensure!(body.contains("Repair was not run because the pre-repair backup failed."));
-        ensure!(body.contains("Pre-repair backup failed:"));
+        ensure!(body.contains("Onarım öncesi yedekleme başarısız olduğu için onarım çalıştırılmadı."));
+        ensure!(body.contains("Onarım öncesi yedekleme başarısız:"));
         ensure!(body.contains("simulated pre-repair backup failure"));
         ensure!(body.contains("<strong>Repair run:</strong> No"));
-        ensure!(body.contains("No repair or maintenance actions were run."));
-        ensure!(body.contains("No maintenance steps were run."));
+        ensure!(body.contains("Hiçbir onarım veya bakım işlemi çalıştırılmadı."));
+        ensure!(body.contains("Hiçbir bakım adımı çalıştırılmadı."));
         ensure!(body.contains("// repair outcome"));
         ensure!(body.contains("// maintenance actions run"));
         ensure!(body.contains("back to admin panel"));
@@ -1104,7 +1104,7 @@ mod tests {
             .context("read database-check body")?;
         let check_body =
             String::from_utf8(check_body.to_vec()).context("decode database-check body")?;
-        ensure!(check_body.contains("Database health checks found a problem."));
+        ensure!(check_body.contains("Veritabanı sağlık denetimleri bir sorun buldu."));
 
         let repair_response = router
             .clone()
@@ -1149,17 +1149,17 @@ mod tests {
 
         ensure!(repair_body.contains("[ database repair ]"));
         ensure!(
-            repair_body.contains("Created pre-repair DB + config backup:"),
+            repair_body.contains("Onarım öncesi veritabanı + yapılandırma yedeği oluşturuldu:"),
             "{repair_body}"
         );
         ensure!(repair_body.contains("<strong>Repair run:</strong> Yes"));
-        ensure!(repair_body.contains("Repair finished, but the database still reports a problem."));
+        ensure!(repair_body.contains("Onarım bitti, ancak veritabanı hâlâ bir sorun bildiriyor."));
         ensure!(repair_body.contains("<strong>Pre-repair backup:</strong> <code>"));
         ensure!(repair_body.contains("<strong>Pre-repair backup type:</strong> DB + config"));
         ensure!(!repair_body
-            .contains("Maintenance completed. Database health checks passed afterward."));
+            .contains("Bakım tamamlandı. Sonrasında veritabanı sağlık denetimleri geçti."));
         ensure!(!repair_body.contains(
-            "The final database health check passed after the repair run, so the detected problem was cleared."
+            "Onarım çalıştırmasından sonraki nihai veritabanı sağlık denetimi geçti, yani tespit edilen sorun temizlendi."
         ));
 
         let conn = state.db.get().context("get database connection")?;
@@ -1204,9 +1204,9 @@ mod tests {
         ensure!(response.status() == StatusCode::OK);
         ensure!(response.headers().get(header::REFRESH).is_none());
         let body = response_body(response).await?;
-        ensure!(body.contains("No maintenance rebuild is running."));
+        ensure!(body.contains("Çalışan bir bakım yeniden oluşturma yok."));
         ensure!(!body.contains("maintenance rebuild running"));
-        ensure!(!body.contains("Maintenance rebuild started at <code>0</code>"));
+        ensure!(!body.contains("Bakım yeniden oluşturması <code>0</code> tarihinde başladı"));
         ensure!(!body.contains("data-db-repair-progress"));
         ensure!(!body.contains("data-db-repair-progress-url"));
         Ok(())
@@ -1224,9 +1224,9 @@ mod tests {
         ensure!(response.status() == StatusCode::OK);
         ensure!(response.headers().get(header::REFRESH).is_none());
         let body = response_body(response).await?;
-        ensure!(body.contains("No maintenance rebuild is running."));
+        ensure!(body.contains("Çalışan bir bakım yeniden oluşturma yok."));
         ensure!(!body.contains("maintenance rebuild running"));
-        ensure!(!body.contains("Maintenance rebuild started at <code>0</code>"));
+        ensure!(!body.contains("Bakım yeniden oluşturması <code>0</code> tarihinde başladı"));
         ensure!(!body.contains("data-db-repair-progress"));
         Ok(())
     }
@@ -1317,7 +1317,7 @@ mod tests {
         ensure!(stale_status.headers().get(header::REFRESH).is_none());
         let stale_status_body = response_body(stale_status).await?;
         ensure!(stale_status_body.contains(&format!(
-            "This page is for maintenance rebuild <code>{first_job_id}</code>"
+            "Bu sayfa <code>{first_job_id}</code> bakım yeniden oluşturması içindir"
         )));
         ensure!(stale_status_body.contains(&format!(
             r#"href="/admin/db/repair/status?job_id={second_job_id}""#
@@ -1360,7 +1360,7 @@ mod tests {
         let router = vacuum_router(state.clone());
         let _maintenance_guard = state
             .maintenance_gate
-            .try_begin("Full backup creation")
+            .try_begin("Tam yedek oluşturma")
             .context("begin competing maintenance operation")?;
 
         let response = router
@@ -1384,7 +1384,7 @@ mod tests {
 
         ensure!(response.status() == StatusCode::CONFLICT);
         let body = response_body(response).await?;
-        ensure!(body.contains("Full backup creation is already running"));
+        ensure!(body.contains("Tam yedek oluşturma zaten çalışıyor"));
         Ok(())
     }
 }

@@ -57,10 +57,10 @@ impl BackupStorageMode {
     #[must_use]
     pub(crate) const fn display_name(self) -> &'static str {
         match self {
-            Self::SingleZip => "Single ZIP",
-            Self::SplitZip => "Split ZIP",
-            Self::Directory => "Directory",
-            Self::LegacyZip => "Legacy ZIP",
+            Self::SingleZip => "Tek ZIP",
+            Self::SplitZip => "Bölünmüş ZIP",
+            Self::Directory => "Dizin",
+            Self::LegacyZip => "Eski ZIP",
         }
     }
 }

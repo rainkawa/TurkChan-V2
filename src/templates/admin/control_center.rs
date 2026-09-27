@@ -68,7 +68,7 @@ pub(super) fn render(view: &AdminPanelViewModel<'_>) -> String {
 <div class="admin-dropdown-content admin-control-center">
   <header class="admin-control-center-header">
     <p class="admin-panel-lead"><strong>{site_title}</strong> için önceliklendirilmiş işlemler · TurkChan {version}, {build}.</p>
-    <p class="admin-meta-note">Warnings, action-needed states, and failures appear first. Routine, pending, disabled, and informational states stay in their task groups.</p>
+    <p class="admin-meta-note">Uyarılar, işlem gerekli durumlar ve hatalar en başta görünür. Rutin, devam eden, devre dışı ve bilgi durumları kendi görev gruplarında kalır.</p>
   </header>
   {attention}
   {common_actions}

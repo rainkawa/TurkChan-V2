@@ -104,7 +104,7 @@ fn sanitize_builder_color(label: &str, raw_value: Option<&str>, fallback: &str) 
         Ok(value.to_ascii_lowercase())
     } else {
         Err(AppError::BadRequest(format!(
-            "{label} must be a 6-digit hex color like #7ab84e."
+            "{label} #7ab84e gibi 6 haneli bir hex renk olmalı."
         )))
     }
 }
@@ -116,7 +116,7 @@ fn sanitize_builder_advanced_css(raw_value: Option<&str>) -> Result<String> {
     }
     if trimmed.len() > MAX_ADVANCED_CSS_LEN {
         return Err(AppError::BadRequest(format!(
-            "Advanced CSS must be {MAX_ADVANCED_CSS_LEN} characters or fewer."
+            "Gelişmiş CSS en fazla {MAX_ADVANCED_CSS_LEN} karakter olmalı."
         )));
     }
 
@@ -131,7 +131,7 @@ fn sanitize_builder_advanced_css(raw_value: Option<&str>) -> Result<String> {
     ] {
         if lowered.contains(blocked) {
             return Err(AppError::BadRequest(
-                "Advanced CSS may not use imports, script-like URLs, or style tags.".into(),
+                "Gelişmiş CSS içe aktarma, betiğe benzeyen adres veya style etiketi kullanamaz.".into(),
             ));
         }
     }
@@ -166,14 +166,14 @@ fn parse_radius(raw_value: Option<&str>, fallback: u8) -> Result<u8> {
             }
         })
         .ok_or_else(|| {
-            AppError::BadRequest("Border radius must be a whole number from 0 to 24.".into())
+            AppError::BadRequest("Kenarlık yarıçapı 0 ile 24 arasında bir tam sayı olmalı.".into())
         })
 }
 
 fn parse_density(raw_value: Option<&str>, fallback: ThemeDensity) -> Result<ThemeDensity> {
     raw_value.map_or(Ok(fallback), |value| {
         ThemeDensity::parse(value.trim())
-            .ok_or_else(|| AppError::BadRequest("Compactness must be Cozy or Compact.".into()))
+            .ok_or_else(|| AppError::BadRequest("Sıkılık Ferah veya Sık olmalı.".into()))
     })
 }
 
@@ -184,7 +184,7 @@ fn parse_font_family(
     raw_value.map_or(Ok(fallback), |value| {
         ThemeFontFamily::parse(value.trim()).ok_or_else(|| {
             AppError::BadRequest(
-                "Font family must be one of the built-in system font choices.".into(),
+                "Yazı tipi ailesi yerleşik sistem yazı tipi seçeneklerinden biri olmalı.".into(),
             )
         })
     })
@@ -220,12 +220,12 @@ fn resolve_builder_config(
     Ok(ThemeBuilderConfig {
         base_preset: preset_defaults.base_preset.clone(),
         background_color: sanitize_builder_color(
-            "Background color",
+            "Arka plan rengi",
             fields.background_color.as_deref(),
             &fallback.background_color,
         )?,
         panel_color: sanitize_builder_color(
-            "Panel color",
+            "Panel rengi",
             fields.panel_color.as_deref(),
             &fallback.panel_color,
         )?,
@@ -235,102 +235,102 @@ fn resolve_builder_config(
             &fallback.card_color,
         )?,
         op_card_color: sanitize_builder_color(
-            "Thread starter color",
+            "Konu açıcı gönderi rengi",
             fields.op_card_color.as_deref(),
             &fallback.op_card_color,
         )?,
         text_color: sanitize_builder_color(
-            "Text color",
+            "Metin rengi",
             fields.text_color.as_deref(),
             &fallback.text_color,
         )?,
         muted_text_color: sanitize_builder_color(
-            "Muted text color",
+            "Soluk metin rengi",
             fields.muted_text_color.as_deref(),
             &fallback.muted_text_color,
         )?,
         link_color: sanitize_builder_color(
-            "Link color",
+            "Bağlantı rengi",
             fields.link_color.as_deref(),
             &fallback.link_color,
         )?,
         link_hover_color: sanitize_builder_color(
-            "Link hover color",
+            "Bağlantı üzerine gelme rengi",
             fields.link_hover_color.as_deref(),
             &fallback.link_hover_color,
         )?,
         border_color: sanitize_builder_color(
-            "Border color",
+            "Kenarlık rengi",
             fields.border_color.as_deref(),
             &fallback.border_color,
         )?,
         input_background_color: sanitize_builder_color(
-            "Input background color",
+            "Alan arka plan rengi",
             fields.input_background_color.as_deref(),
             &fallback.input_background_color,
         )?,
         input_text_color: sanitize_builder_color(
-            "Input text color",
+            "Alan metin rengi",
             fields.input_text_color.as_deref(),
             &fallback.input_text_color,
         )?,
         input_border_color: sanitize_builder_color(
-            "Input border color",
+            "Alan kenarlık rengi",
             fields.input_border_color.as_deref(),
             &fallback.input_border_color,
         )?,
         button_background_color: sanitize_builder_color(
-            "Button background color",
+            "Buton arka plan rengi",
             fields.button_background_color.as_deref(),
             &fallback.button_background_color,
         )?,
         button_text_color: sanitize_builder_color(
-            "Button text color",
+            "Buton metin rengi",
             fields.button_text_color.as_deref(),
             &fallback.button_text_color,
         )?,
         button_border_color: sanitize_builder_color(
-            "Button border color",
+            "Buton kenarlık rengi",
             fields.button_border_color.as_deref(),
             &fallback.button_border_color,
         )?,
         button_hover_color: sanitize_builder_color(
-            "Button hover color",
+            "Buton üzerine gelme rengi",
             fields.button_hover_color.as_deref(),
             &fallback.button_hover_color,
         )?,
         header_background_color: sanitize_builder_color(
-            "Header background color",
+            "Başlık arka plan rengi",
             fields.header_background_color.as_deref(),
             &fallback.header_background_color,
         )?,
         header_text_color: sanitize_builder_color(
-            "Header text color",
+            "Başlık metin rengi",
             fields.header_text_color.as_deref(),
             &fallback.header_text_color,
         )?,
         header_border_color: sanitize_builder_color(
-            "Header border color",
+            "Başlık kenarlık rengi",
             fields.header_border_color.as_deref(),
             &fallback.header_border_color,
         )?,
         quote_color: sanitize_builder_color(
-            "Quote color",
+            "Alıntı rengi",
             fields.quote_color.as_deref(),
             &fallback.quote_color,
         )?,
         meta_text_color: sanitize_builder_color(
-            "Metadata color",
+            "Üstveri rengi",
             fields.meta_text_color.as_deref(),
             &fallback.meta_text_color,
         )?,
         success_color: sanitize_builder_color(
-            "Success color",
+            "Başarı rengi",
             fields.success_color.as_deref(),
             &fallback.success_color,
         )?,
         danger_color: sanitize_builder_color(
-            "Error color",
+            "Hata rengi",
             fields.danger_color.as_deref(),
             &fallback.danger_color,
         )?,
@@ -400,11 +400,11 @@ pub(in crate::server) async fn create_theme(
             require_admin_session_sid(&conn, session_id.as_deref())?;
             let slug = db::sanitize_theme_slug(&form.slug);
             if slug.is_empty() {
-                return Err(AppError::BadRequest("Theme slug is required.".into()));
+                return Err(AppError::BadRequest("Tema kısa adı zorunludur.".into()));
             }
             if db::is_builtin_slug(&slug) {
                 return Err(AppError::BadRequest(
-                    "That slug is reserved by a built-in theme.".into(),
+                    "Bu kısa ad bir yerleşik tema tarafından ayrılmış.".into(),
                 ));
             }
             let (swatch_hex, theme_css) = resolved_theme_css_for_create(&form, &slug)?;
@@ -424,7 +424,7 @@ pub(in crate::server) async fn create_theme(
     .await
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
     .map(|()| {
-        admin_panel_redirect_anchor_open("Theme created.", "theme-catalog", "theme-catalog")
+        admin_panel_redirect_anchor_open("Tema oluşturuldu.", "theme-catalog", "theme-catalog")
             .into_response()
     })
     .or_else(|error| match error {
@@ -454,13 +454,13 @@ pub(in crate::server) async fn update_theme(
             require_admin_session_sid(&conn, session_id.as_deref())?;
             let existing_slug = db::sanitize_theme_slug(&form.existing_slug);
             let theme = db::get_theme(&conn, &existing_slug)?
-                .ok_or_else(|| AppError::BadRequest("Theme not found.".into()))?;
+                .ok_or_else(|| AppError::BadRequest("Tema bulunamadı.".into()))?;
             let mut new_slug = db::sanitize_theme_slug(&form.slug);
             if theme.is_builtin {
                 new_slug.clone_from(&existing_slug);
             }
             if new_slug.is_empty() {
-                return Err(AppError::BadRequest("Theme slug is required.".into()));
+                return Err(AppError::BadRequest("Tema kısa adı zorunludur.".into()));
             }
             let (swatch_hex, custom_css) = if theme.is_builtin {
                 (theme.swatch_hex.clone(), None)
@@ -469,7 +469,7 @@ pub(in crate::server) async fn update_theme(
             };
             let (display_name, description) = if theme.is_builtin {
                 let builtin = crate::theme::builtin_theme(&existing_slug)
-                    .ok_or_else(|| AppError::BadRequest("Theme not found.".into()))?;
+                    .ok_or_else(|| AppError::BadRequest("Tema bulunamadı.".into()))?;
                 (
                     builtin.display_name.to_owned(),
                     builtin.description.to_owned(),
@@ -497,7 +497,7 @@ pub(in crate::server) async fn update_theme(
     .await
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
     .map(|()| {
-        admin_panel_redirect_anchor_open("Theme updated.", "theme-catalog", "theme-catalog")
+        admin_panel_redirect_anchor_open("Tema güncellendi.", "theme-catalog", "theme-catalog")
             .into_response()
     })
     .or_else(|error| match error {
@@ -541,7 +541,7 @@ pub(in crate::server) async fn delete_theme(
     .await
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
     Ok(
-        admin_panel_redirect_anchor_open("Theme deleted.", "theme-catalog", "theme-catalog")
+        admin_panel_redirect_anchor_open("Tema silindi.", "theme-catalog", "theme-catalog")
             .into_response(),
     )
 }
@@ -708,7 +708,7 @@ mod tests {
 
         let result = resolved_theme_css_for_create(&form, "builder-test");
         match result {
-            Err(AppError::BadRequest(message)) => ensure!(message.contains("Link color")),
+            Err(AppError::BadRequest(message)) => ensure!(message.contains("Bağlantı rengi")),
             other => bail!("expected invalid-color error, got {other:?}"),
         }
         Ok(())
@@ -719,7 +719,7 @@ mod tests {
         let result =
             sanitize_builder_advanced_css(Some("@import url(https://example.com/theme.css);"));
         match result {
-            Err(AppError::BadRequest(message)) => ensure!(message.contains("Advanced CSS")),
+            Err(AppError::BadRequest(message)) => ensure!(message.contains("Gelişmiş CSS")),
             other => bail!("expected blocked-CSS error, got {other:?}"),
         }
         Ok(())

@@ -29,10 +29,10 @@ fn sanitize_board_short_value(board_short: &str) -> String {
 fn validate_new_board_short_name(raw_short_name: &str) -> Result<String> {
     let trimmed = raw_short_name.trim();
     if trimmed.is_empty() || trimmed.len() > 8 {
-        return Err(AppError::BadRequest("Invalid board name.".into()));
+        return Err(AppError::BadRequest("Geçersiz board adı.".into()));
     }
     if !trimmed.chars().all(|ch| ch.is_ascii_alphanumeric()) {
-        return Err(AppError::BadRequest("Invalid board name.".into()));
+        return Err(AppError::BadRequest("Geçersiz board adı.".into()));
     }
     Ok(trimmed.to_lowercase())
 }
@@ -142,7 +142,7 @@ pub(in crate::server) async fn create_board(
             super::require_admin_session_sid(&conn, session_id.as_deref())?;
             if db::get_board_by_short(&conn, &short)?.is_some() {
                 return Err(AppError::Conflict(format!(
-                    "Board /{short}/ already exists."
+                    "Board /{short}/ zaten var."
                 )));
             }
             db::create_board_with_media_flags(
@@ -273,7 +273,7 @@ pub(in crate::server) async fn delete_board(
     .await
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
 
-    Ok(super::admin_panel_redirect("Board deleted.").into_response())
+    Ok(super::admin_panel_redirect("Board silindi.").into_response())
 }
 
 // POST /admin/board/reorder
@@ -292,7 +292,7 @@ pub(in crate::server) async fn reorder_board(
         "down" => false,
         _ => {
             return Err(AppError::BadRequest(
-                "Unknown board reorder direction.".into(),
+                "Bilinmeyen board sıralama yönü.".into(),
             ))
         }
     };

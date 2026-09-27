@@ -52,26 +52,26 @@ fn parse_board_upload_limit_bytes(raw_value: Option<&str>, fallback_bytes: i64) 
     let parsed_mb = match raw_value.map(str::trim).filter(|value| !value.is_empty()) {
         Some(value) => value.parse::<i64>().map_err(|_error| {
             AppError::BadRequest(
-                "Board upload size limits must be positive whole MiB values.".into(),
+                "Board yükleme boyut sınırları pozitif tam MiB değerleri olmalı.".into(),
             )
         })?,
         None => fallback_mb,
     };
     if parsed_mb <= 0 {
         return Err(AppError::BadRequest(
-            "Board upload size limits must be at least 1 MiB.".into(),
+            "Board yükleme boyut sınırları en az 1 MiB olmalı.".into(),
         ));
     }
 
     if parsed_mb > SITE_MAX_BOARD_UPLOAD_CAP_MB {
         return Err(AppError::BadRequest(format!(
-            "Board upload size limits must be {SITE_MAX_BOARD_UPLOAD_CAP_MB} MiB or less."
+            "Board yükleme boyut sınırları en fazla {SITE_MAX_BOARD_UPLOAD_CAP_MB} MiB olmalı."
         )));
     }
 
     parsed_mb
         .checked_mul(MIB)
-        .ok_or_else(|| AppError::BadRequest("Board upload size limit is too large.".into()))
+        .ok_or_else(|| AppError::BadRequest("Board yükleme boyut sınırı çok büyük.".into()))
 }
 
 fn resolve_board_access_password_hash(
@@ -82,7 +82,7 @@ fn resolve_board_access_password_hash(
 ) -> Result<String> {
     if submitted_password.chars().count() > 256 {
         return Err(AppError::BadRequest(
-            "Board password must be 256 characters or fewer.".into(),
+            "Board parolası en fazla 256 karakter olmalı.".into(),
         ));
     }
 
@@ -98,7 +98,7 @@ fn resolve_board_access_password_hash(
 
     if access_mode.requires_post_password() && access_password_hash.is_empty() {
         return Err(AppError::BadRequest(
-            "Password-protected boards require a saved password. Enter a new board password or switch access mode to Public before removing it.".into(),
+            "Parola korumalı boardlar kayıtlı bir parola gerektirir. Kaldırmadan önce yeni bir board parolası gir ya da erişim kipini Herkese açık olarak değiştir.".into(),
         ));
     }
 
@@ -153,12 +153,12 @@ pub(in crate::server) async fn update_board_settings(
         .take(256)
         .collect::<String>();
     let access_mode = BoardAccessMode::from_db_str(form.access_mode.as_deref().unwrap_or("public"))
-        .ok_or_else(|| AppError::BadRequest("Invalid board access mode.".into()))?;
+        .ok_or_else(|| AppError::BadRequest("Geçersiz board erişim kipi.".into()))?;
     let access_password = form.access_password.clone().unwrap_or_default();
     let board_id = form.board_id;
     let banner_mode =
         BoardBannerMode::from_db_str(form.banner_mode.as_deref().unwrap_or("inherit"))
-            .ok_or_else(|| AppError::BadRequest("Invalid board banner mode.".into()))?;
+            .ok_or_else(|| AppError::BadRequest("Geçersiz board banner kipi.".into()))?;
 
     let board_short = tokio::task::spawn_blocking({
         let pool = state.db.clone();
@@ -258,7 +258,7 @@ pub(in crate::server) async fn update_board_settings(
 
     let board_anchor = format!("board-{board_short}");
     Ok(
-        admin_panel_redirect_anchor_open("Board settings saved.", &board_anchor, &board_anchor)
+        admin_panel_redirect_anchor_open("Board ayarları kaydedildi.", &board_anchor, &board_anchor)
             .into_response(),
     )
 }

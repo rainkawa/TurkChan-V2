@@ -54,7 +54,7 @@ fn parse_full_backup_settings_form(
         crate::handlers::admin::BackupStorageMode::SplitZip => "split_zip",
         _ => {
             return Err(AppError::BadRequest(
-                "Unsupported automatic backup storage mode.".into(),
+                "Desteklenmeyen otomatik yedekleme depolama kipi.".into(),
             ));
         }
     };
@@ -98,7 +98,7 @@ pub(in crate::server) async fn update_full_backup_settings(
         .await
         .map_err(|error| AppError::Internal(anyhow::anyhow!(error)))??;
         return Ok(admin_panel_redirect_anchor(
-            "Backup directory saved. Restart TurkChan to apply it. Existing backups have not been moved. CHAN_BACKUP_DIRECTORY, if set, takes precedence.",
+            "Yedek dizini kaydedildi. Uygulamak için TurkChan’ı yeniden başlat. Mevcut yedekler taşınmadı. CHAN_BACKUP_DIRECTORY tanımlıysa önceliklidir.",
             "full-backup-restore",
         ).into_response());
     }
@@ -147,7 +147,7 @@ pub(in crate::server) async fn update_full_backup_settings(
     .map_err(|error| AppError::Internal(anyhow::anyhow!(error)))??;
 
     Ok(admin_panel_redirect_anchor(
-        "Automatic full-backup settings saved.",
+        "Otomatik tam yedekleme ayarları kaydedildi.",
         "full-backup-restore",
     )
     .into_response())

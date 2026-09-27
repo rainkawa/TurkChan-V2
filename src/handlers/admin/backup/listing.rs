@@ -87,10 +87,10 @@ const fn metadata_scope_matches(kind: BackupListKind, scope: storage::BackupScop
 
 fn scope_label(scope: storage::BackupScope) -> String {
     match scope {
-        storage::BackupScope::FullSite => "Full site".to_owned(),
+        storage::BackupScope::FullSite => "Tüm site".to_owned(),
         storage::BackupScope::Board => "Board".to_owned(),
-        storage::BackupScope::SelectedBoards => "Selected boards".to_owned(),
-        storage::BackupScope::PreMaintenance => "Pre-maintenance".to_owned(),
+        storage::BackupScope::SelectedBoards => "Seçili boardlar".to_owned(),
+        storage::BackupScope::PreMaintenance => "Bakım öncesi".to_owned(),
     }
 }
 

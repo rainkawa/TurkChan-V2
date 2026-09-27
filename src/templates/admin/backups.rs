@@ -70,7 +70,7 @@ fn render_full_backup_rows(view: &AdminPanelViewModel<'_>) -> String {
     let mut full_backup_rows = String::new();
     if view.backups.full_backups.is_empty() {
         full_backup_rows
-            .push_str(r#"<tr><td colspan="6" class="admin-table-empty">no backups yet</td></tr>"#);
+            .push_str(r#"<tr><td colspan="6" class="admin-table-empty">henüz yedek yok</td></tr>"#);
     }
     for bf in view.backups.full_backups {
         let size_fmt = format_file_size(bf.size_bytes.cast_signed());
@@ -81,7 +81,7 @@ fn render_full_backup_rows(view: &AdminPanelViewModel<'_>) -> String {
             )
         } else {
             format!(
-                r#"<span class="backup-verification-error" title="{title}">verification failed</span>"#,
+                r#"<span class="backup-verification-error" title="{title}">doğrulama başarısız</span>"#,
                 title = escape_html(&bf.verification_note)
             )
         };
@@ -96,7 +96,7 @@ fn render_full_backup_rows(view: &AdminPanelViewModel<'_>) -> String {
         }
         let board_picker = if bf.boards.is_empty() {
             r#"<label>
-        Board short name
+        Board kısa adı
         <input type="text" name="board_short" maxlength="8" pattern="[A-Za-z0-9]{1,8}" required placeholder="tech">
       </label>"#.to_owned()
         } else {
@@ -104,26 +104,26 @@ fn render_full_backup_rows(view: &AdminPanelViewModel<'_>) -> String {
                 r#"<label>
         Board
         <select name="board_short" required>
-          <option value="">Select a board</option>
+          <option value="">Bir board seç</option>
           {board_options}
         </select>
       </label>"#
             )
         };
         let board_help = if bf.boards.is_empty() {
-            "This backup predates board indexing. Enter the board short name manually, like tech or b."
+            "Bu yedek, board dizinlemesinden önce oluşturulmuş. Board kısa adını tech veya b gibi elle gir."
         } else {
-            "Pick a board from this backup to restore it directly or download a board-only package."
+            "Doğrudan geri yüklemek veya yalnızca board paketi indirmek için bu yedekten bir board seç."
         };
         let indexed_boards_summary = if bf.boards.is_empty() {
-            "boards not indexed".to_owned()
+            "boardlar dizinlenmemiş".to_owned()
         } else {
-            format!("{} boards indexed", bf.boards.len())
+            format!("{} board dizinlendi", bf.boards.len())
         };
         let part_summary = if bf.part_count > 1 {
-            format!("{} parts", bf.part_count)
+            format!("{} parça", bf.part_count)
         } else {
-            "1 part".to_owned()
+            "1 parça".to_owned()
         };
         let part_downloads = if bf.part_filenames.is_empty() {
             String::new()
@@ -138,17 +138,17 @@ fn render_full_backup_rows(view: &AdminPanelViewModel<'_>) -> String {
                 );
             }
             format!(
-                r#"<p><strong>ZIP parts:</strong></p><ul class="backup-part-list">{links}</ul>"#
+                r#"<p><strong>ZIP parçaları:</strong></p><ul class="backup-part-list">{links}</ul>"#
             )
         };
         let tor_backup_summary = if bf.contains_tor_hidden_service_keys {
-            "includes Tor hidden service keys"
+            "Tor gizli servis anahtarları içeriyor"
         } else {
-            "no Tor hidden service keys"
+            "Tor gizli servis anahtarı yok"
         };
         let download_link = if bf.downloadable_archive {
             format!(
-                r#"<a href="/admin/backup/download/full/{backup_ref}" class="backup-download-link" data-backup-label="full backup">&#8659; download archive</a>"#,
+                r#"<a href="/admin/backup/download/full/{backup_ref}" class="backup-download-link" data-backup-label="full backup">&#8659; arşivi indir</a>"#,
                 backup_ref = escape_html(&bf.backup_ref),
             )
         } else {
@@ -160,11 +160,11 @@ fn render_full_backup_rows(view: &AdminPanelViewModel<'_>) -> String {
             r#"<label class="admin-inline-checkbox backup-tor-option backup-tor-option-compact">
         <input type="checkbox" name="restore_tor_hidden_service_keys" value="1">
         <span>
-          <strong>Restore Tor keys</strong>
-          <span class="admin-quick-help">Replaces the current onion identity with the one from this backup.</span>
+          <strong>Tor anahtarlarını geri yükle</strong>
+          <span class="admin-quick-help">Geçerli onion kimliğini bu yedekteki kimlikle değiştirir.</span>
         </span>
       </label>
-      <p class="backup-extract-help backup-tor-warning">Anyone with these keys can impersonate this onion service.</p>"#.to_owned()
+      <p class="backup-extract-help backup-tor-warning">Bu anahtarlara sahip olan herkes bu onion servisini taklit edebilir.</p>"#.to_owned()
         } else {
             String::new()
         };
@@ -172,12 +172,12 @@ fn render_full_backup_rows(view: &AdminPanelViewModel<'_>) -> String {
             && view.backups.tor_hidden_service_key_backup_available
         {
             format!(
-                "WARNING: Restore from {fname}? This will overwrite the live database and all uploads. If you also restore Tor keys, the current onion identity on disk will be replaced. Cannot be undone.",
+                "UYARI: {fname} dosyasından geri yüklensin mi? Bu işlem canlı veritabanını ve tüm yüklemeleri üzerine yazar. Tor anahtarlarını da geri yüklersen diskteki geçerli onion kimliği değiştirilir. Geri alınamaz.",
                 fname = bf.filename
             )
         } else {
             format!(
-                "WARNING: Restore from {fname}? This will overwrite the live database and all uploads. Cannot be undone.",
+                "UYARI: {fname} dosyasından geri yüklensin mi? Bu işlem canlı veritabanını ve tüm yüklemeleri üzerine yazar. Geri alınamaz.",
                 fname = bf.filename
             )
         };
@@ -199,41 +199,41 @@ fn render_full_backup_rows(view: &AdminPanelViewModel<'_>) -> String {
       <form method="POST" action="/admin/backup/restore-saved" class="backup-inline-form">
         <input type="hidden" name="_csrf" value="{csrf}">
         <input type="hidden" name="filename" value="{backup_ref}">
-        <button type="submit" data-confirm="{restore_confirm}">&#8635; restore site</button>
+        <button type="submit" data-confirm="{restore_confirm}">&#8635; siteyi geri yükle</button>
         {restore_tor_keys_option}
       </form>
       <form method="POST" action="/admin/backup/delete" class="backup-inline-form">
         <input type="hidden" name="_csrf" value="{csrf}">
         <input type="hidden" name="kind" value="full">
         <input type="hidden" name="filename" value="{backup_ref}">
-        <button type="submit" class="btn-danger" data-confirm="Delete {backup_id}? This cannot be undone.">&#10005; delete</button>
+        <button type="submit" class="btn-danger" data-confirm="{backup_id} silinsin mi? Bu işlem geri alınamaz.">&#10005; sil</button>
       </form>
     </div>
     <details class="backup-extract-details">
-      <summary>backup details</summary>
+      <summary>yedek ayrıntıları</summary>
       <div class="backup-extract-help">
-        <p><strong>Backup ID:</strong> <code>{backup_id}</code></p>
-        <p><strong>Scope:</strong> {scope}</p>
-        <p><strong>Mode:</strong> {mode}</p>
-        <p><strong>ZIP parts:</strong> {part_summary}</p>
+        <p><strong>Yedek kimliği:</strong> <code>{backup_id}</code></p>
+        <p><strong>Kapsam:</strong> {scope}</p>
+        <p><strong>Mod:</strong> {mode}</p>
+        <p><strong>ZIP parçaları:</strong> {part_summary}</p>
         {part_downloads}
-        <p><strong>Manifest path:</strong> <code>{manifest_path}</code></p>
-        <p><strong>Server path:</strong> <code>{server_path}</code></p>
-        <p><strong>Included boards:</strong> {indexed_boards_summary}</p>
-        <p><strong>Tor keys:</strong> {tor_backup_summary}</p>
+        <p><strong>Manifest yolu:</strong> <code>{manifest_path}</code></p>
+        <p><strong>Sunucu yolu:</strong> <code>{server_path}</code></p>
+        <p><strong>Dahil edilen boardlar:</strong> {indexed_boards_summary}</p>
+        <p><strong>Tor anahtarları:</strong> {tor_backup_summary}</p>
       </div>
     </details>
     <details class="backup-extract-details">
-      <summary>single-board tools</summary>
+      <summary>tek board araçları</summary>
       <form method="POST" action="/admin/backup/extract-board" class="backup-extract-form">
         <input type="hidden" name="_csrf" value="{csrf}">
         <input type="hidden" name="filename" value="{backup_ref}">
         {board_picker}
         <p class="backup-extract-help">{board_help}</p>
         <div class="backup-extract-actions">
-          <button type="submit" name="action" value="download">download board zip</button>
+          <button type="submit" name="action" value="download">board zip’ini indir</button>
           <button type="submit" name="action" value="restore" class="btn-danger"
-                  data-confirm="WARNING: Restore one board from {backup_id}? This will wipe and replace that board only. Continue?">&#8635; restore board</button>
+                  data-confirm="UYARI: {backup_id} içinden tek bir board geri yüklensin mi? Bu işlem yalnızca o board’u siler ve değiştirir. Devam edilsin mi?">&#8635; board’u geri yükle</button>
         </div>
       </form>
     </details>
@@ -283,8 +283,8 @@ fn render_auto_full_backup_tor_option(view: &AdminPanelViewModel<'_>) -> String 
         r#"<label class="admin-inline-checkbox backup-tor-option">
       <input type="checkbox" name="auto_full_backup_include_tor_hidden_service_keys" value="1"{checked}>
       <span>
-        <strong>Include Tor hidden service keys in automatic full backups</strong>
-        <span class="admin-quick-help">Preserves the same .onion address after restore. Anyone with these keys can impersonate this onion service.</span>
+        <strong>Otomatik tam yedeklere Tor gizli servis anahtarlarını dahil et</strong>
+        <span class="admin-quick-help">Geri yüklemeden sonra aynı .onion adresini korur. Bu anahtarlara sahip olan herkes bu onion servisini taklit edebilir.</span>
       </span>
     </label>"#
     )
@@ -299,8 +299,8 @@ fn render_full_backup_create_tor_option(view: &AdminPanelViewModel<'_>) -> Strin
     r#"<label class="admin-inline-checkbox backup-tor-option">
       <input type="checkbox" name="include_tor_hidden_service_keys" value="1">
       <span>
-        <strong>Include Tor hidden service keys</strong>
-        <span class="admin-quick-help">Preserves the same .onion address after restore. Anyone with these keys can impersonate this onion service.</span>
+        <strong>Tor gizli servis anahtarlarını dahil et</strong>
+        <span class="admin-quick-help">Geri yüklemeden sonra aynı .onion adresini korur. Bu anahtarlara sahip olan herkes bu onion servisini taklit edebilir.</span>
       </span>
     </label>"#.to_owned()
 }
@@ -314,11 +314,11 @@ fn render_full_backup_restore_upload_tor_option(view: &AdminPanelViewModel<'_>) 
     r#"<label class="admin-inline-checkbox backup-tor-option">
       <input type="checkbox" name="restore_tor_hidden_service_keys" value="1">
       <span>
-        <strong>Restore Tor hidden service keys</strong>
-        <span class="admin-quick-help">Only applies when the uploaded backup includes Tor hidden service keys. Replaces the current onion identity with the one from the backup and restores the old .onion address.</span>
+        <strong>Tor gizli servis anahtarlarını geri yükle</strong>
+        <span class="admin-quick-help">Yalnızca yüklenen yedek Tor gizli servis anahtarlarını içeriyorsa geçerlidir. Geçerli onion kimliğini yedekteki kimlikle değiştirir ve eski .onion adresini geri yükler.</span>
       </span>
     </label>
-    <p class="backup-extract-help backup-tor-warning">Anyone with these keys can impersonate this onion service.</p>"#.to_owned()
+    <p class="backup-extract-help backup-tor-warning">Bu anahtarlara sahip olan herkes bu onion servisini taklit edebilir.</p>"#.to_owned()
 }
 
 /// Renders saved per-board backup rows and their available actions.
@@ -326,7 +326,7 @@ fn render_board_backup_rows(view: &AdminPanelViewModel<'_>) -> String {
     let mut board_backup_rows = String::new();
     if view.backups.board_backups.is_empty() {
         board_backup_rows.push_str(
-            r#"<tr><td colspan="6" class="admin-table-empty">no board backups yet</td></tr>"#,
+            r#"<tr><td colspan="6" class="admin-table-empty">henüz board yedeği yok</td></tr>"#,
         );
     }
     for bf in view.backups.board_backups {
@@ -338,13 +338,13 @@ fn render_board_backup_rows(view: &AdminPanelViewModel<'_>) -> String {
             )
         } else {
             format!(
-                r#"<span class="backup-verification-error" title="{title}">verification failed</span>"#,
+                r#"<span class="backup-verification-error" title="{title}">doğrulama başarısız</span>"#,
                 title = escape_html(&bf.verification_note)
             )
         };
         let download_link = if bf.downloadable_archive {
             format!(
-                r#"<a href="/admin/backup/download/board/{backup_ref}" class="backup-download-link" data-backup-label="board backup">&#8659; download archive</a>"#,
+                r#"<a href="/admin/backup/download/board/{backup_ref}" class="backup-download-link" data-backup-label="board backup">&#8659; arşivi indir</a>"#,
                 backup_ref = escape_html(&bf.backup_ref),
             )
         } else {
@@ -368,23 +368,23 @@ fn render_board_backup_rows(view: &AdminPanelViewModel<'_>) -> String {
       <form method="POST" action="/admin/board/backup/restore-saved" class="backup-inline-form">
         <input type="hidden" name="_csrf" value="{csrf}">
         <input type="hidden" name="filename" value="{backup_ref}">
-        <button type="submit" data-confirm="WARNING: Restore board from {backup_id}? This will wipe and replace that board. Cannot be undone.">&#8635; restore board</button>
+        <button type="submit" data-confirm="UYARI: {backup_id} içinden board geri yüklensin mi? Bu işlem o board’u siler ve değiştirir. Geri alınamaz.">&#8635; board’u geri yükle</button>
       </form>
       <form method="POST" action="/admin/backup/delete" class="backup-inline-form">
         <input type="hidden" name="_csrf" value="{csrf}">
         <input type="hidden" name="kind" value="board">
         <input type="hidden" name="filename" value="{backup_ref}">
-        <button type="submit" class="btn-danger" data-confirm="Delete {backup_id}? This cannot be undone.">&#10005; delete</button>
+        <button type="submit" class="btn-danger" data-confirm="{backup_id} silinsin mi? Bu işlem geri alınamaz.">&#10005; sil</button>
       </form>
     </div>
     <details class="backup-extract-details">
-      <summary>backup details</summary>
+      <summary>yedek ayrıntıları</summary>
       <div class="backup-extract-help">
-        <p><strong>Backup ID:</strong> <code>{backup_id}</code></p>
-        <p><strong>Scope:</strong> {scope}</p>
-        <p><strong>Mode:</strong> {mode}</p>
-        <p><strong>Manifest path:</strong> <code>{manifest_path}</code></p>
-        <p><strong>Server path:</strong> <code>{server_path}</code></p>
+        <p><strong>Yedek kimliği:</strong> <code>{backup_id}</code></p>
+        <p><strong>Kapsam:</strong> {scope}</p>
+        <p><strong>Mod:</strong> {mode}</p>
+        <p><strong>Manifest yolu:</strong> <code>{manifest_path}</code></p>
+        <p><strong>Sunucu yolu:</strong> <code>{server_path}</code></p>
       </div>
     </details>
   </div>
@@ -465,58 +465,58 @@ fn render_admin_backups_section(
         r#"<div class="admin-panel-backups" id="backups">
 <section class="admin-section admin-section-collapsible" id="full-backup-restore">
 <details class="admin-dropdown" data-admin-dropdown-key="full-backup-restore"{full_backup_open_attr}>
-<summary><span>// full site backup &amp; restore</span></summary>
+<summary><span>// tam site yedekleme &amp; geri yükleme</span></summary>
 <div class="admin-dropdown-content">
-<p class="admin-copy">Full backups include the complete database and all uploaded files. <strong>Save to server</strong> stores a Backup v4 folder under <code>{effective_backup_directory}/&lt;backup_id&gt;/</code> on the server filesystem (listed below). <strong>Restore from local file</strong> uploads a zip from your computer. Saved full backups can also be used to extract or directly restore a single board without scheduling separate per-board backups.</p>
+<p class="admin-copy">Tam yedekler veritabanının tamamını ve yüklenen tüm dosyaları içerir. <strong>Sunucuya kaydet</strong>, sunucu dosya sisteminde <code>{effective_backup_directory}/&lt;backup_id&gt;/</code> altında bir Backup v4 klasörü oluşturur (aşağıda listelenir). <strong>Yerel dosyadan geri yükle</strong> bilgisayarından bir zip yükler. Kayıtlı tam yedekler, ayrı board yedekleri planlamadan tek bir board’u çıkarmak veya doğrudan geri yüklemek için de kullanılabilir.</p>
 {backup_warning_html}
-<p class="admin-copy"><strong>Backup health:</strong> {backup_status_line}</p>
+<p class="admin-copy"><strong>Yedek sağlığı:</strong> {backup_status_line}</p>
 <div class="admin-subsection">
-  <div class="admin-card-header"><h3>// backup storage directory</h3></div>
-  <p class="admin-copy">Effective directory: <code>{effective_backup_directory}</code><br>Default directory: <code>{default_backup_directory}</code></p>
+  <div class="admin-card-header"><h3>// yedek depolama dizini</h3></div>
+  <p class="admin-copy">Geçerli dizin: <code>{effective_backup_directory}</code><br>Varsayılan dizin: <code>{default_backup_directory}</code></p>
   <form method="POST" action="/admin/backup/settings" class="admin-site-settings-form">
     <input type="hidden" name="_csrf" value="{csrf}">
-    <label>Backup directory (absolute server filesystem path)
+    <label>Yedek dizini (sunucu dosya sisteminde mutlak yol)
       <input type="text" name="backup_directory" value="{effective_backup_directory}" required>
     </label>
-    <button type="submit">save backup directory</button>
+    <button type="submit">yedek dizinini kaydet</button>
   </form>
-  <p class="admin-meta-note">Applies to all saved backups after restarting TurkChan. Existing backups are not moved; only the active directory is listed. Enter the default directory shown above to return to existing default backups. Use a dedicated directory on the mounted disk or NAS; TurkChan must be able to set private permissions and read, write, and delete files. The CHAN_BACKUP_DIRECTORY environment variable takes precedence over settings.toml.</p>
+  <p class="admin-meta-note">TurkChan yeniden başlatıldıktan sonra kayıtlı tüm yedeklere uygulanır. Mevcut yedekler taşınmaz; yalnızca etkin dizin listelenir. Mevcut varsayılan yedeklere dönmek için yukarıda gösterilen varsayılan dizini gir. Bağlı diskin ya da NAS’ın üzerinde ayrılmış bir dizin kullan; TurkChan özel izinler belirleyebilmeli ve dosyaları okuyabilmeli, yazabilmeli ve silebilmelidir. CHAN_BACKUP_DIRECTORY ortam değişkeni settings.toml değerine göre önceliklidir.</p>
 </div>
 <div class="admin-subsection">
   <div class="admin-card-header">
-    <h3>// automated full backups</h3>
-    <p>Schedule background full-site snapshots and decide how many recent saved copies the server keeps.</p>
+    <h3>// otomatik tam yedekler</h3>
+    <p>Arka planda tam site anlık görüntüleri planla ve sunucunun kaç kayıtlı kopyayı saklayacağını belirle.</p>
   </div>
   <form method="POST" action="/admin/backup/settings" class="admin-site-settings-form full-backup-settings-form">
   <input type="hidden" name="_csrf" value="{csrf}">
   <div class="board-settings-grid admin-settings-grid">
-    <label title="0 disables scheduled full backups.">
-      Hours between automated backups
+    <label title="0 planlanmış tam yedekleri devre dışı bırakır.">
+      Otomatik yedekler arasındaki saat
       <input type="number" name="auto_full_backup_interval_hours" value="{auto_full_backup_interval_hours}" min="0" max="8760">
     </label>
-    <label title="When a saved full backup completes, the oldest saved full backups beyond this limit are deleted.">
-      Full backups to keep
+    <label title="Kayıtlı bir tam yedek tamamlandığında, bu sınırın ötesindeki en eski kayıtlı tam yedekler silinir.">
+      Saklanacak tam yedek sayısı
       <input type="number" name="auto_full_backup_copies_to_keep" value="{auto_full_backup_copies_to_keep}" min="1" max="1000">
     </label>
   </div>
   <div class="backup-form-options full-backup-options">
   <fieldset class="backup-output-fieldset">
-    <legend>Backup output</legend>
+    <legend>Yedek çıktısı</legend>
     <label class="backup-output-option">
       <input type="radio" name="auto_full_backup_storage_mode" value="directory"{auto_directory_checked}>
       <span>
-        <strong>Directory</strong>
-        <small>Server-local Backup v4 folder.</small>
+        <strong>Dizin</strong>
+        <small>Sunucu yerelinde Backup v4 klasörü.</small>
       </span>
     </label>
     <label class="backup-output-option backup-output-option-split">
       <input type="radio" name="auto_full_backup_storage_mode" value="split_zip"{auto_split_zip_checked}>
       <span>
-        <strong>Split ZIP</strong>
-        <small>Write ZIP parts for easier transfer.</small>
+        <strong>Bölünmüş ZIP</strong>
+        <small>Daha kolay aktarım için ZIP parçaları yazar.</small>
       </span>
       <span class="backup-output-select">
-        <span>Part size</span>
+        <span>Parça boyutu</span>
         <select name="auto_full_backup_split_zip_part_size_gib">
           {auto_part_options}
         </select>
@@ -526,56 +526,56 @@ fn render_admin_backups_section(
   {auto_full_backup_tor_option}
   </div>
   <div class="board-settings-actions">
-    <button type="submit">save automated backup settings</button>
+    <button type="submit">otomatik yedekleme ayarlarını kaydet</button>
   </div>
   </form>
   <p class="admin-meta-note admin-meta-note-spaced">
-    Set hours to <code>0</code> to disable automated full backups. Saving a full backup to server, including automated runs, trims the oldest saved full backups beyond the keep limit.
+    Otomatik tam yedekleri devre dışı bırakmak için saati <code>0</code> yap. Sunucuya tam yedek kaydetmek, otomatik çalıştırmalar dahil, saklama sınırının ötesindeki en eski kayıtlı tam yedekleri temizler.
   </p>
 </div>
 <div class="admin-subsection">
   <details class="backup-manual-details">
-  <summary>Manual backup</summary>
+  <summary>Elle yedekleme</summary>
   <div class="backup-manual-content">
   <div class="full-backup-run-actions">
   <form method="POST" action="/admin/backup/create" id="full-backup-create-form" class="backup-action-form full-backup-action-form">
   <input type="hidden" name="_csrf" value="{csrf}">
   <fieldset class="backup-output-fieldset">
-    <legend>Backup output</legend>
+    <legend>Yedek çıktısı</legend>
     <label class="backup-output-option">
       <input type="radio" name="storage_mode" value="directory" checked>
       <span>
-        <strong>Directory</strong>
-        <small>Server-local Backup v4 folder.</small>
+        <strong>Dizin</strong>
+        <small>Sunucu yerelinde Backup v4 klasörü.</small>
       </span>
     </label>
     <label class="backup-output-option backup-output-option-split">
       <input type="radio" name="storage_mode" value="split_zip">
       <span>
-        <strong>Split ZIP</strong>
-        <small>Write ZIP parts for easier transfer.</small>
+        <strong>Bölünmüş ZIP</strong>
+        <small>Daha kolay aktarım için ZIP parçaları yazar.</small>
       </span>
       <span class="backup-output-select">
-        <span>Part size</span>
+        <span>Parça boyutu</span>
         <select name="split_zip_part_size_gib">
           {manual_part_options}
         </select>
       </span>
     </label>
   </fieldset>
-  <button type="submit" id="full-backup-btn">&#128190; save to server</button>
+  <button type="submit" id="full-backup-btn">&#128190; sunucuya kaydet</button>
   <div class="backup-form-options full-backup-options">
   {full_backup_create_tor_option}
   </div>
   </form>
   <form method="POST" action="/admin/restore" enctype="multipart/form-data" class="backup-restore-upload-form admin-file-inline-form full-backup-action-form" data-restore-label="full backup">
   <input type="hidden" name="_csrf" value="{csrf}">
-  <label class="admin-quick-field admin-file-field">Backup archive
+  <label class="admin-quick-field admin-file-field">Yedek arşivi
     <input type="file" name="backup_file" accept=".zip" required class="admin-file-input">
-    <span class="admin-quick-help">Upload a full-site zip backup.</span>
+    <span class="admin-quick-help">Tam site için bir zip yedeği yükle.</span>
   </label>
   <button type="submit" class="btn-danger"
-          data-confirm="WARNING: This will overwrite the database and all uploaded files. Cannot be undone. Continue?">&#8635; restore from local file</button>
+          data-confirm="UYARI: Bu işlem veritabanını ve yüklenen tüm dosyaları üzerine yazar. Geri alınamaz. Devam edilsin mi?">&#8635; yerel dosyadan geri yükle</button>
   <div class="backup-form-options full-backup-options">
   {full_backup_restore_upload_tor_option}
   </div>
@@ -586,51 +586,51 @@ fn render_admin_backups_section(
 </div>
 <div class="admin-subsection">
   <div class="admin-card-header">
-    <h3>// saved full backups</h3>
-    <p>Download, restore, delete, or extract a single board from any saved full-site archive.</p>
+    <h3>// kayıtlı tam yedekler</h3>
+    <p>Kayıtlı herhangi bir tam site arşivinden indir, geri yükle, sil veya tek bir board çıkar.</p>
   </div>
   <div class="admin-table-wrap">
   <table class="admin-table backup-table">
-  <thead><tr><th>backup</th><th>size</th><th>created</th><th>mode</th><th>status</th><th></th></tr></thead>
+  <thead><tr><th>yedek</th><th>boyut</th><th>oluşturma</th><th>mod</th><th>durum</th><th></th></tr></thead>
   <tbody>{full_backup_rows}</tbody>
   </table>
   </div>
 </div>
 <details class="backup-extract-details"{board_backup_open_attr}>
-<summary>advanced: board backup and restore</summary>
-<p class="admin-copy">Board backups cover a single board. Use the per-board tools here to store a Backup v4 folder under <code>{effective_backup_directory}/&lt;backup_id&gt;/</code>, or use the table below to restore or delete saved backups. <strong>Restore from local file</strong> uploads a zip from your computer.</p>
+<summary>gelişmiş: board yedekleme ve geri yükleme</summary>
+<p class="admin-copy">Board yedekleri tek bir board’u kapsar. Buradaki board bazlı araçları <code>{effective_backup_directory}/&lt;backup_id&gt;/</code> altında bir Backup v4 klasörü saklamak için ya da kayıtlı yedekleri geri yüklemek/silmek için kullan. <strong>Yerel dosyadan geri yükle</strong> bilgisayarından bir zip yükler.</p>
 <div class="admin-subsection">
   <div class="admin-card-header">
-    <h3>// create board backups</h3>
-    <p>Keep board-specific backup actions separate from routine board management.</p>
+    <h3>// board yedeği oluştur</h3>
+    <p>Board’a özel yedekleme işlemlerini rutin board yönetiminden ayrı tut.</p>
   </div>
   <div class="admin-board-cards">{board_backup_cards}</div>
 </div>
 <div class="admin-subsection">
   <div class="admin-card-header">
-    <h3>// restore from local file</h3>
-    <p>Upload a board backup from your computer to wipe and replace exactly one board.</p>
+    <h3>// yerel dosyadan geri yükle</h3>
+    <p>Yalnızca tek bir board’u silip değiştirmek için bilgisayarından bir board yedeği yükle.</p>
   </div>
   <div class="admin-inline-actions admin-inline-actions-spaced">
   <form method="POST" action="/admin/board/restore" enctype="multipart/form-data" class="backup-restore-upload-form admin-file-inline-form" data-restore-label="board backup">
   <input type="hidden" name="_csrf" value="{csrf}">
-  <label class="admin-quick-field admin-file-field">Board backup
+  <label class="admin-quick-field admin-file-field">Board yedeği
     <input type="file" name="backup_file" accept=".zip,.json" required class="admin-file-input">
-    <span class="admin-quick-help">Upload a board zip or raw <code>board.json</code> manifest.</span>
+    <span class="admin-quick-help">Bir board zip’i ya da ham <code>board.json</code> manifesti yükle.</span>
   </label>
   <button type="submit" class="btn-danger"
-          data-confirm="WARNING: This will wipe and replace the board from the backup. Other boards are unaffected. Continue?">&#8635; restore board from local file</button>
+          data-confirm="UYARI: Bu işlem board’u yedekten alıp değiştirir. Diğer boardlar etkilenmez. Devam edilsin mi?">&#8635; board’u yerel dosyadan geri yükle</button>
   </form>
   </div>
 </div>
 <div class="admin-subsection">
   <div class="admin-card-header">
-    <h3>// saved board backups</h3>
-    <p>Board-level backups are usually created from the board cards above, then downloaded, restored, or deleted here.</p>
+    <h3>// kayıtlı board yedekleri</h3>
+    <p>Board düzeyindeki yedekler genellikle yukarıdaki board kartlarından oluşturulur, ardından buradan indirilir, geri yüklenir veya silinir.</p>
   </div>
   <div class="admin-table-wrap">
   <table class="admin-table backup-table">
-  <thead><tr><th>backup</th><th>size</th><th>created</th><th>mode</th><th>status</th><th></th></tr></thead>
+  <thead><tr><th>yedek</th><th>boyut</th><th>oluşturma</th><th>mod</th><th>durum</th><th></th></tr></thead>
   <tbody>{board_backup_rows}</tbody>
   </table>
   </div>

@@ -76,7 +76,7 @@ pub(in crate::server) async fn add_ban(
     .await
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
 
-    Ok(super::admin_panel_redirect("Ban added.").into_response())
+    Ok(super::admin_panel_redirect("Yasak eklendi.").into_response())
 }
 
 // POST /admin/ban/remove
@@ -109,7 +109,7 @@ pub(in crate::server) async fn remove_ban(
     .await
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
 
-    Ok(super::admin_panel_redirect("Ban lifted.").into_response())
+    Ok(super::admin_panel_redirect("Yasak kaldırıldı.").into_response())
 }
 
 // POST /admin/post/ban-delete
@@ -335,7 +335,7 @@ pub(in crate::server) async fn dismiss_appeal(
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
 
     Ok(
-        super::admin_panel_redirect_anchor_open("Appeal dismissed.", "appeals", "reports")
+        super::admin_panel_redirect_anchor_open("İtiraz reddedildi.", "appeals", "reports")
             .into_response(),
     )
 }
@@ -387,7 +387,7 @@ pub(in crate::server) async fn accept_appeal(
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
 
     Ok(super::admin_panel_redirect_anchor_open(
-        "Appeal accepted and ban lifted.",
+        "İtiraz kabul edildi ve yasak kaldırıldı.",
         "appeals",
         "reports",
     )
@@ -437,7 +437,7 @@ pub(in crate::server) async fn add_filter(
     .await
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
 
-    Ok(super::admin_panel_redirect("Word filter added.").into_response())
+    Ok(super::admin_panel_redirect("Kelime filtresi eklendi.").into_response())
 }
 
 // POST /admin/filter/remove
@@ -470,7 +470,7 @@ pub(in crate::server) async fn remove_filter(
     .await
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
 
-    Ok(super::admin_panel_redirect("Word filter removed.").into_response())
+    Ok(super::admin_panel_redirect("Kelime filtresi kaldırıldı.").into_response())
 }
 
 // GET /admin/ip/{ip_hash}

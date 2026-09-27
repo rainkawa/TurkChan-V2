@@ -200,7 +200,7 @@ pub(in crate::server) async fn update_site_settings(
 
     if is_banner_settings_only {
         Ok(admin_panel_redirect_anchor_open(
-            "Banner settings saved.",
+            "Banner ayarları kaydedildi.",
             "board-banners",
             "board-banners",
         )

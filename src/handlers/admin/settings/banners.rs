@@ -82,7 +82,7 @@ async fn parse_banner_upload(mut multipart: Multipart) -> Result<ParsedBannerUpl
         show_on_catalog,
         enabled,
         banner_bytes: banner_bytes
-            .ok_or_else(|| AppError::BadRequest("No banner file uploaded.".into()))?,
+            .ok_or_else(|| AppError::BadRequest("Banner dosyası yüklenmedi.".into()))?,
     })
 }
 
@@ -210,7 +210,7 @@ fn delete_banner_asset_safely(
 ) -> Result<crate::models::BannerAsset> {
     let tx = conn.unchecked_transaction()?;
     let asset = db::get_banner_asset(&tx, banner_id)?
-        .ok_or_else(|| AppError::BadRequest("Banner not found.".into()))?;
+        .ok_or_else(|| AppError::BadRequest("Banner bulunamadı.".into()))?;
     db::delete_banner_asset(&tx, banner_id)?;
     if asset.scope == BannerScope::Board {
         restore_board_banner_inheritance_if_empty(&tx, asset.board_id)?;
@@ -281,7 +281,7 @@ async fn upload_banner_for_scope(
         )?;
 
         let board_short = if scope == BannerScope::Board {
-            let id = board_id.ok_or_else(|| AppError::BadRequest("Missing board id.".into()))?;
+            let id = board_id.ok_or_else(|| AppError::BadRequest("Board kimliği eksik.".into()))?;
             Some(conn.query_row(
                 "SELECT short_name FROM boards WHERE id = ?1",
                 rusqlite::params![id],
@@ -323,7 +323,7 @@ async fn upload_banner_for_scope(
                 i64::from(width),
                 i64::from(height),
                 i64::try_from(file_size).map_err(|_error| {
-                    AppError::BadRequest("Banner file size is too large.".into())
+                    AppError::BadRequest("Banner dosya boyutu çok büyük.".into())
                 })?,
                 parsed.enabled,
                 sort_order,
@@ -342,7 +342,7 @@ async fn upload_banner_for_scope(
             )?;
             if scope == BannerScope::Board {
                 let board_id =
-                    board_id.ok_or_else(|| AppError::BadRequest("Missing board id.".into()))?;
+                    board_id.ok_or_else(|| AppError::BadRequest("Board kimliği eksik.".into()))?;
                 let affected = tx.execute(
                     "UPDATE boards SET banner_mode = 'override' WHERE id = ?1",
                     rusqlite::params![board_id],
@@ -388,7 +388,7 @@ pub(in crate::server) async fn upload_global_banner(
     check_admin_csrf_jar(&jar, parsed.csrf.as_deref())?;
     match upload_banner_for_scope(state, session_id, BannerScope::Global, None, parsed).await {
         Ok(anchor) => Ok(admin_panel_redirect_anchor_open(
-            "Global banner uploaded.",
+            "Genel banner yüklendi.",
             &anchor,
             banner::banner_open_section(&anchor),
         )
@@ -424,7 +424,7 @@ pub(in crate::server) async fn upload_home_banner(
     check_admin_csrf_jar(&jar, parsed.csrf.as_deref())?;
     match upload_banner_for_scope(state, session_id, BannerScope::Home, None, parsed).await {
         Ok(anchor) => Ok(admin_panel_redirect_anchor_open(
-            "Home page banner uploaded.",
+            "Ana sayfa bannerı yüklendi.",
             &anchor,
             banner::banner_open_section(&anchor),
         )
@@ -460,7 +460,7 @@ pub(in crate::server) async fn upload_board_banner(
     check_admin_csrf_jar(&jar, parsed.csrf.as_deref())?;
     let board_id = parsed
         .board_id
-        .ok_or_else(|| AppError::BadRequest("Missing board id.".into()))?;
+        .ok_or_else(|| AppError::BadRequest("Board kimliği eksik.".into()))?;
     let board_anchor = board_appearance_anchor_from_id(&state, board_id).await?;
     match upload_banner_for_scope(
         state,
@@ -472,7 +472,7 @@ pub(in crate::server) async fn upload_board_banner(
     .await
     {
         Ok(anchor) => Ok(admin_panel_redirect_anchor_open(
-            "Board banner saved.",
+            "Board bannerı kaydedildi.",
             &anchor,
             banner::banner_open_section(&anchor),
         )
@@ -510,7 +510,7 @@ pub(in crate::server) async fn update_banner_meta(
             let conn = pool.get()?;
             require_admin_session_sid(&conn, session_id.as_deref())?;
             let asset = db::get_banner_asset(&conn, form.banner_id)?
-                .ok_or_else(|| AppError::BadRequest("Banner not found.".into()))?;
+                .ok_or_else(|| AppError::BadRequest("Banner bulunamadı.".into()))?;
             let (target_type, target_value) = resolve_banner_target_selection(
                 &form.target_type,
                 form.target_value.as_deref(),
@@ -546,7 +546,7 @@ pub(in crate::server) async fn update_banner_meta(
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     match result {
         Ok(anchor) => Ok(admin_panel_redirect_anchor_open(
-            "Banner settings saved.",
+            "Banner ayarları kaydedildi.",
             &anchor,
             banner::banner_open_section(&anchor),
         )
@@ -587,7 +587,7 @@ pub(in crate::server) async fn delete_banner(
     .await
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
     Ok(admin_panel_redirect_anchor_open(
-        "Banner deleted.",
+        "Banner silindi.",
         &anchor,
         banner::banner_open_section(&anchor),
     )
@@ -610,7 +610,7 @@ pub(in crate::server) async fn move_banner(
         "down" => false,
         _ => {
             return Err(AppError::BadRequest(
-                "Invalid banner move direction.".into(),
+                "Geçersiz banner taşıma yönü.".into(),
             ))
         }
     };
@@ -620,7 +620,7 @@ pub(in crate::server) async fn move_banner(
             let mut conn = pool.get()?;
             require_admin_session_sid(&conn, session_id.as_deref())?;
             let asset = db::get_banner_asset(&conn, form.banner_id)?
-                .ok_or_else(|| AppError::BadRequest("Banner not found.".into()))?;
+                .ok_or_else(|| AppError::BadRequest("Banner bulunamadı.".into()))?;
             db::move_banner_asset(&mut conn, form.banner_id, move_up)?;
             Ok(banner::banner_admin_anchor(
                 asset.scope,
@@ -631,7 +631,7 @@ pub(in crate::server) async fn move_banner(
     .await
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
     Ok(admin_panel_redirect_anchor_open(
-        "Banner order updated.",
+        "Banner sırası güncellendi.",
         &anchor,
         banner::banner_open_section(&anchor),
     )
@@ -661,7 +661,7 @@ pub(in crate::server) async fn clear_board_banner_override(
     .await
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
     Ok(admin_panel_redirect_anchor_open(
-        &format!("Board /{board_short}/ banner override cleared."),
+        &format!("Board /{board_short}/ banner geçersiz kılması temizlendi."),
         &banner::board_appearance_anchor(&board_short),
         "board-banners",
     )

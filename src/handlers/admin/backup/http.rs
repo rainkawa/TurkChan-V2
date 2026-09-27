@@ -613,7 +613,7 @@ pub(super) fn sanitize_board_short_value(board_short: &str) -> Result<String> {
         .take(8)
         .collect::<String>();
     if safe_board.is_empty() {
-        return Err(AppError::BadRequest("Invalid board name.".into()));
+        return Err(AppError::BadRequest("Geçersiz board adı.".into()));
     }
     Ok(safe_board)
 }

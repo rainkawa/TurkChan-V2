@@ -137,7 +137,7 @@ pub(in crate::server) async fn admin_backup(
     State(state): State<AppState>,
     jar: CookieJar,
 ) -> Result<Response> {
-    let _maintenance_guard = state.maintenance_gate.try_begin("Full backup download")?;
+    let _maintenance_guard = state.maintenance_gate.try_begin("Tam yedek indirme")?;
     let session_id = jar.get(SESSION_COOKIE).map(|c| c.value().to_owned());
     let upload_dir = CONFIG.upload_dir.clone();
     let global_favicon_dir = crate::favicon::global_backup_source_dir();
@@ -555,7 +555,7 @@ pub(in crate::server) async fn board_backup(
         .take(8)
         .collect::<String>();
     if safe_board.is_empty() {
-        return Err(AppError::BadRequest("Invalid board name.".into()));
+        return Err(AppError::BadRequest("Geçersiz board adı.".into()));
     }
 
     let filename = tokio::task::spawn_blocking({
@@ -573,7 +573,7 @@ pub(in crate::server) async fn board_backup(
 
             latest_board_backup_reference(&safe_board).ok_or_else(|| {
                 AppError::NotFound(format!(
-                    "No saved backup found for /{safe_board}/. Create one from the admin panel first."
+                    "/{safe_board}/ için kayıtlı yedek bulunamadı. Önce admin panelinden bir tane oluştur."
                 ))
             })
         }
@@ -1138,7 +1138,7 @@ mod tests {
 
         let active_guard = state
             .maintenance_gate
-            .try_begin("Full backup creation")
+            .try_begin("Tam yedek oluşturma")
             .context("begin maintenance")?;
         let blocked = app
             .clone()
@@ -1208,7 +1208,7 @@ mod tests {
 
         let active_guard = state
             .maintenance_gate
-            .try_begin("Full backup creation")
+            .try_begin("Tam yedek oluşturma")
             .context("begin maintenance")?;
         for (route, form_body) in [
             ("/admin/backup/restore-saved", full_form_body.clone()),
@@ -1297,7 +1297,7 @@ mod tests {
 
         let active_guard = state
             .maintenance_gate
-            .try_begin("Full backup creation")
+            .try_begin("Tam yedek oluşturma")
             .context("begin maintenance")?;
         let blocked = app
             .clone()
@@ -1644,7 +1644,7 @@ mod tests {
 
         let active_guard = state
             .maintenance_gate
-            .try_begin("Full backup creation")
+            .try_begin("Tam yedek oluşturma")
             .context("begin concurrent maintenance")?;
         let response = app
             .clone()

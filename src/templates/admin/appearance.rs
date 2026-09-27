@@ -24,24 +24,24 @@ pub(super) fn render_site_settings(view: &AdminPanelViewModel<'_>) -> String {
         String::new()
     };
     let global_favicon_label = if global_favicon_exists {
-        "replace favicon"
+        "favicon değiştir"
     } else {
-        "global favicon"
+        "genel favicon"
     };
     let global_favicon_button = if global_favicon_exists {
-        "replace"
+        "değiştir"
     } else {
-        "upload"
+        "yükle"
     };
     let global_favicon_status = if global_favicon_exists {
-        "Custom global favicon is active and stored under rustchan-data/runtime/favicon/."
+        "Özel genel favicon etkin ve rustchan-data/runtime/favicon/ altında saklanıyor."
     } else {
-        "No custom global favicon uploaded yet."
+        "Henüz özel genel favicon yüklenmedi."
     };
     let public_url_help = if view.dashboard.public_url == "not configured" {
-        "No public URL is configured. Add at least one hostname to settings.toml public_hosts, then restart TurkChan."
+        "Genel URL yapılandırılmadı. settings.toml içindeki public_hosts listesine en az bir ana makine adı ekle, ardından TurkChan’ı yeniden başlat."
     } else {
-        "Runtime host trust uses settings.toml public_hosts. To change this URL, edit public_hosts and restart TurkChan."
+        "Çalışma zamanı ana makine güveni settings.toml içindeki public_hosts değerini kullanır. Bu URL’yi değiştirmek için public_hosts değerini düzenle ve TurkChan’ı yeniden başlat."
     };
 
     render_admin_site_settings_section(
@@ -90,7 +90,7 @@ pub(super) fn render(view: &AdminPanelViewModel<'_>) -> String {
         None,
         view.boards,
         true,
-        "upload global banner",
+        "genel banner yükle",
     );
     let home_banner_upload_form = render_banner_upload_form(
         "/admin/home/banner",
@@ -98,25 +98,25 @@ pub(super) fn render(view: &AdminPanelViewModel<'_>) -> String {
         None,
         view.boards,
         false,
-        "upload home banner",
+        "ana sayfa bannerı yükle",
     );
     let global_banner_rows = render_banner_asset_list(
         view.appearance.global_banners,
         view.csrf_token,
         view.boards,
         true,
-        "No global board banners uploaded yet.",
+        "Henüz genel board bannerı yüklenmedi.",
     );
     let home_banner_rows = render_banner_asset_list(
         view.appearance.home_banners,
         view.csrf_token,
         view.boards,
         false,
-        "No home page banners uploaded yet.",
+        "Henüz ana sayfa bannerı yüklenmedi.",
     );
     let (builtin_theme_cards, custom_theme_cards) = render_theme_cards(view);
     let custom_theme_cards_or_empty = if custom_theme_cards.is_empty() {
-        r#"<div class="theme-empty-state">No custom themes yet. Create one above and it will show up here.</div>"#.to_owned()
+        r#"<div class="theme-empty-state">Henüz özel tema yok. Yukarıdan bir tane oluştur, burada görünsün.</div>"#.to_owned()
     } else {
         custom_theme_cards
     };
@@ -206,7 +206,7 @@ fn render_color_control(label: &str, name: &str, value: &str, help: &str) -> Str
         r##"<div class="theme-builder-color-field">
   <span class="theme-builder-field-label">{label}</span>
   <span class="theme-builder-color-row">
-    <input type="color" value="{value}" data-theme-builder-color-for="{name}" aria-label="{label} color picker">
+    <input type="color" value="{value}" data-theme-builder-color-for="{name}" aria-label="{label} renk seçici">
     <label class="theme-builder-hex-field"><span>Hex</span><input type="text" name="{name}" value="{value}" maxlength="7" pattern="#[0-9A-Fa-f]{{6}}" spellcheck="false" data-theme-builder-field="{name}"></label>
   </span>
   <small>{help}</small>
@@ -242,33 +242,33 @@ fn render_color_group(title: &str, description: &str, controls: &str) -> String 
 fn render_builder_sections(config: &ThemeBuilderConfig) -> String {
     let basics = format!(
         r#"<details class="theme-builder-section" open>
-  <summary><span>Basics</span><small>Preset, density, type, and corner shape.</small></summary>
+  <summary><span>Temel ayarlar</span><small>Hazır ayar, sıkılık, yazı tipi ve köşe biçimi.</small></summary>
   <div class="theme-builder-section-body board-settings-grid">
-    <label>Starting preset
+    <label>Başlangıç hazır ayarı
       <select name="base_preset" data-theme-builder-field="base_preset">{preset_options}</select>
-      <small>Pick the built-in theme that is closest to what you want, then tune from there.</small>
-      <noscript><small>To start from the selected preset, fill in the theme name and slug, then save its defaults. Use the regular save button to keep your manual color edits.</small>
-      <button type="submit" name="apply_preset" value="1">Save preset defaults</button></noscript>
+      <small>İstediğine en yakın yerleşik temayı seç, sonra buradan ayarla.</small>
+      <noscript><small>Seçili hazır ayardan başlamak için tema adını ve kısa adını doldur, sonra varsayılanlarını kaydet. Elle yaptığın renk değişikliklerini korumak için normal kaydet butonunu kullan.</small>
+      <button type="submit" name="apply_preset" value="1">Hazır ayar varsayılanlarını kaydet</button></noscript>
     </label>
-    <label>Compactness
+    <label>Sıkılık
       <select name="density" data-theme-builder-field="density">
-        <option value="cozy"{cozy_selected}>Cozy</option>
-        <option value="compact"{compact_selected}>Compact</option>
+        <option value="cozy"{cozy_selected}>Ferah</option>
+        <option value="compact"{compact_selected}>Sık</option>
       </select>
-      <small>Compact reduces padding and spacing around posts and cards.</small>
+      <small>Sık seçenek, gönderilerin ve kartların çevresindeki boşluğu azaltır.</small>
     </label>
-    <label>Font family
+    <label>Yazı tipi ailesi
       <select name="font_family" data-theme-builder-field="font_family">
-        <option value="system_sans"{sans_selected}>System Sans</option>
-        <option value="system_serif"{serif_selected}>System Serif</option>
-        <option value="system_mono"{mono_selected}>System Mono</option>
+        <option value="system_sans"{sans_selected}>Sistem Sans</option>
+        <option value="system_serif"{serif_selected}>Sistem Serif</option>
+        <option value="system_mono"{mono_selected}>Sistem Mono</option>
       </select>
-      <small>System fonts only, so saved themes stay lightweight and safe.</small>
+      <small>Yalnızca sistem yazı tipleri, böylece kayıtlı temalar hafif ve güvenli kalır.</small>
     </label>
-    <label>Border radius
+    <label>Kenarlık yarıçapı
       <input type="range" name="border_radius_px" min="0" max="24" step="1" value="{radius}" data-theme-builder-field="border_radius_px">
       <span class="theme-builder-range-value" data-theme-builder-range-value="border_radius_px">{radius}px</span>
-      <small>Lower values feel sharper. Higher values feel softer.</small>
+      <small>Düşük değerler daha keskin, yüksek değerler daha yumuşak görünür.</small>
     </label>
   </div>
 </details>"#,
@@ -303,221 +303,221 @@ fn render_builder_sections(config: &ThemeBuilderConfig) -> String {
     let page_colors = format!(
         "{background}{panel}{border}",
         background = render_color_control(
-            "Page background",
+            "Sayfa arka planı",
             "background_color",
             &config.background_color,
-            "The main page background behind boards, threads, and admin surfaces.",
+            "Boardların, konuların ve admin yüzeylerinin arkasındaki ana sayfa arka planı.",
         ),
         panel = render_color_control(
-            "Panel background",
+            "Panel arka planı",
             "panel_color",
             &config.panel_color,
-            "Board cards, admin sections, and larger content boxes.",
+            "Board kartları, admin bölümleri ve büyük içerik kutuları.",
         ),
         border = render_color_control(
-            "Borders and dividers",
+            "Kenarlıklar ve ayırıcılar",
             "border_color",
             &config.border_color,
-            "General outlines, dividers, and subtle separation lines.",
+            "Genel çerçeveler, ayırıcılar ve ince ayrım çizgileri.",
         ),
     );
     let text_colors = format!(
         "{text}{muted}{link}{link_hover}{quote}{meta}",
         text = render_color_control(
-            "Main text",
+            "Ana metin",
             "text_color",
             &config.text_color,
-            "Primary readable text.",
+            "Okunabilir birincil metin.",
         ),
         muted = render_color_control(
-            "Secondary text",
+            "İkincil metin",
             "muted_text_color",
             &config.muted_text_color,
-            "Helper text, softer labels, and quiet details.",
+            "Yardımcı metinler, daha soluk etiketler ve sakin ayrıntılar.",
         ),
         link = render_color_control(
-            "Links",
+            "Bağlantılar",
             "link_color",
             &config.link_color,
-            "Normal link color.",
+            "Normal bağlantı rengi.",
         ),
         link_hover = render_color_control(
-            "Links on hover",
+            "Üzerine gelindiğinde bağlantılar",
             "link_hover_color",
             &config.link_hover_color,
-            "Link color while the pointer is over it.",
+            "İmleç bağlantının üzerindeyken aldığı renk.",
         ),
         quote = render_color_control(
-            "Quoted text",
+            "Alıntılanan metin",
             "quote_color",
             &config.quote_color,
-            "Greentext and quoted lines.",
+            "Greentext ve alıntı satırları.",
         ),
         meta = render_color_control(
-            "Post details",
+            "Gönderi ayrıntıları",
             "meta_text_color",
             &config.meta_text_color,
-            "Timestamps, post numbers, and secondary post info.",
+            "Zaman damgaları, gönderi numaraları ve ikincil gönderi bilgileri.",
         ),
     );
     let status_colors = format!(
         "{success}{danger}",
         success = render_color_control(
-            "Success status",
+            "Başarı durumu",
             "success_color",
             &config.success_color,
-            "Positive notices and success accents.",
+            "Olumlu bildirimler ve başarı vurguları.",
         ),
         danger = render_color_control(
-            "Warning status",
+            "Uyarı durumu",
             "danger_color",
             &config.danger_color,
-            "Warnings, validation messages, and error accents.",
+            "Uyarılar, doğrulama mesajları ve hata vurguları.",
         ),
     );
     let colors = format!(
         r#"<details class="theme-builder-section" open>
-  <summary><span>Colors</span><small>Core page, text, link, and status colors.</small></summary>
+  <summary><span>Renkler</span><small>Temel sayfa, metin, bağlantı ve durum renkleri.</small></summary>
   <div class="theme-builder-section-body theme-builder-group-stack">
     {page_group}{text_group}{status_group}
   </div>
 </details>"#,
         page_group = render_color_group(
-            "Page and background",
-            "The broad surfaces that frame the site.",
+            "Sayfa ve arka plan",
+            "Siteyi çerçeveleyen geniş yüzeyler.",
             &page_colors,
         ),
         text_group = render_color_group(
-            "Text and links",
-            "Readable text, links, quotes, and post metadata.",
+            "Metin ve bağlantılar",
+            "Okunabilir metin, bağlantı, alıntı ve gönderi üstverisi.",
             &text_colors,
         ),
         status_group = render_color_group(
-            "Alerts and status",
-            "Feedback colors used by success and validation messages.",
+            "Bildirimler ve durumlar",
+            "Başarı ve doğrulama mesajlarında kullanılan geri bildirim renkleri.",
             &status_colors,
         ),
     );
     let post_colors = format!(
         "{card}{op_card}{header_bg}{header_text}{header_border}",
         card = render_color_control(
-            "Reply card background",
+            "Yanıt kartı arka planı",
             "card_color",
             &config.card_color,
-            "Regular reply cards and post boxes.",
+            "Normal yanıt kartları ve gönderi kutuları.",
         ),
         op_card = render_color_control(
-            "Thread starter background",
+            "Konu açıcı gönderi arka planı",
             "op_card_color",
             &config.op_card_color,
-            "Original post card background.",
+            "İlk gönderi kartının arka planı.",
         ),
         header_bg = render_color_control(
-            "Site header background",
+            "Site başlığı arka planı",
             "header_background_color",
             &config.header_background_color,
-            "Top site bar background.",
+            "Üst site çubuğunun arka planı.",
         ),
         header_text = render_color_control(
-            "Site header text",
+            "Site başlığı metni",
             "header_text_color",
             &config.header_text_color,
-            "Top site bar links and labels.",
+            "Üst site çubuğundaki bağlantılar ve etiketler.",
         ),
         header_border = render_color_control(
-            "Site header border",
+            "Site başlığı kenarlığı",
             "header_border_color",
             &config.header_border_color,
-            "Top site bar bottom border.",
+            "Üst site çubuğunun alt kenarlığı.",
         ),
     );
     let posts = format!(
         r#"<details class="theme-builder-section">
-  <summary><span>Posts/cards</span><small>Cards, replies, thread starters, and the site header.</small></summary>
+  <summary><span>Gönderiler/kartlar</span><small>Kartlar, yanıtlar, konu açıcı gönderiler ve site başlığı.</small></summary>
   <div class="theme-builder-section-body theme-builder-group-stack">
     {post_group}
   </div>
 </details>"#,
         post_group = render_color_group(
-            "Cards and navigation",
-            "Post surfaces plus the header that frames them.",
+            "Kartlar ve gezinme",
+            "Gönderi yüzeyleri ve onları çerçeveleyen başlık.",
             &post_colors,
         ),
     );
     let input_colors = format!(
         "{input_bg}{input_text}{input_border}",
         input_bg = render_color_control(
-            "Field background",
+            "Alan arka planı",
             "input_background_color",
             &config.input_background_color,
-            "Text fields and textarea background.",
+            "Metin alanlarının ve çok satırlı alanın arka planı.",
         ),
         input_text = render_color_control(
-            "Field text",
+            "Alan metni",
             "input_text_color",
             &config.input_text_color,
-            "Text inside inputs and textareas.",
+            "Alanların içindeki metin.",
         ),
         input_border = render_color_control(
-            "Field border",
+            "Alan kenarlığı",
             "input_border_color",
             &config.input_border_color,
-            "Outline for form fields.",
+            "Form alanlarının çerçevesi.",
         ),
     );
     let button_colors = format!(
         "{button_bg}{button_text}{button_border}{button_hover}",
         button_bg = render_color_control(
-            "Button background",
+            "Buton arka planı",
             "button_background_color",
             &config.button_background_color,
-            "Default button background.",
+            "Varsayılan buton arka planı.",
         ),
         button_text = render_color_control(
-            "Button text",
+            "Buton metni",
             "button_text_color",
             &config.button_text_color,
-            "Button label color.",
+            "Buton etiketinin rengi.",
         ),
         button_border = render_color_control(
-            "Button border",
+            "Buton kenarlığı",
             "button_border_color",
             &config.button_border_color,
-            "Button outline color.",
+            "Buton çerçevesinin rengi.",
         ),
         button_hover = render_color_control(
-            "Button hover background",
+            "Buton üzerine gelme arka planı",
             "button_hover_color",
             &config.button_hover_color,
-            "Button background on hover.",
+            "Üzerine gelindiğinde buton arka planı.",
         ),
     );
     let forms = format!(
         r#"<details class="theme-builder-section">
-  <summary><span>Forms/buttons</span><small>Inputs, textareas, and action buttons.</small></summary>
+  <summary><span>Formlar/butonlar</span><small>Alanlar, çok satırlı alanlar ve eylem butonları.</small></summary>
   <div class="theme-builder-section-body theme-builder-group-stack">
     {input_group}{button_group}
   </div>
 </details>"#,
         input_group = render_color_group(
-            "Form fields",
-            "Inputs and textareas used for posting and admin forms.",
+            "Form alanları",
+            "Gönderi ve admin formlarında kullanılan alanlar.",
             &input_colors,
         ),
         button_group = render_color_group(
-            "Buttons",
-            "Primary action buttons and their hover state.",
+            "Butonlar",
+            "Birincil eylem butonları ve üzerine gelme hâlleri.",
             &button_colors,
         ),
     );
     let advanced = format!(
         r#"<details class="theme-builder-section">
-  <summary><span>Advanced/legacy CSS</span><small>Manual CSS for legacy themes or small finishing touches.</small></summary>
+  <summary><span>Gelişmiş/eski CSS</span><small>Eski temalar ya da küçük rötuşlar için elle CSS.</small></summary>
   <div class="theme-builder-section-body">
-    <div class="theme-builder-warning">Guided builder fields are safer and easier to maintain. Use manual CSS only for legacy/manual themes or small scoped overrides; imports and script-like URLs are rejected.</div>
-    <label>Manual CSS overrides
+    <div class="theme-builder-warning">Rehberli oluşturucu alanları daha güvenli ve bakımı kolaydır. Elle CSS’yi yalnızca eski/elle temalar ya da küçük kapsamlı geçersiz kılmalar için kullan; içe aktarma ve betiğe benzeyen adresler reddedilir.</div>
+    <label>Elle CSS geçersiz kılmaları
       <textarea name="advanced_css" rows="8" spellcheck="false" data-theme-builder-field="advanced_css">{advanced_css}</textarea>
-      <small>Optional. Keep overrides scoped to this theme so they do not leak into built-in themes.</small>
+      <small>İsteğe bağlı. Geçersiz kılmaları bu temayla sınırlı tut ki yerleşik temalara sızmasın.</small>
     </label>
   </div>
 </details>"#,
@@ -573,8 +573,8 @@ fn render_builder_preview(config: &ThemeBuilderConfig, slug: &str) -> String {
     format!(
         r##"<section class="theme-builder-preview-card">
   <div class="admin-card-header">
-    <h4>Theme preview</h4>
-    <p>Representative TurkChan surfaces update when JavaScript is available. Saving still posts the form normally.</p>
+    <h4>Tema önizleme</h4>
+    <p>JavaScript kullanılabilir olduğunda temsilî TurkChan yüzeyleri güncellenir. Kaydetme yine formu normal şekilde gönderir.</p>
   </div>
   <style data-theme-preview-style></style>
   <div class="theme-preview-shell" style="{preview_style}" data-theme-preview data-theme-preview-slug="{slug}" data-theme-preview-preset="{preset}">
@@ -585,28 +585,28 @@ fn render_builder_preview(config: &ThemeBuilderConfig, slug: &str) -> String {
     <div class="theme-preview-panels">
       <article class="theme-preview-panel">
         <div class="theme-preview-card-title">/tech/</div>
-        <p class="theme-preview-muted">Board subtitle and home card summary.</p>
-        <a href="#">open board</a>
+        <p class="theme-preview-muted">Board alt başlığı ve ana sayfa kartı özeti.</p>
+        <a href="#">board’u aç</a>
       </article>
       <article class="theme-preview-post theme-preview-op">
         <div class="theme-preview-meta">OP 04/29/2026 No.101 <a href="#">>>102</a></div>
-        <p><span class="theme-preview-quote">&gt; quoted line</span><br>Thread starter content with a <a href="#">link</a>.</p>
+        <p><span class="theme-preview-quote">&gt; alıntılanan satır</span><br>Bir <a href="#">bağlantı</a> içeren konu açıcı içerik.</p>
       </article>
       <article class="theme-preview-post">
-        <div class="theme-preview-meta">Reply No.102 <a href="#">>>101</a></div>
-        <p>Reply card with metadata, quotelinks, and regular body text.</p>
+        <div class="theme-preview-meta">Yanıt No.102 <a href="#">>>101</a></div>
+        <p>Üstveri, alıntı bağlantıları ve normal gövde metni içeren yanıt kartı.</p>
       </article>
       <div class="theme-preview-form">
-        <input type="text" value="Name" aria-label="Preview name">
-        <textarea rows="3" aria-label="Preview body">Body text</textarea>
+        <input type="text" value="Ad" aria-label="Önizleme adı">
+        <textarea rows="3" aria-label="Önizleme gövdesi">Gövde metni</textarea>
         <div class="theme-preview-actions">
-          <button type="button">Post</button>
-          <button type="button" class="theme-preview-secondary">Preview</button>
+          <button type="button">Gönder</button>
+          <button type="button" class="theme-preview-secondary">Önizle</button>
         </div>
       </div>
       <div class="theme-preview-flashes">
-        <div class="admin-flash flash-ok">Saved theme preview</div>
-        <div class="admin-flash flash-error">Validation message preview</div>
+        <div class="admin-flash flash-ok">Kaydedilen tema önizlemesi</div>
+        <div class="admin-flash flash-error">Doğrulama mesajı önizlemesi</div>
       </div>
     </div>
   </div>
@@ -637,15 +637,15 @@ fn render_legacy_editor(theme_slug: &str, custom_css: &str) -> String {
     format!(
         r#"<input type="hidden" name="theme_mode" value="legacy">
 <div class="theme-editor-built-in-note">
-  <p>This is a legacy custom CSS theme. TurkChan will keep loading it as-is for compatibility. Guided builder themes are safer and easier to maintain; this editor is for legacy/manual CSS only.</p>
+  <p>Bu, eski tip bir özel CSS teması. Uyumluluk için TurkChan onu olduğu gibi yüklemeye devam eder. Rehberli oluşturucu temaları daha güvenli ve bakımı kolaydır; bu düzenleyici yalnızca eski/elle CSS içindir.</p>
 </div>
 <div class="theme-editor-css-panel">
   <div class="theme-editor-panel-header">
-    <h4>Advanced/legacy CSS</h4>
-    <p>Scope everything to <code>html[data-theme="{slug}"]</code>. This is the advanced escape hatch.</p>
+    <h4>Gelişmiş/eski CSS</h4>
+    <p>Her şeyi <code>html[data-theme="{slug}"]</code> ile kapsamlandır. Bu, gelişmiş çıkış yoludur.</p>
   </div>
   <textarea name="custom_css" rows="18" spellcheck="false">{custom_css}</textarea>
-  <p class="theme-editor-code-note">Legacy themes continue to work without migration. New guided themes use the builder above instead of requiring raw CSS.</p>
+  <p class="theme-editor-code-note">Eski temalar geçiş yapmaya gerek kalmadan çalışmaya devam eder. Yeni rehberli temalar ham CSS yerine yukarıdaki oluşturucuyu kullanır.</p>
 </div>"#,
         slug = escape_html(theme_slug),
         custom_css = escape_html(custom_css),
@@ -657,14 +657,14 @@ fn render_theme_metadata_fields(theme: &crate::models::Theme) -> String {
     if theme.is_builtin {
         format!(
             r#"<div class="board-settings-grid">
-        <label>Display name<input type="text" value="{name}" maxlength="64" readonly aria-readonly="true"></label>
-        <label>Slug<input type="text" value="{slug}" maxlength="32" readonly aria-readonly="true"></label>
-        <label>Swatch<input type="color" value="{swatch}" disabled></label>
+        <label>Görünen ad<input type="text" value="{name}" maxlength="64" readonly aria-readonly="true"></label>
+        <label>Kısa ad<input type="text" value="{slug}" maxlength="32" readonly aria-readonly="true"></label>
+        <label>Renk örneği<input type="color" value="{swatch}" disabled></label>
       </div>
       <div class="board-settings-grid" style="margin-top:0.65rem">
-        <label>Description<input type="text" value="{description}" maxlength="256" readonly aria-readonly="true"></label>
+        <label>Açıklama<input type="text" value="{description}" maxlength="256" readonly aria-readonly="true"></label>
       </div>
-      <p class="admin-meta-note">Built-in theme metadata is managed by TurkChan and cannot be edited here. Only picker visibility can be changed.</p>"#,
+      <p class="admin-meta-note">Yerleşik tema üstverisi TurkChan tarafından yönetilir ve buradan düzenlenemez. Yalnızca seçicideki görünürlük değiştirilebilir.</p>"#,
             name = escape_html(&theme.display_name),
             slug = escape_html(&theme.slug),
             swatch = escape_html(&theme.swatch_hex),
@@ -673,12 +673,12 @@ fn render_theme_metadata_fields(theme: &crate::models::Theme) -> String {
     } else {
         format!(
             r#"<div class="board-settings-grid">
-        <label>Display name<input type="text" name="display_name" value="{name}" maxlength="64" required></label>
-        <label>Slug<input type="text" name="slug" value="{slug}" maxlength="32"></label>
-        <label>Theme picker swatch<input type="color" name="swatch_hex" value="{swatch}"></label>
+        <label>Görünen ad<input type="text" name="display_name" value="{name}" maxlength="64" required></label>
+        <label>Kısa ad<input type="text" name="slug" value="{slug}" maxlength="32"></label>
+        <label>Tema seçici renk örneği<input type="color" name="swatch_hex" value="{swatch}"></label>
       </div>
       <div class="board-settings-grid" style="margin-top:0.65rem">
-        <label>Description<input type="text" name="description" value="{description}" maxlength="256"></label>
+        <label>Açıklama<input type="text" name="description" value="{description}" maxlength="256"></label>
       </div>"#,
             name = escape_html(&theme.display_name),
             slug = escape_html(&theme.slug),
@@ -695,7 +695,7 @@ fn render_theme_cards(view: &AdminPanelViewModel<'_>) -> (String, String) {
     for theme in view.appearance.themes {
         let theme_editor = if theme.is_builtin {
             r#"<div class="theme-editor-built-in-note">
-<p>Built-in themes are maintained in <code>static/style.css</code>. You can toggle them here for the picker, but guided editing is reserved for custom themes so the shipped presets stay stable.</p>
+<p>Yerleşik temalar <code>static/style.css</code> içinde tutulur. Buradan seçicide görünüp görünmeyeceğini değiştirebilirsin, ancak rehberli düzenleme özel temalara ayrılmıştır; böylece gelen hazır ayarlar kararlı kalır.</p>
 </div>"#.to_owned()
         } else if let Some(builder_config) = parse_builder_config(&theme.custom_css) {
             render_builder_editor(&theme.slug, &builder_config)
@@ -719,13 +719,13 @@ fn render_theme_cards(view: &AdminPanelViewModel<'_>) -> (String, String) {
     <div class="theme-editor-basics">
       {metadata_fields}
       <div class="board-settings-checks">
-        <label><input type="checkbox" name="enabled" value="1"{enabled_ck}> Enabled in theme picker</label>
+        <label><input type="checkbox" name="enabled" value="1"{enabled_ck}> Tema seçicide etkin</label>
       </div>
       {theme_editor}
     </div>
   </div>
   <div class="board-settings-actions">
-    <button type="submit">save theme settings</button>
+    <button type="submit">tema ayarlarını kaydet</button>
   </div>
 </form>
 {delete_form}
@@ -735,17 +735,17 @@ fn render_theme_cards(view: &AdminPanelViewModel<'_>) -> (String, String) {
             slug = escape_html(&theme.slug),
             swatch = escape_html(&theme.swatch_hex),
             builtin_tag = if theme.is_builtin {
-                r#" <span class="tag">built-in</span>"#
+                r#" <span class="tag">yerleşik</span>"#
             } else {
-                r#" <span class="tag">custom</span>"#
+                r#" <span class="tag">özel</span>"#
             },
             disabled_tag = if theme.enabled {
                 ""
             } else {
-                r#" <span class="tag locked">disabled</span>"#
+                r#" <span class="tag locked">devre dışı</span>"#
             },
             description = if theme.description.trim().is_empty() {
-                "No description yet.".to_owned()
+                "Henüz açıklama yok.".to_owned()
             } else {
                 escape_html(&theme.description)
             },
@@ -759,7 +759,7 @@ fn render_theme_cards(view: &AdminPanelViewModel<'_>) -> (String, String) {
                     r#"<form method="POST" action="/admin/theme/delete" class="theme-editor-delete">
   <input type="hidden" name="_csrf" value="{csrf}">
   <input type="hidden" name="slug" value="{slug}">
-  <button type="submit" class="btn-danger" data-confirm="Delete custom theme {slug}?">delete theme</button>
+  <button type="submit" class="btn-danger" data-confirm="{slug} özel teması silinsin mi?">temayı sil</button>
 </form>"#,
                     csrf = escape_html(view.csrf_token),
                     slug = escape_html(&theme.slug)
@@ -781,7 +781,7 @@ fn render_public_url_copy_button(public_url: &str) -> String {
         String::new()
     } else {
         format!(
-            r#"<button type="button" class="admin-copy-button" data-admin-copy-text="{public_url}" hidden>Copy</button>"#,
+            r#"<button type="button" class="admin-copy-button" data-admin-copy-text="{public_url}" hidden>Kopyala</button>"#,
             public_url = escape_html(public_url),
         )
     }
@@ -811,19 +811,19 @@ fn render_admin_site_settings_section(
     format!(
         r#"<div class="admin-panel-site-settings" id="site-settings-panel">
 <section class="admin-section" id="site-settings">
-<h2>// site settings</h2>
+<h2>// site ayarları</h2>
 <form method="POST" action="/admin/site/settings" class="admin-site-settings-form">
 <input type="hidden" name="_csrf" value="{csrf}">
 <div class="board-settings-grid admin-settings-grid">
-  <label>Site name
+  <label>Site adı
     <input type="text" name="site_name" value="{site_name_val}" maxlength="64" placeholder="TurkChan"
            style="font-family:inherit">
   </label>
-  <label>Home page subtitle
-    <input type="text" name="site_subtitle" value="{site_subtitle_val}" maxlength="128" placeholder="select board to proceed"
+  <label>Ana sayfa alt başlığı
+    <input type="text" name="site_subtitle" value="{site_subtitle_val}" maxlength="128" placeholder="devam etmek için bir board seç"
            style="font-family:inherit">
   </label>
-  <label>Default theme
+  <label>Varsayılan tema
     <select name="default_theme" style="font-family:inherit;padding:0.25rem 0.4rem;background:var(--bg-input);color:var(--text)">
       {enabled_theme_options}
     </select>
@@ -832,28 +832,28 @@ fn render_admin_site_settings_section(
 <div class="board-settings-checks">
   <label class="admin-inline-checkbox">
     <input type="checkbox" name="homepage_new_thread_badges_enabled" value="1"{homepage_new_thread_badges_enabled_checked}>
-    Homepage board-card new-thread badges
+    Ana sayfa board kartlarında yeni konu rozetleri
   </label>
   <label class="admin-inline-checkbox">
     <input type="checkbox" name="homepage_new_reply_badges_enabled" value="1"{homepage_new_reply_badges_enabled_checked}>
-    Show new reply badges on homepage
+    Ana sayfada yeni yanıt rozetlerini göster
   </label>
   <label class="admin-inline-checkbox">
     <input type="checkbox" name="thread_new_reply_badges_enabled" value="1"{thread_new_reply_badges_enabled_checked}>
-    Board/catalog thread-card new-reply badges
+    Board/katalog konu kartlarında yeni yanıt rozetleri
   </label>
 </div>
 <p class="admin-meta-note admin-meta-note-spaced">
-  Track newly created threads on the home page, new replies on the home page, and new replies inside board index/catalog cards independently.
+  Ana sayfadaki yeni konuları, ana sayfadaki yeni yanıtları ve board dizini/katalog kartlarındaki yeni yanıtları birbirinden bağımsız izle.
 </p>
 <div class="board-settings-actions">
-  <button type="submit">save settings</button>
+  <button type="submit">ayarları kaydet</button>
 </div>
 </form>
 <div class="admin-subsection admin-subsection-tight" id="public-url-settings">
   <div class="admin-card-header">
-    <h3>// public URL</h3>
-    <p>Current configured public entry point.</p>
+    <h3>// genel URL</h3>
+    <p>Şu anda yapılandırılmış genel giriş noktası.</p>
   </div>
   <p class="admin-copy admin-copy-action-row"><strong>{public_url}</strong>{public_url_copy_button}</p>
   <p class="admin-meta-note">{public_url_help}</p>
@@ -931,55 +931,55 @@ fn render_admin_appearance_section(
         r##"<div class="admin-panel-appearance" id="appearance">
 <section class="admin-section admin-section-collapsible" id="board-banners">
 <details class="admin-dropdown" data-admin-dropdown-key="board-banners"{banner_settings_open_attr}>
-<summary>// board banners &amp; favicons</summary>
+<summary>// board bannerları &amp; favicon’ları</summary>
 <div class="admin-dropdown-content">
 <div class="admin-subsection admin-subsection-tight">
   <div class="admin-card-header">
-    <h3>// global board banner settings</h3>
-    <p>Control rotation timing and whether banner clicks are allowed to leave the site.</p>
+    <h3>// genel board banner ayarları</h3>
+    <p>Dönüşüm zamanlamasını ve banner tıklamalarının siteden çıkmasına izin verilip verilmediğini yönetin.</p>
   </div>
   <form method="POST" action="/admin/site/settings" class="admin-site-settings-form admin-banner-settings-form">
     <input type="hidden" name="_csrf" value="{csrf}">
     <div class="board-settings-grid admin-settings-grid">
-      <label class="board-settings-field-compact" title="0 means pick a new banner on each refresh. Values above 0 enforce timed rotation.">Rotate banners every (minutes)
+      <label class="board-settings-field-compact" title="0, her yenilemede yeni bir banner seçmek demektir. 0’dan büyük değerler zamanlı dönüşüm uygular.">Bannerları şu sürede bir değiştir (dakika)
         <input type="number" name="banner_rotation_interval_minutes" value="{banner_rotation_interval_minutes}" min="0" max="43200"
                style="font-family:inherit">
       </label>
       <label class="admin-inline-checkbox admin-banner-settings-toggle">
         <input type="checkbox" name="banner_external_links_enabled" value="1"{banner_external_links_enabled_checked} data-banner-external-toggle>
-        Allow banners to open external websites after showing the warning page
+        Uyarı sayfası gösterildikten sonra banner’ların harici siteleri açmasına izin ver
       </label>
     </div>
     <div class="board-settings-actions">
-      <button type="submit">save banner settings</button>
+      <button type="submit">banner ayarlarını kaydet</button>
     </div>
   </form>
 </div>
 
 <div class="admin-subsection admin-subsection-tight" id="global-banners">
   <div class="admin-card-header">
-    <h3>// global board banners</h3>
-    <p>These banners rotate on board index and catalog pages unless a board uses its own banner set.</p>
+    <h3>// genel board bannerları</h3>
+    <p>Bu bannerlar, bir board kendi banner setini kullanmıyorsa board dizini ve katalog sayfalarında dönüşür.</p>
   </div>
-  <p class="admin-meta-note">Exact 468x60 aspect ratio required. Minimum 468x60, recommended 936x120. Uploads are converted to WebP.</p>
+  <p class="admin-meta-note">Tam 468x60 en boy oranı gerekir. En az 468x60, önerilen 936x120. Yüklemeler WebP’ye dönüştürülür.</p>
   {global_banner_upload_form}
   <div class="admin-banner-list">{global_banner_rows}</div>
 </div>
 
 <div class="admin-subsection admin-subsection-tight" id="home-banners">
   <div class="admin-card-header">
-    <h3>// home page banner settings</h3>
-    <p>Use this separate banner area for MOTD, news, or maintenance notices on the home page only.</p>
+    <h3>// ana sayfa banner ayarları</h3>
+    <p>Yalnızca ana sayfadaki MOTD, haber veya bakım duyuruları için bu ayrı banner alanını kullan.</p>
   </div>
-  <p class="admin-meta-note">Exact 468x60 aspect ratio required. Minimum 468x60, recommended 936x120. Uploads are converted to WebP.</p>
+  <p class="admin-meta-note">Tam 468x60 en boy oranı gerekir. En az 468x60, önerilen 936x120. Yüklemeler WebP’ye dönüştürülür.</p>
   {home_banner_upload_form}
   <div class="admin-banner-list">{home_banner_rows}</div>
 </div>
 
 <div class="admin-subsection">
   <div class="admin-card-header">
-    <h3>// board appearance overrides</h3>
-    <p>Board-specific themes, favicon overrides, and board banner sets are managed here instead of inside the routine board cards.</p>
+    <h3>// board görünüm geçersiz kılmaları</h3>
+    <p>Board’e özel temalar, favicon geçersiz kılmaları ve board banner setleri rutin board kartlarının içinde değil, burada yönetilir.</p>
   </div>
   <div class="admin-board-cards">{board_appearance_cards}</div>
 </div>
@@ -989,51 +989,51 @@ fn render_admin_appearance_section(
 
 <section class="admin-section admin-section-collapsible" id="theme-catalog">
 <details class="admin-dropdown" data-admin-dropdown-key="theme-catalog"{theme_catalog_open_attr}>
-<summary><span>// themes</span></summary>
+<summary><span>// temalar</span></summary>
 <div class="admin-dropdown-content">
 <details class="admin-dropdown theme-workbench-dropdown" data-admin-dropdown-key="theme-workbench">
-<summary><span>// custom theme workshop</span></summary>
+<summary><span>// özel tema atölyesi</span></summary>
 <div class="admin-dropdown-content">
 <div class="theme-manager-shell">
   <section class="theme-guide-card">
     <div class="admin-card-header">
-      <h3>// guided theme builder</h3>
-      <p>Build a custom theme with friendly controls, paired hex fields, and a representative preview. TurkChan still saves the result as regular server-rendered CSS.</p>
+      <h3>// rehberli tema oluşturucu</h3>
+      <p>Kullanıcı dostu kontroller, eşleşen hex alanları ve temsilî bir önizlemeyle özel tema oluştur. TurkChan sonucu yine sunucuda oluşturulan normal CSS olarak kaydeder.</p>
     </div>
     <div class="theme-guide-grid">
       <div class="theme-guide-block">
-        <h4>Builder flow</h4>
-        <p>Start with a preset, tune the grouped controls, then save a custom theme.</p>
+        <h4>Oluşturucu akışı</h4>
+        <p>Bir hazır ayarla başla, gruplandırılmış kontrolleri ayarla, sonra özel temayı kaydet.</p>
       </div>
       <div class="theme-guide-block">
-        <h4>Compatibility</h4>
-        <p>Built-in themes stay untouched, and older raw-CSS themes remain editable in legacy mode.</p>
+        <h4>Uyumluluk</h4>
+        <p>Yerleşik temalar olduğu gibi kalır ve eski ham CSS temaları eski kipte düzenlenebilir olmayı sürdürür.</p>
       </div>
     </div>
-    <p class="theme-guide-note">Manual CSS is clearly separated in Advanced/legacy CSS so the primary builder stays easy to scan.</p>
+    <p class="theme-guide-note">Elle CSS, ana oluşturucu kolay taranabilir kalsın diye Gelişmiş/eski CSS bölümünde açıkça ayrıldı.</p>
   </section>
 
   <section class="theme-create-card">
     <div class="admin-card-header">
-      <h3>// create custom theme</h3>
-      <p>Start from a preset, tweak the friendly fields, and TurkChan will generate the scoped theme CSS internally.</p>
+      <h3>// özel tema oluştur</h3>
+      <p>Bir hazır ayardan başla, kullanıcı dostu alanları değiştir; TurkChan kapsamlı tema CSS’ini kendi içinde üretsin.</p>
     </div>
     <form method="POST" action="/admin/theme/create" class="theme-create-form">
       <input type="hidden" name="_csrf" value="{csrf}">
       <div class="board-settings-grid">
-        <label>Display name<input type="text" name="display_name" maxlength="64" required></label>
-        <label>Slug<input type="text" name="slug" maxlength="32" required placeholder="mytheme"></label>
-        <label>Theme picker swatch<input type="color" name="swatch_hex" value="#7ab84e"></label>
+        <label>Görünen ad<input type="text" name="display_name" maxlength="64" required></label>
+        <label>Kısa ad<input type="text" name="slug" maxlength="32" required placeholder="kenditemam"></label>
+        <label>Tema seçici renk örneği<input type="color" name="swatch_hex" value="#7ab84e"></label>
       </div>
       <div class="board-settings-grid" style="margin-top:0.65rem">
-        <label>Description<input type="text" name="description" maxlength="256" placeholder="What makes this theme distinct?"></label>
+        <label>Açıklama<input type="text" name="description" maxlength="256" placeholder="Bu temayı farklı kılan ne?"></label>
       </div>
       <div class="board-settings-checks">
-        <label><input type="checkbox" name="enabled" value="1" checked> Shown in theme picker</label>
+        <label><input type="checkbox" name="enabled" value="1" checked> Tema seçicide gösterilsin</label>
       </div>
       {starter_builder_form}
       <div class="board-settings-actions">
-        <button type="submit">create theme</button>
+        <button type="submit">tema oluştur</button>
       </div>
     </form>
   </section>
@@ -1043,16 +1043,16 @@ fn render_admin_appearance_section(
 
 <section class="theme-manager-group">
   <div class="theme-manager-group-header">
-    <h3>// built-in themes</h3>
-    <p>Toggle which shipped themes appear in the picker.</p>
+    <h3>// yerleşik temalar</h3>
+    <p>Gelen temalardan hangilerinin seçicide görüneceğini aç/kapa.</p>
   </div>
   <div class="theme-card-grid">{builtin_theme_cards}</div>
 </section>
 
 <section class="theme-manager-group">
   <div class="theme-manager-group-header">
-    <h3>// custom themes</h3>
-    <p>Guided themes reopen in the builder. Older themes without builder metadata stay available as legacy advanced CSS themes.</p>
+    <h3>// özel temalar</h3>
+    <p>Rehberli temalar oluşturucuda yeniden açılır. Oluşturucu üstverisi olmayan eski temalar, eski gelişmiş CSS temaları olarak erişilebilir kalır.</p>
   </div>
   <div class="theme-card-grid">{custom_theme_cards_or_empty}</div>
 </section>

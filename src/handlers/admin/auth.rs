@@ -270,7 +270,7 @@ pub(in crate::server) async fn admin_login(
             jar,
             &headers,
             secure_context,
-            Some("Too many failed admin login attempts. Please wait a few minutes and try again."),
+            Some("Çok fazla başarısız yönetici giriş denemesi. Lütfen birkaç dakika bekleyip tekrar dene."),
         )
         .await;
     }
@@ -294,7 +294,7 @@ pub(in crate::server) async fn admin_login(
             jar,
             &headers,
             secure_context,
-            Some("Invalid username."),
+            Some("Geçersiz kullanıcı adı."),
         )
         .await;
     }
@@ -333,7 +333,7 @@ pub(in crate::server) async fn admin_login(
                 jar,
                 &headers,
                 secure_context,
-                Some("Invalid username or password."),
+                Some("Geçersiz kullanıcı adı veya parola."),
             )
             .await
         }
@@ -613,7 +613,7 @@ mod tests {
         let body = String::from_utf8(body.to_vec())
             .context("decode locked-out login response body as UTF-8")?;
         anyhow::ensure!(
-            body.contains("Too many failed admin login attempts."),
+            body.contains("Çok fazla başarısız yönetici giriş denemesi."),
             "locked-out login response did not contain the specific lockout message"
         );
         Ok(())

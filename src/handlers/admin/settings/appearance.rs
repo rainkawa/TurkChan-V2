@@ -43,7 +43,7 @@ pub(in crate::server) async fn clear_board_favicon_override(
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
 
     Ok(admin_panel_redirect_anchor_open(
-        &format!("Board /{board_short}/ favicon override cleared."),
+        &format!("Board /{board_short}/ favicon geçersiz kılması temizlendi."),
         &format!("board-appearance-{board_short}"),
         "board-banners",
     )

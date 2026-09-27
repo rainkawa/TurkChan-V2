@@ -120,9 +120,9 @@ impl MaintenanceGate {
                 .active_label
                 .read()
                 .clone()
-                .unwrap_or_else(|| "another maintenance operation".to_owned());
+                .unwrap_or_else(|| "başka bir bakım işlemi".to_owned());
             return Err(AppError::Conflict(format!(
-                "{current} is already running. Try again after it finishes."
+                "{current} zaten çalışıyor. Bitince tekrar dene."
             )));
         };
 

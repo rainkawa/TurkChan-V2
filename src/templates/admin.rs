@@ -31,20 +31,20 @@ pub fn admin_login_page(
     let body = format!(
         r#"<div class="page-box admin-login">
 <div class="admin-login-header">
-  <h1>Admin Login</h1>
-  <p>Sign in to manage boards, moderation, backups, and site settings.</p>
+  <h1>Yönetici Girişi</h1>
+  <p>Boardları, moderasyonu, yedekleri ve site ayarlarını yönetmek için giriş yap.</p>
 </div>
 {err}
 <form method="POST" action="/admin/login" class="admin-login-form">
 <input type="hidden" name="_csrf" value="{csrf}">
-<label class="admin-login-field">Username
+<label class="admin-login-field">Kullanıcı adı
   <input type="text" name="username" autofocus required autocomplete="username">
 </label>
-<label class="admin-login-field">Password
+<label class="admin-login-field">Parola
   <input type="password" name="password" required autocomplete="current-password">
 </label>
 <div class="admin-login-actions">
-  <button type="submit">authenticate</button>
+  <button type="submit">giriş yap</button>
 </div>
 </form>
 </div>"#,
@@ -52,7 +52,7 @@ pub fn admin_login_page(
         csrf = escape_html(csrf_token),
     );
     base_layout(
-        "admin login",
+        "yönetici girişi",
         None,
         &body,
         csrf_token,
@@ -414,10 +414,10 @@ pub struct AdminPanelFlash<'a> {
 /// Renders banner target-type options and marks the selected value.
 fn banner_target_type_options(selected: BannerTargetType) -> String {
     let options = [
-        (BannerTargetType::None, "No link"),
-        (BannerTargetType::InternalBoard, "Open another board"),
-        (BannerTargetType::InternalPath, "Open a specific thread"),
-        (BannerTargetType::ExternalUrl, "Open another website"),
+        (BannerTargetType::None, "Bağlantı yok"),
+        (BannerTargetType::InternalBoard, "Başka bir board aç"),
+        (BannerTargetType::InternalPath, "Belirli bir konu aç"),
+        (BannerTargetType::ExternalUrl, "Başka bir site aç"),
     ];
     let mut out = String::new();
     for (value, label) in options {
@@ -449,7 +449,7 @@ fn banner_board_options(boards: &[Board], selected_value: &str) -> String {
     let mut out = String::new();
     let _ = write!(
         out,
-        r#"<option value=""{}>Choose a board</option>"#,
+        r#"<option value=""{}>Bir board seç</option>"#,
         if trimmed_selected.is_empty() {
             " selected"
         } else {
@@ -462,7 +462,7 @@ fn banner_board_options(boards: &[Board], selected_value: &str) -> String {
     if !trimmed_selected.is_empty() && !board_exists {
         let _ = write!(
             out,
-            r#"<option value="{value}" selected>Missing board (/{value}/)</option>"#,
+            r#"<option value="{value}" selected>Eksik board (/{value}/)</option>"#,
             value = escape_html(trimmed_selected),
         );
     }
@@ -491,16 +491,16 @@ fn render_banner_target_picker(
     let draft = crate::banner::banner_target_draft(selected, target_value);
     format!(
         r#"<div class="admin-banner-target-picker" data-banner-target-picker>
-  <label class="admin-banner-field admin-banner-field-wide admin-banner-field-select">When someone clicks the banner
+  <label class="admin-banner-field admin-banner-field-wide admin-banner-field-select">Banner’a tıklandığında
     <select name="target_type" data-banner-target-select>{target_options}</select>
   </label>
-  <label class="admin-banner-field admin-banner-target-field" data-banner-target-field="internal_board">Open board
+  <label class="admin-banner-field admin-banner-target-field" data-banner-target-field="internal_board">Board aç
     <select name="target_board_value" data-banner-target-input="internal_board">{board_options}</select>
   </label>
-  <label class="admin-banner-field admin-banner-target-field" data-banner-target-field="internal_path">Open specific thread
+  <label class="admin-banner-field admin-banner-target-field" data-banner-target-field="internal_path">Belirli bir konu aç
     <input type="text" name="target_thread_value" value="{thread_value}" maxlength="512" placeholder="/tech/thread/123">
   </label>
-  <label class="admin-banner-field admin-banner-target-field" data-banner-target-field="external_url">Open website
+  <label class="admin-banner-field admin-banner-target-field" data-banner-target-field="external_url">Site aç
     <input type="url" name="target_external_url" value="{external_url}" maxlength="512" placeholder="https://example.com">
   </label>
 </div>"#,
@@ -522,13 +522,13 @@ fn render_banner_upload_form(
 ) -> String {
     let placement_controls = if show_placements {
         r#"<div class="admin-banner-toggle-group">
-  <label class="admin-inline-checkbox"><input type="checkbox" name="enabled" value="1" checked> Enabled</label>
-  <label class="admin-inline-checkbox"><input type="checkbox" name="show_on_index" value="1" checked> Show on board index</label>
-  <label class="admin-inline-checkbox"><input type="checkbox" name="show_on_catalog" value="1" checked> Show on catalog</label>
+  <label class="admin-inline-checkbox"><input type="checkbox" name="enabled" value="1" checked> Etkin</label>
+  <label class="admin-inline-checkbox"><input type="checkbox" name="show_on_index" value="1" checked> Board dizininde göster</label>
+  <label class="admin-inline-checkbox"><input type="checkbox" name="show_on_catalog" value="1" checked> Katalogda göster</label>
 </div>"#.to_owned()
     } else {
         r#"<div class="admin-banner-toggle-group">
-  <label class="admin-inline-checkbox"><input type="checkbox" name="enabled" value="1" checked> Enabled</label>
+  <label class="admin-inline-checkbox"><input type="checkbox" name="enabled" value="1" checked> Etkin</label>
 </div>"#.to_owned()
     };
     format!(
@@ -537,7 +537,7 @@ fn render_banner_upload_form(
   {board_id_input}
   {target_picker}
   {placement_controls}
-  <label class="admin-file-field admin-banner-field-wide admin-banner-file-field">Banner image
+  <label class="admin-file-field admin-banner-field-wide admin-banner-file-field">Banner görseli
     <input type="file" name="banner" accept="image/png,image/jpeg,image/gif,image/webp" required class="admin-file-input">
   </label>
   <div class="admin-banner-form-actions">
@@ -565,8 +565,8 @@ fn render_banner_asset_row(
 ) -> String {
     let placement_controls = if show_placements {
         format!(
-            r#"<label class="admin-inline-checkbox"><input type="checkbox" name="show_on_index" value="1"{}> Show on board index</label>
-<label class="admin-inline-checkbox"><input type="checkbox" name="show_on_catalog" value="1"{}> Show on catalog</label>"#,
+            r#"<label class="admin-inline-checkbox"><input type="checkbox" name="show_on_index" value="1"{}> Board dizininde göster</label>
+<label class="admin-inline-checkbox"><input type="checkbox" name="show_on_catalog" value="1"{}> Katalogda göster</label>"#,
             if asset.show_on_index { " checked" } else { "" },
             if asset.show_on_catalog {
                 " checked"
@@ -582,13 +582,13 @@ fn render_banner_asset_row(
   <input type="hidden" name="_csrf" value="{csrf}">
   <input type="hidden" name="banner_id" value="{id}">
   <input type="hidden" name="direction" value="up">
-  <button type="submit">up</button>
+  <button type="submit">yukarı</button>
 </form>
 <form method="POST" action="/admin/banner/move" class="admin-inline-actions">
   <input type="hidden" name="_csrf" value="{csrf}">
   <input type="hidden" name="banner_id" value="{id}">
   <input type="hidden" name="direction" value="down">
-  <button type="submit">down</button>
+  <button type="submit">aşağı</button>
 </form>"#,
         csrf = escape_html(csrf_token),
         id = asset.id,
@@ -601,11 +601,11 @@ fn render_banner_asset_row(
     <input type="hidden" name="banner_id" value="{id}">
     {target_picker}
     <div class="admin-banner-toggle-group">
-      <label class="admin-inline-checkbox"><input type="checkbox" name="enabled" value="1"{enabled}> Enabled</label>
+      <label class="admin-inline-checkbox"><input type="checkbox" name="enabled" value="1"{enabled}> Etkin</label>
       {placement_controls}
     </div>
     <div class="admin-banner-form-actions">
-      <button type="submit">save banner</button>
+      <button type="submit">banner’ı kaydet</button>
     </div>
     <div class="admin-flash flash-error admin-banner-inline-warning" data-banner-warning hidden></div>
   </form>
@@ -614,11 +614,11 @@ fn render_banner_asset_row(
     <form method="POST" action="/admin/banner/delete" class="admin-inline-actions">
       <input type="hidden" name="_csrf" value="{csrf}">
       <input type="hidden" name="banner_id" value="{id}">
-      <button type="submit" class="btn-danger">delete</button>
+      <button type="submit" class="btn-danger">sil</button>
     </form>
   </div>
 </div>"#,
-        preview = banner_preview_html(asset, "banner preview"),
+        preview = banner_preview_html(asset, "banner önizlemesi"),
         csrf = escape_html(csrf_token),
         id = asset.id,
         target_picker = render_banner_target_picker(boards, asset.target_type, &asset.target_value),
@@ -653,8 +653,8 @@ fn render_board_favicon_controls(board: &Board, csrf_token: &str) -> String {
     format!(
         r#"<div class="admin-subsection">
   <div class="admin-card-header board-card-edge-header">
-    <h3>// favicon override</h3>
-    <p>Give /{short}/ its own icon without changing the global site favicon.</p>
+    <h3>// favicon geçersiz kılma</h3>
+    <p>/{short}/ için genel site favicon’ını değiştirmeden kendi simgesini ver.</p>
   </div>
   <div class="favicon-inline-row">
 {board_favicon_preview}
@@ -684,26 +684,26 @@ fn render_board_favicon_controls(board: &Board, csrf_token: &str) -> String {
             String::new()
         },
         board_favicon_label = if board_favicon_exists {
-            "replace favicon"
+            "favicon değiştir"
         } else {
-            "board favicon"
+            "board favicon’ı"
         },
         board_favicon_button = if board_favicon_exists {
-            "replace"
+            "değiştir"
         } else {
-            "upload"
+            "yükle"
         },
         board_favicon_status = if board_favicon_exists {
-            "Custom board favicon is active here and overrides the global favicon."
+            "Burada özel board favicon’ı etkin ve genel favicon’ı geçersiz kılıyor."
         } else {
-            "No board-specific favicon set. This board uses the global favicon."
+            "Board’e özel favicon ayarlanmadı. Bu board genel favicon’ı kullanıyor."
         },
         board_favicon_clear = if board_favicon_exists {
             format!(
                 r#"<form method="POST" action="/admin/board/favicon/clear" class="favicon-inline-clear">
   <input type="hidden" name="_csrf" value="{csrf}">
   <input type="hidden" name="board_id" value="{id}">
-  <button type="submit">clear</button>
+  <button type="submit">temizle</button>
 </form>"#,
                 csrf = escape_html(csrf_token),
                 id = board.id
@@ -726,16 +726,16 @@ fn render_board_banner_controls(
         csrf_token,
         boards,
         true,
-        "No board-specific banners uploaded yet.",
+        "Henüz board’e özel banner yüklenmedi.",
     );
     format!(
         r#"<div class="admin-subsection board-banner-settings-subsection">
   <div class="admin-card-header">
-    <h3>// board banner settings</h3>
-    <p>Add one or more banners for /{short}/. Uploading here switches this board to use its own banner set automatically.</p>
+    <h3>// board banner ayarları</h3>
+    <p>/{short}/ için bir ya da daha fazla banner ekle. Buraya yükleme yapmak bu board’ü otomatik olarak kendi banner setini kullanmaya geçirir.</p>
   </div>
   {upload_form}
-  <p class="admin-meta-note">Exact 468x60 aspect ratio required. Minimum 468x60, recommended 936x120. Uploads are converted to WebP.</p>
+  <p class="admin-meta-note">Tam 468x60 en boy oranı gerekir. En az 468x60, önerilen 936x120. Yüklemeler WebP’ye dönüştürülür.</p>
   {existing}
 </div>"#,
         short = escape_html(&board.short_name),
@@ -745,7 +745,7 @@ fn render_board_banner_controls(
             Some(board.id),
             boards,
             true,
-            "add board banner",
+            "board banner’ı ekle",
         ),
         existing = existing,
     )
@@ -759,12 +759,12 @@ fn render_board_backup_actions(board: &Board, csrf_token: &str) -> String {
     <input type="hidden" name="_csrf" value="{csrf}">
     <input type="hidden" name="board_short" value="{short}">
     <input type="hidden" name="download_after_create" value="1">
-    <button type="submit">&#8659; download /{short}/ backup</button>
+    <button type="submit">&#8659; /{short}/ yedeğini indir</button>
   </form>
   <form method="POST" action="/admin/board/backup/create" class="board-backup-create-form" data-board="{short}">
     <input type="hidden" name="_csrf" value="{csrf}">
     <input type="hidden" name="board_short" value="{short}">
-    <button type="submit">&#128190; save /{short}/ backup to server</button>
+    <button type="submit">&#128190; /{short}/ yedeğini sunucuya kaydet</button>
   </form>
 </div>"#,
         short = escape_html(&board.short_name),
@@ -804,7 +804,7 @@ fn render_board_settings_card(
         .is_some_and(|next| next.nsfw == board.nsfw);
     let any_files_toggle = if crate::config::CONFIG.enable_any_file_uploads_feature {
         format!(
-            r#"<label><input type="checkbox" name="allow_any_files" value="1"{}> Allow any file uploads</label>"#,
+            r#"<label><input type="checkbox" name="allow_any_files" value="1"{}> Her türlü dosya yüklemesine izin ver</label>"#,
             checked(board.allow_any_files)
         )
     } else {
@@ -827,14 +827,14 @@ fn render_board_settings_card(
   <input type="hidden" name="board_id" value="{id}">
   <input type="hidden" name="direction" value="up">
   <input type="hidden" name="return_to" value="/admin/panel#board-{short}">
-  <button type="submit"{move_up_disabled}>move up</button>
+  <button type="submit"{move_up_disabled}>yukarı taşı</button>
 </form>
 <form method="POST" action="/admin/board/reorder">
   <input type="hidden" name="_csrf" value="{csrf}">
   <input type="hidden" name="board_id" value="{id}">
   <input type="hidden" name="direction" value="down">
   <input type="hidden" name="return_to" value="/admin/panel#board-{short}">
-  <button type="submit"{move_down_disabled}>move down</button>
+  <button type="submit"{move_down_disabled}>aşağı taşı</button>
 </form>
 </div>
 <form method="POST" action="/admin/board/settings" class="board-settings-form" id="board-settings-form-{id}">
@@ -842,106 +842,106 @@ fn render_board_settings_card(
 <input type="hidden" name="board_id" value="{id}">
 <div class="admin-subsection">
   <div class="admin-card-header">
-    <h3>// basic setup</h3>
-    <p>Name, board grouping, thread limits, and archival behavior.</p>
+    <h3>// temel kurulum</h3>
+    <p>Ad, board gruplandırma, konu sınırları ve arşivleme davranışı.</p>
   </div>
   <div class="board-settings-grid">
-    <label>Name<input type="text" name="name" value="{name_raw}" maxlength="64" required></label>
-    <label>Description<input type="text" name="description" value="{desc_raw}" maxlength="256"></label>
-    <label>Bump limit<input type="number" name="bump_limit" value="{bump}" min="1" max="10000"></label>
-    <label>Max threads<input type="number" name="max_threads" value="{max_threads}" min="1" max="1000"></label>
-    <label>Max archived threads<input type="number" name="max_archived_threads" value="{max_archived_threads}" min="1" max="10000"></label>
+    <label>Ad<input type="text" name="name" value="{name_raw}" maxlength="64" required></label>
+    <label>Açıklama<input type="text" name="description" value="{desc_raw}" maxlength="256"></label>
+    <label>Yukarı çıkarma sınırı<input type="number" name="bump_limit" value="{bump}" min="1" max="10000"></label>
+    <label>En fazla konu<input type="number" name="max_threads" value="{max_threads}" min="1" max="1000"></label>
+    <label>En fazla arşivlenmiş konu<input type="number" name="max_archived_threads" value="{max_archived_threads}" min="1" max="10000"></label>
   </div>
   <div class="board-settings-checks">
     <label><input type="checkbox" name="nsfw" value="1"{nsfw_checked}> NSFW</label>
-    <label><input type="checkbox" name="allow_archive" value="1"{archive_checked}> Archive overflow threads</label>
+    <label><input type="checkbox" name="allow_archive" value="1"{archive_checked}> Taşan konuları arşivle</label>
   </div>
 </div>
 <div class="admin-subsection">
   <div class="admin-card-header">
-    <h3>// access &amp; anti-spam</h3>
-    <p>Choose who can read or post here, then set the board-specific friction controls.</p>
+    <h3>// erişim &amp; spam koruması</h3>
+    <p>Burayı kimlerin okuyabileceğini ve gönderebileceğini seç, sonra board’e özel sürtünme ayarlarını yap.</p>
   </div>
   <div class="board-settings-grid">
-    <label>Access mode
+    <label>Erişim kipi
       <select name="access_mode">
-        <option value="public"{access_public_selected}>Public</option>
-        <option value="view_password"{access_view_selected}>Password required to view board</option>
-        <option value="post_password"{access_post_selected}>Board is viewable, but posting requires a password</option>
+        <option value="public"{access_public_selected}>Herkese açık</option>
+        <option value="view_password"{access_view_selected}>Board’u görmek için parola gerekir</option>
+        <option value="post_password"{access_post_selected}>Board görülebilir, ancak gönderi için parola gerekir</option>
       </select>
     </label>
-    <label>Board password
+    <label>Board parolası
       <input type="password" name="access_password" maxlength="256" autocomplete="off" placeholder="{access_password_placeholder}">
       <span style="font-size:0.72rem;color:var(--text-dim)">{access_password_status}</span>
     </label>
-    <label title="Minimum seconds a user must wait between posts on this board. 0 = no cooldown.">
-      Post cooldown (s)<input type="number" name="post_cooldown_secs" value="{cooldown}" min="0" max="3600">
+    <label title="Bir kullanıcının bu board’de gönderiler arasında beklemesi gereken en az saniye. 0 = bekleme yok.">
+      Gönderi bekleme süresi (sn)<input type="number" name="post_cooldown_secs" value="{cooldown}" min="0" max="3600">
     </label>
   </div>
   <div class="board-settings-checks">
-    <label><input type="checkbox" name="clear_access_password" value="1"> Remove saved password</label>
-    <label><input type="checkbox" name="allow_captcha" value="1"{captcha_checked}> CAPTCHA on threads and replies
-      <span class="admin-quick-help">Enabling this makes posting require JavaScript on this board.</span>
+    <label><input type="checkbox" name="clear_access_password" value="1"> Kayıtlı parolayı kaldır</label>
+    <label><input type="checkbox" name="allow_captcha" value="1"{captcha_checked}> Konu ve yanıtlarda CAPTCHA
+      <span class="admin-quick-help">Bunu açmak, bu board’de gönderi yapmayı JavaScript’e bağımlı hâle getirir.</span>
     </label>
   </div>
 </div>
 <div class="admin-subsection">
   <div class="admin-card-header">
-    <h3>// uploads &amp; post features</h3>
-    <p>Control accepted media types, per-board upload caps, poster identity tools, embeds, and editing behavior.</p>
+    <h3>// yüklemeler &amp; gönderi özellikleri</h3>
+    <p>Kabul edilen medya türlerini, board başına yükleme sınırlarını, gönderen kimlik araçlarını, gömüleri ve düzenleme davranışını yönet.</p>
   </div>
   <div class="board-settings-grid">
-    <label title="Per-board image upload size cap in MiB.">
-      Image size limit (MiB)<input type="number" name="max_image_size_mb" value="{max_image_size_mb}" min="1">
+    <label title="Board başına görsel yükleme boyut sınırı (MiB).">
+      Görsel boyut sınırı (MiB)<input type="number" name="max_image_size_mb" value="{max_image_size_mb}" min="1">
     </label>
-    <label title="Per-board video upload size cap in MiB.">
-      Video size limit (MiB)<input type="number" name="max_video_size_mb" value="{max_video_size_mb}" min="1">
+    <label title="Board başına video yükleme boyut sınırı (MiB).">
+      Video boyut sınırı (MiB)<input type="number" name="max_video_size_mb" value="{max_video_size_mb}" min="1">
     </label>
-    <label title="Per-board audio upload size cap in MiB.">
-      Audio size limit (MiB)<input type="number" name="max_audio_size_mb" value="{max_audio_size_mb}" min="1">
+    <label title="Board başına ses yükleme boyut sınırı (MiB).">
+      Ses boyut sınırı (MiB)<input type="number" name="max_audio_size_mb" value="{max_audio_size_mb}" min="1">
     </label>
-    <label title="Per-board PDF upload size cap in MiB.">
-      PDF size limit (MiB)<input type="number" name="max_pdf_size_mb" value="{max_pdf_size_mb}" min="1">
+    <label title="Board başına PDF yükleme boyut sınırı (MiB).">
+      PDF boyut sınırı (MiB)<input type="number" name="max_pdf_size_mb" value="{max_pdf_size_mb}" min="1">
     </label>
   </div>
-  <p class="admin-meta-note">PDF uploads use the PDF cap. Any-file uploads use the largest configured cap for this board.</p>
+  <p class="admin-meta-note">PDF yüklemeleri PDF sınırını kullanır. Her türlü dosya yüklemeleri bu board için yapılandırılmış en büyük sınırı kullanır.</p>
   <div class="board-settings-checks">
-    <label><input type="checkbox" name="allow_images" value="1"{images_checked}> Allow images</label>
-    <label><input type="checkbox" name="allow_video" value="1"{video_checked}> Allow video</label>
-    <label><input type="checkbox" name="allow_audio" value="1"{audio_checked}> Allow audio</label>
-    <label><input type="checkbox" name="allow_pdf" value="1"{pdf_checked}> Allow PDF uploads</label>
+    <label><input type="checkbox" name="allow_images" value="1"{images_checked}> Görsellere izin ver</label>
+    <label><input type="checkbox" name="allow_video" value="1"{video_checked}> Videoya izin ver</label>
+    <label><input type="checkbox" name="allow_audio" value="1"{audio_checked}> Sese izin ver</label>
+    <label><input type="checkbox" name="allow_pdf" value="1"{pdf_checked}> PDF yüklemelerine izin ver</label>
     {any_files_toggle}
-    <label><input type="checkbox" name="allow_tripcodes" value="1"{tripcodes_checked}> Allow tripcodes</label>
-    <label><input type="checkbox" name="allow_video_embeds" value="1"{video_embeds_checked}> Embed video links (YouTube)</label>
-    <label><input type="checkbox" name="show_poster_ids" value="1"{poster_ids_checked}> Show thread-local poster IDs</label>
-    <label title="When enabled, 3 or more consecutive greentext lines are wrapped in a collapsible block for this board. Existing posts are not affected.">
-      <input type="checkbox" name="collapse_greentext" value="1"{collapse_greentext_checked}> Collapse long greentext
+    <label><input type="checkbox" name="allow_tripcodes" value="1"{tripcodes_checked}> Tripcode’lara izin ver</label>
+    <label><input type="checkbox" name="allow_video_embeds" value="1"{video_embeds_checked}> Video bağlantılarını göm (YouTube)</label>
+    <label><input type="checkbox" name="show_poster_ids" value="1"{poster_ids_checked}> Konuya özel gönderen kimliklerini göster</label>
+    <label title="Etkinleştirildiğinde, bu board için art arda 3 veya daha fazla greentext satırı katlanabilir bir blok içine alınır. Mevcut gönderiler etkilenmez.">
+      <input type="checkbox" name="collapse_greentext" value="1"{collapse_greentext_checked}> Uzun greentext’i katlanabilir yap
     </label>
-    <label><input type="checkbox" name="allow_editing" value="1"{allow_editing_checked}> Allow users to edit their own posts during the 60-second grace window</label>
-    <label><input type="checkbox" name="allow_self_delete" value="1"{allow_self_delete_checked}> Allow users to delete their own posts during the 60-second grace window</label>
+    <label><input type="checkbox" name="allow_editing" value="1"{allow_editing_checked}> Kullanıcıların 60 saniyelik süre içinde kendi gönderilerini düzenlemesine izin ver</label>
+    <label><input type="checkbox" name="allow_self_delete" value="1"{allow_self_delete_checked}> Kullanıcıların 60 saniyelik süre içinde kendi gönderilerini silmesine izin ver</label>
   </div>
 </div>
 <div class="admin-subsection">
   <div class="admin-card-header">
-    <h3>// save board management</h3>
-    <p>Appearance controls, board banners, and board backup actions now live in their own sections.</p>
+    <h3>// board yönetimini kaydet</h3>
+    <p>Görünüm kontrolleri, board bannerları ve board yedekleme işlemleri artık kendi bölümlerinde.</p>
   </div>
   <div class="board-settings-actions">
-    <button type="submit">save settings</button>
+    <button type="submit">ayarları kaydet</button>
   </div>
 </div>
 </form>
 <div class="admin-subsection">
   <div class="admin-card-header board-card-edge-header">
-    <h3>// danger zone</h3>
-    <p>Permanent board deletion stays separate from routine maintenance tools.</p>
+    <h3>// tehlikeli bölge</h3>
+    <p>Kalıcı board silme, rutin bakım araçlarından ayrı tutulur.</p>
   </div>
   <div class="board-card-footer-actions">
   <form method="POST" action="/admin/board/delete">
     <input type="hidden" name="_csrf" value="{csrf}">
     <input type="hidden" name="board_id" value="{id}">
     <button type="submit" class="btn-danger"
-            data-confirm="Delete /{short}/ and ALL its content?">delete board</button>
+            data-confirm="/{short}/ ve TÜM içeriği silinsin mi?">board’u sil</button>
   </form>
 </div>
 </div>
@@ -956,10 +956,10 @@ fn render_board_settings_card(
         access_tag = match board.access_mode {
             crate::models::BoardAccessMode::Public => "",
             crate::models::BoardAccessMode::ViewPassword => {
-                r#" <span class="tag locked">PASSWORD</span>"#
+                r#" <span class="tag locked">PAROLA</span>"#
             }
             crate::models::BoardAccessMode::PostPassword => {
-                r#" <span class="tag sticky">POST PASSWORD</span>"#
+                r#" <span class="tag sticky">GÖNDERİ PAROLASI</span>"#
             }
         },
         group_gap = if index > 0 && board.nsfw && !prev_same_group {
@@ -1003,16 +1003,16 @@ fn render_board_settings_card(
             ""
         },
         access_password_placeholder = if board.access_password_hash.is_empty() {
-            "set a board password"
+            "board parolası belirle"
         } else {
-            "leave blank to keep current password"
+            "mevcut parolayı korumak için boş bırak"
         },
         access_password_status = if board.access_password_hash.is_empty() {
-            "No board password is currently saved."
+            "Şu anda kayıtlı bir board parolası yok."
         } else if matches!(board.access_mode, crate::models::BoardAccessMode::Public) {
-            "A password is saved but unused while this board is public."
+            "Bir parola kayıtlı, ancak bu board herkese açıkken kullanılmıyor."
         } else {
-            "A password is saved. Leave blank to keep it."
+            "Bir parola kayıtlı. Korumak için boş bırak."
         },
         cooldown = board.post_cooldown_secs,
         captcha_checked = checked(board.allow_captcha),
@@ -1073,26 +1073,26 @@ fn render_board_appearance_card(
 <summary>/{short}/ — {name} {nsfw_tag}</summary>
 <div class="admin-subsection board-appearance-settings-subsection">
   <div class="admin-card-header board-card-edge-header">
-    <h3>// board appearance</h3>
-    <p>Theme selection, banner mode, favicon overrides, and board-specific banners live here.</p>
+    <h3>// board görünümü</h3>
+    <p>Tema seçimi, banner kipi, favicon geçersiz kılmaları ve board’e özel bannerlar burada.</p>
   </div>
   <div class="board-settings-grid">
-    <label class="board-settings-field-compact">Board default theme
+    <label class="board-settings-field-compact">Board varsayılan teması
       <select name="default_theme" form="{form_id}">
-        <option value=""{inherit_theme_selected}>Inherit site default</option>
+        <option value=""{inherit_theme_selected}>Site varsayılanını kullan</option>
         {board_theme_options}
       </select>
     </label>
-    <label class="board-settings-field-compact">Board banner mode
+    <label class="board-settings-field-compact">Board banner kipi
       <select name="banner_mode" form="{form_id}">
-        <option value="inherit"{banner_inherit_selected}>Rotate site-wide board banners</option>
-        <option value="none"{banner_none_selected}>Hide banners on this board</option>
-        <option value="override"{banner_override_selected}>Use this board's own banners</option>
+        <option value="inherit"{banner_inherit_selected}>Site genelindeki board bannerlarını döndür</option>
+        <option value="none"{banner_none_selected}>Bu board’da bannerları gizle</option>
+        <option value="override"{banner_override_selected}>Bu board’un kendi bannerlarını kullan</option>
       </select>
     </label>
   </div>
   <div class="board-settings-actions">
-    <button type="submit" form="{form_id}">save board appearance</button>
+    <button type="submit" form="{form_id}">board görünümünü kaydet</button>
   </div>
 </div>
 {board_favicon_controls}
@@ -1147,8 +1147,8 @@ fn render_board_backup_card(board: &Board, csrf_token: &str, open_section: Optio
 <summary>/{short}/ — {name}</summary>
 <div class="admin-subsection">
   <div class="admin-card-header board-card-edge-header">
-    <h3>// board backup tools</h3>
-    <p>Create a fresh board-only package for immediate download or save one to the server for later restores.</p>
+    <h3>// board yedekleme araçları</h3>
+    <p>Hemen indirmek için yeni bir board paketi oluştur ya da sonraki geri yüklemeler için bir tane sunucuya kaydet.</p>
   </div>
   {board_backup_actions}
 </div>
@@ -1178,7 +1178,7 @@ pub fn mod_log_page(
 ) -> String {
     let mut rows = String::new();
     if entries.is_empty() {
-        rows.push_str(r#"<tr><td colspan="6" style="color:var(--text-dim);text-align:center">no entries yet</td></tr>"#);
+        rows.push_str(r#"<tr><td colspan="6" style="color:var(--text-dim);text-align:center">henüz kayıt yok</td></tr>"#);
     }
     for e in entries {
         let target = e.target_id.map_or_else(
@@ -1215,14 +1215,14 @@ pub fn mod_log_page(
     let body = format!(
         r#"<div class="page-box">
 <div class="board-header">
-  <a href="/admin/panel">[ back to panel ]</a>
-  <h2 style="margin:0.5rem 0 0.25rem">// moderation log</h2>
-  <p style="color:var(--text-dim);font-size:0.82rem">{total} total entries</p>
+  <a href="/admin/panel">[ panele dön ]</a>
+  <h2 style="margin:0.5rem 0 0.25rem">// moderasyon kaydı</h2>
+  <p style="color:var(--text-dim);font-size:0.82rem">toplam {total} kayıt</p>
 </div>
 <div class="admin-table-wrap">
 <table class="admin-table" style="width:100%;font-size:0.85rem">
 <thead><tr>
-  <th>time</th><th>admin</th><th>action</th><th>target</th><th>board</th><th>detail</th>
+  <th>zaman</th><th>yönetici</th><th>eylem</th><th>hedef</th><th>board</th><th>ayrıntı</th>
 </tr></thead>
 <tbody>{rows}</tbody>
 </table>
@@ -1235,7 +1235,7 @@ pub fn mod_log_page(
     );
 
     base_layout(
-        "mod log — admin",
+        "moderasyon kaydı — yönetici",
         None,
         &body,
         csrf_token,
@@ -1269,20 +1269,20 @@ pub fn admin_vacuum_result_page(
 
     let body = format!(
         r#"<div class="admin-panel">
-<h1>[ VACUUM complete ]</h1>
+<h1>[ VACUUM tamamlandı ]</h1>
 <section class="admin-section">
-<h2>// result</h2>
+<h2>// sonuç</h2>
 <div class="admin-table-wrap admin-table-wrap-compact">
 <table class="admin-table admin-result-table">
 <tbody>
-  <tr><td>Before</td><td><strong>{before}</strong></td></tr>
-  <tr><td>After</td><td><strong>{after}</strong></td></tr>
-  <tr><td>Reclaimed</td><td><strong class="admin-status-ok">{saved}</strong> ({pct}%)</td></tr>
+  <tr><td>Önce</td><td><strong>{before}</strong></td></tr>
+  <tr><td>Sonra</td><td><strong>{after}</strong></td></tr>
+  <tr><td>Geri kazanılan</td><td><strong class="admin-status-ok">{saved}</strong> (%{pct})</td></tr>
 </tbody>
 </table>
 </div>
 <p class="admin-result-actions">
-  <a href="/admin/panel">&#8592; back to admin panel</a>
+  <a href="/admin/panel">&#8592; admin paneline dön</a>
 </p>
 </section>
 </div>"#,
@@ -1319,43 +1319,43 @@ pub fn admin_db_health_result_page(
     current_theme: Option<&str>,
 ) -> String {
     let title = if attempted_repair {
-        "[ database repair ]"
+        "[ veritabanı onarımı ]"
     } else {
-        "[ database check ]"
+        "[ veritabanı denetimi ]"
     };
     let status_line = if attempted_repair {
         if report.repair_backup_error.is_some() {
-            r#"<p class="error">Repair was not run because the pre-repair backup failed.</p>"#
+            r#"<p class="error">Onarım öncesi yedekleme başarısız olduğu için onarım çalıştırılmadı.</p>"#
         } else {
             match report.after.as_ref().map(crate::db::DbHealthSnapshot::ok) {
                 Some(true) => {
-                    r#"<p class="admin-result-status admin-status-ok">Maintenance completed. Database health checks passed afterward.</p>"#
+                    r#"<p class="admin-result-status admin-status-ok">Bakım tamamlandı. Sonrasında veritabanı sağlık denetimleri geçti.</p>"#
                 }
                 Some(false) => {
-                    r#"<p class="error">Repair finished, but the database still reports a problem. Restoring a known-good full backup is recommended.</p>"#
+                    r#"<p class="error">Onarım bitti, ancak veritabanı hâlâ bir sorun bildiriyor. Bilinen sağlam bir tam yedeğin geri yüklenmesi önerilir.</p>"#
                 }
                 None => {
-                    r#"<p class="error">Repair finished, but no final health result was produced.</p>"#
+                    r#"<p class="error">Onarım bitti, ancak nihai bir sağlık sonucu üretilmedi.</p>"#
                 }
             }
         }
     } else if report.before.ok() {
-        r#"<p class="admin-result-status admin-status-ok">Database health checks passed.</p>"#
+        r#"<p class="admin-result-status admin-status-ok">Veritabanı sağlık denetimleri geçti.</p>"#
     } else {
-        r#"<p class="error">Database health checks found a problem.</p>"#
+        r#"<p class="error">Veritabanı sağlık denetimleri bir sorun buldu.</p>"#
     };
     let repair_action = if attempted_repair {
         String::new()
     } else {
         let (label, confirm) = if report.before.ok() {
             (
-                "&#x1F6E0; run maintenance rebuild",
-                "Run maintenance rebuild? This will create a Backup v4 DB + config pre-maintenance backup, then run REINDEX, rebuild the search index, recreate its triggers, and optimize SQLite statistics. Continue?",
+                "&#x1F6E0; bakım yeniden oluşturmayı çalıştır",
+                "Bakım yeniden oluşturması çalıştırılsın mı? Bu işlem bakım öncesi bir Backup v4 veritabanı + yapılandırma yedeği oluşturur, ardından REINDEX çalıştırır, arama dizinini yeniden kurar, tetikleyicilerini yeniden oluşturur ve SQLite istatistiklerini optimize eder. Devam edilsin mi?",
             )
         } else {
             (
-                "&#x1F6E0; attempt repair",
-                "Attempt database repair? This will create a Backup v4 DB + config pre-maintenance backup, then run integrity checks, REINDEX, and rebuild the search index. It may not fix true file corruption. Continue?",
+                "&#x1F6E0; onarım dene",
+                "Veritabanı onarımı denensin mi? Bu işlem bakım öncesi bir Backup v4 veritabanı + yapılandırma yedeği oluşturur, ardından bütünlük denetimlerini, REINDEX’i çalıştırır ve arama dizinini yeniden kurar. Gerçek dosya bozulmalarını düzeltmeyebilir. Devam edilsin mi?",
             )
         };
         format!(
@@ -1373,7 +1373,7 @@ pub fn admin_db_health_result_page(
     let mut repair_summary_html = String::new();
     if report.repair_summary.is_empty() {
         repair_summary_html
-            .push_str(r#"<li class="admin-muted-list-item">No repairs were run.</li>"#);
+            .push_str(r#"<li class="admin-muted-list-item">Hiçbir onarım çalıştırılmadı.</li>"#);
     } else {
         for line in &report.repair_summary {
             let _ = write!(
@@ -1387,7 +1387,7 @@ pub fn admin_db_health_result_page(
     let mut repair_steps_html = String::new();
     if report.repair_steps.is_empty() {
         repair_steps_html
-            .push_str(r#"<li class="admin-muted-list-item">No maintenance steps were run.</li>"#);
+            .push_str(r#"<li class="admin-muted-list-item">Hiçbir bakım adımı çalıştırılmadı.</li>"#);
     } else {
         for step in &report.repair_steps {
             let _ = write!(
@@ -1401,10 +1401,10 @@ pub fn admin_db_health_result_page(
     let backup_html = report.repair_backup.as_ref().map_or_else(
         || {
             report.repair_backup_error.as_ref().map_or_else(
-                || r"<p><strong>Pre-repair backup:</strong> Not run</p>".to_owned(),
+                || r"<p><strong>Onarım öncesi yedek:</strong> Çalıştırılmadı</p>".to_owned(),
                 |error| {
                     format!(
-                        r#"<p><strong>Pre-repair backup:</strong> <span class="admin-status-error">Failed</span> <code>{}</code></p>"#,
+                        r#"<p><strong>Onarım öncesi yedek:</strong> <span class="admin-status-error">Başarısız</span> <code>{}</code></p>"#,
                         escape_html(error)
                     )
                 },
@@ -1412,20 +1412,20 @@ pub fn admin_db_health_result_page(
         },
         |backup| {
             format!(
-                r"<p><strong>Pre-repair backup:</strong> <code>{}</code></p>
-<p><strong>Pre-repair backup type:</strong> {}</p>
-<p><strong>Verification status:</strong> {}</p>
-<p><strong>Backup path:</strong> <code>{}</code></p>",
+                r"<p><strong>Onarım öncesi yedek:</strong> <code>{}</code></p>
+<p><strong>Onarım öncesi yedek türü:</strong> {}</p>
+<p><strong>Doğrulama durumu:</strong> {}</p>
+<p><strong>Yedek yolu:</strong> <code>{}</code></p>",
                 escape_html(&backup.backup_id),
                 escape_html(&backup.backup_type),
-                if backup.verified { "Verified" } else { "Unverified" },
+                if backup.verified { "Doğrulandı" } else { "Doğrulanmadı" },
                 escape_html(&backup.backup_path)
             )
         },
     );
     let before_checks_html = render_db_health_snapshot(&report.before);
     let after_checks_html = report.after.as_ref().map_or_else(
-        || r"<p><strong>After:</strong> Not run</p>".to_owned(),
+        || r"<p><strong>Sonra:</strong> Çalıştırılmadı</p>".to_owned(),
         render_db_health_snapshot,
     );
 
@@ -1433,52 +1433,52 @@ pub fn admin_db_health_result_page(
         r#"<div class="admin-panel">
 <h1>{title}</h1>
 <section class="admin-section">
-<h2>// summary</h2>
+<h2>// özet</h2>
 {status_line}
 <div class="admin-result-card">
-<p><strong>Before:</strong> {before_status}</p>
+<p><strong>Önce:</strong> {before_status}</p>
 {before_checks}
-<p><strong>Repair run:</strong> {repair_attempted}</p>
+<p><strong>Onarım çalıştı mı:</strong> {repair_attempted}</p>
 {repair_job_id_html}
 {backup}
-<p><strong>After:</strong> {after_status}</p>
+<p><strong>Sonra:</strong> {after_status}</p>
 {after_checks}
 </div>
-<h2 class="admin-result-heading">// repair outcome</h2>
+<h2 class="admin-result-heading">// onarım sonucu</h2>
 <ul class="admin-result-list">
 {repair_summary}
 </ul>
-<h2 class="admin-result-heading">// maintenance actions run</h2>
+<h2 class="admin-result-heading">// çalıştırılan bakım işlemleri</h2>
 <ul class="admin-result-list">
 {repair_steps}
 </ul>
 {repair_action}
 <p class="admin-result-note">
-  Run checks after restores or large deletes. Take a backup before repair; this repair flow now creates a Backup v4 DB + config pre-maintenance snapshot before making changes.
-  This tool can repair index and search-index issues, but true SQLite file corruption may still require restoring a known-good backup.
+  Geri yükleme veya büyük silme işlemlerinden sonra denetimleri çalıştır. Onarımdan önce yedek al; bu onarım akışı artık değişikliklere başlamadan önce bir Backup v4 veritabanı + yapılandırma bakım öncesi anlık görüntüsü oluşturur.
+  Bu araç dizin ve arama dizini sorunlarını onarabilir, ancak gerçek SQLite dosya bozulmaları için hâlâ bilinen sağlam bir yedeğin geri yüklenmesi gerekebilir.
 </p>
 <p class="admin-result-actions">
-  <a href="/admin/panel">&#8592; back to admin panel</a>
+  <a href="/admin/panel">&#8592; admin paneline dön</a>
 </p>
 </section>
 </div>"#,
         title = title,
         status_line = status_line,
         before_status = if report.before.ok() {
-            r#"<span class="admin-status-ok">Passed</span>"#
+            r#"<span class="admin-status-ok">Geçti</span>"#
         } else {
-            r#"<span class="admin-status-error">Problem found</span>"#
+            r#"<span class="admin-status-error">Sorun bulundu</span>"#
         },
         before_checks = before_checks_html,
-        repair_attempted = if report.repair_attempted { "Yes" } else { "No" },
+        repair_attempted = if report.repair_attempted { "Evet" } else { "Hayır" },
         repair_job_id_html = repair_job_id.map_or_else(String::new, |job_id| {
-            format!(r"<p><strong>Run id:</strong> <code>{job_id}</code></p>")
+            format!(r"<p><strong>Çalıştırma kimliği:</strong> <code>{job_id}</code></p>")
         }),
         backup = backup_html,
         after_status = match report.after.as_ref().map(crate::db::DbHealthSnapshot::ok) {
-            Some(true) => r#"<span class="admin-status-ok">Passed</span>"#,
-            Some(false) => r#"<span class="admin-status-error">Problem found</span>"#,
-            None => "Not run",
+            Some(true) => r#"<span class="admin-status-ok">Geçti</span>"#,
+            Some(false) => r#"<span class="admin-status-error">Sorun bulundu</span>"#,
+            None => "Çalıştırılmadı",
         },
         after_checks = after_checks_html,
         repair_summary = repair_summary_html,
@@ -1487,7 +1487,7 @@ pub fn admin_db_health_result_page(
     );
 
     base_layout(
-        "Database health",
+        "Veritabanı sağlığı",
         None,
         &body,
         csrf_token,
@@ -1503,21 +1503,21 @@ pub fn admin_db_health_result_page(
 /// Renders the database-repair status page when no job is active.
 pub fn admin_db_repair_idle_page(csrf_token: &str, current_theme: Option<&str>) -> String {
     let body = r#"<div class="admin-panel">
-<h1>[ database repair ]</h1>
+<h1>[ veritabanı onarımı ]</h1>
 <section class="admin-section">
-<h2>// maintenance rebuild</h2>
+<h2>// bakım yeniden oluşturma</h2>
 <div class="admin-result-card">
-<p>No maintenance rebuild is running.</p>
-<p class="admin-meta-note">Start a new maintenance rebuild from the admin panel when you need to create a backup and rebuild indexes.</p>
+<p>Çalışan bir bakım yeniden oluşturma yok.</p>
+<p class="admin-meta-note">Yedek oluşturup dizinleri yeniden kurman gerektiğinde admin panelinden yeni bir bakım yeniden oluşturması başlat.</p>
 </div>
 <p class="admin-result-actions">
-  <a href="/admin/panel">&#8592; back to admin panel</a>
+  <a href="/admin/panel">&#8592; admin paneline dön</a>
 </p>
 </section>
 </div>"#.to_owned();
 
     base_layout(
-        "Database repair",
+        "Veritabanı onarımı",
         None,
         &body,
         csrf_token,
@@ -1541,26 +1541,26 @@ pub fn admin_db_repair_running_page(
     let status_url = format!("/admin/db/repair/status?job_id={job_id}");
     let body = format!(
         r#"<div class="admin-panel">
-<h1>[ database repair ]</h1>
+<h1>[ veritabanı onarımı ]</h1>
 <section class="admin-section">
-<h2>// maintenance rebuild running</h2>
+<h2>// bakım yeniden oluşturma çalışıyor</h2>
 <div class="admin-result-card">
-<p>Maintenance rebuild started at <code>{started_at}</code>.</p>
+<p>Bakım yeniden oluşturması <code>{started_at}</code> tarihinde başladı.</p>
 <div class="compress-progress admin-progress-spaced" data-db-repair-progress data-db-repair-job-id="{job_id}" data-db-repair-progress-url="{progress_url}">
   <div class="compress-progress-track"><div class="compress-progress-bar admin-progress-bar-start" data-db-repair-progress-bar></div></div>
-  <div class="compress-progress-text" data-db-repair-progress-text>Starting maintenance rebuild...</div>
+  <div class="compress-progress-text" data-db-repair-progress-text>Bakım yeniden oluşturması başlatılıyor...</div>
 </div>
-<p class="admin-meta-note">This page updates live while the backup and database rebuild finish.</p>
+<p class="admin-meta-note">Bu sayfa, yedekleme ve veritabanı yeniden oluşturma tamamlanana kadar canlı olarak güncellenir.</p>
 </div>
 <p class="admin-result-actions">
-  <a href="{status_url}">refresh status</a> · <a href="/admin/panel">back to admin panel</a>
+  <a href="{status_url}">durumu yenile</a> · <a href="/admin/panel">admin paneline dön</a>
 </p>
 </section>
 </div>"#
     );
 
     base_layout(
-        "Database repair running",
+        "Veritabanı onarımı çalışıyor",
         None,
         &body,
         csrf_token,
@@ -1582,30 +1582,30 @@ pub fn admin_db_repair_stale_page(
 ) -> String {
     let body = format!(
         r#"<div class="admin-panel">
-<h1>[ database repair ]</h1>
+<h1>[ veritabanı onarımı ]</h1>
 <section class="admin-section">
-<h2>// maintenance rebuild status</h2>
+<h2>// bakım yeniden oluşturma durumu</h2>
 <div class="admin-result-card">
-<p class="error">This page is for maintenance rebuild <code>{requested_job_id}</code>, but that run is no longer the current status.</p>
+<p class="error">Bu sayfa <code>{requested_job_id}</code> bakım yeniden oluşturması içindir, ancak o çalıştırma artık güncel durum değil.</p>
 {current_job_html}
 </div>
 <p class="admin-result-actions">
-  <a href="/admin/db/repair/status">current status</a> · <a href="/admin/panel">back to admin panel</a>
+  <a href="/admin/db/repair/status">güncel durum</a> · <a href="/admin/panel">admin paneline dön</a>
 </p>
 </section>
 </div>"#,
         current_job_html = current_job_id.map_or_else(
-            || "<p>No maintenance rebuild is currently active.</p>".to_owned(),
+            || "<p>Şu anda etkin bir bakım yeniden oluşturma yok.</p>".to_owned(),
             |job_id| {
                 format!(
-                    r#"<p>The current maintenance rebuild is <code>{job_id}</code>. <a href="/admin/db/repair/status?job_id={job_id}">Open that status page.</a></p>"#
+                    r#"<p>Güncel bakım yeniden oluşturması <code>{job_id}</code>. <a href="/admin/db/repair/status?job_id={job_id}">Bu durum sayfasını aç.</a></p>"#
                 )
             }
         ),
     );
 
     base_layout(
-        "Database repair status",
+        "Veritabanı onarımı durumu",
         None,
         &body,
         csrf_token,
@@ -1628,17 +1628,17 @@ pub fn admin_db_repair_failed_page(
 ) -> String {
     let body = format!(
         r#"<div class="admin-panel">
-<h1>[ database repair ]</h1>
+<h1>[ veritabanı onarımı ]</h1>
 <section class="admin-section">
-<h2>// maintenance rebuild failed</h2>
+<h2>// bakım yeniden oluşturma başarısız</h2>
 <div class="admin-result-card">
-<p class="error">The background maintenance rebuild failed.</p>
-<p><strong>Run id:</strong> <code>{job_id}</code></p>
-<p><strong>Finished:</strong> <code>{finished_at}</code></p>
-<p><strong>Error:</strong> <code>{message}</code></p>
+<p class="error">Arka plandaki bakım yeniden oluşturması başarısız oldu.</p>
+<p><strong>Çalıştırma kimliği:</strong> <code>{job_id}</code></p>
+<p><strong>Bitiş:</strong> <code>{finished_at}</code></p>
+<p><strong>Hata:</strong> <code>{message}</code></p>
 </div>
 <p class="admin-result-actions">
-  <a href="/admin/panel">&#8592; back to admin panel</a>
+  <a href="/admin/panel">&#8592; admin paneline dön</a>
 </p>
 </section>
 </div>"#,
@@ -1647,7 +1647,7 @@ pub fn admin_db_repair_failed_page(
     );
 
     base_layout(
-        "Database repair failed",
+        "Veritabanı onarımı başarısız",
         None,
         &body,
         csrf_token,
@@ -1663,18 +1663,18 @@ pub fn admin_db_repair_failed_page(
 fn render_db_health_snapshot(snapshot: &crate::db::DbHealthSnapshot) -> String {
     format!(
         "{schema}{integrity}{foreign_keys}",
-        schema = render_db_check_result("schema baseline", &snapshot.schema),
-        integrity = render_db_check_result("integrity check", &snapshot.integrity),
-        foreign_keys = render_db_check_result("foreign key check", &snapshot.foreign_keys),
+        schema = render_db_check_result("şema taban çizgisi", &snapshot.schema),
+        integrity = render_db_check_result("bütünlük denetimi", &snapshot.integrity),
+        foreign_keys = render_db_check_result("yabancı anahtar denetimi", &snapshot.foreign_keys),
     )
 }
 
 /// Renders one database check and its detailed output when needed.
 fn render_db_check_result(label: &str, result: &crate::db::DbCheckResult) -> String {
     let status = if result.ok {
-        r#"<span class="admin-status-ok">Passed</span>"#
+        r#"<span class="admin-status-ok">Geçti</span>"#
     } else {
-        r#"<span class="admin-status-error">Problem found</span>"#
+        r#"<span class="admin-status-error">Sorun bulundu</span>"#
     };
     let output = result.output();
     if result.ok || result.messages.len() <= 1 {
@@ -1687,9 +1687,9 @@ fn render_db_check_result(label: &str, result: &crate::db::DbCheckResult) -> Str
     }
 
     format!(
-        r#"<p><strong>{label}:</strong> {status}. Found {count} issues.</p>
+        r#"<p><strong>{label}:</strong> {status}. {count} sorun bulundu.</p>
 <details class="admin-result-details">
-  <summary>show full {label} output</summary>
+  <summary>{label} çıktısının tamamını göster</summary>
   <pre>{output}</pre>
 </details>"#,
         label = label,
@@ -1792,7 +1792,7 @@ pub fn admin_ip_history_page(
 <input type="hidden" name="post_id" value="{pid}">
 <input type="hidden" name="board"   value="{board}">
 <button type="submit" class="admin-del-btn"
-        data-confirm="Admin delete post No.{pid}?">&#x2715;</button>
+        data-confirm="Yönetici olarak No.{pid} gönderisini sil?">&#x2715;</button>
 </form>"#,
             csrf = escape_html(csrf_token),
             pid = post.id,
@@ -1803,18 +1803,18 @@ pub fn admin_ip_history_page(
                 r#"<button type="button" class="admin-toolbar-btn" data-action="open-report"
         data-pid="{pid}" data-tid="{tid}" data-board="{board}" data-csrf="{csrf}"
         data-report-action="/admin/ip/report" data-report-ip-hash="{ip_hash}"
-        data-report-title="Report Hashed IP Post"
-        data-report-submit-label="Submit Admin Report"
+        data-report-title="Hash’lenmiş IP gönderisini şikayet et"
+        data-report-submit-label="Yönetici şikayetini gönder"
         data-report-reason-required="1"
-        data-report-label="Report post No.{pid} for hashed IP {ip_hash}">report</button>
+        data-report-label="Hash’lenmiş IP {ip_hash} için No.{pid} gönderisini şikayet et">şikayet et</button>
 <noscript><form method="POST" action="/admin/ip/report" class="admin-ip-report-fallback">
   <input type="hidden" name="_csrf" value="{csrf}">
   <input type="hidden" name="post_id" value="{pid}">
   <input type="hidden" name="thread_id" value="{tid}">
   <input type="hidden" name="board" value="{board}">
   <input type="hidden" name="ip_hash" value="{ip_hash}">
-  <label>Report reason<input type="text" name="reason" required maxlength="512"></label>
-  <button type="submit" class="admin-toolbar-btn">report</button>
+  <label>Şikayet nedeni<input type="text" name="reason" required maxlength="512"></label>
+  <button type="submit" class="admin-toolbar-btn">şikayet et</button>
 </form></noscript>"#,
                 csrf = escape_html(csrf_token),
                 pid = post.id,
@@ -1852,7 +1852,7 @@ pub fn admin_ip_history_page(
         let mut parts = Vec::new();
         if !seen_names.is_empty() {
             parts.push(format!(
-                "names: {}",
+                "adlar: {}",
                 seen_names
                     .iter()
                     .map(|name| format!(r"<code>{}</code>", escape_html(name)))
@@ -1862,7 +1862,7 @@ pub fn admin_ip_history_page(
         }
         if !seen_tripcodes.is_empty() {
             parts.push(format!(
-                "tripcodes: {}",
+                "tripcode’lar: {}",
                 seen_tripcodes
                     .iter()
                     .map(|tripcode| format!(r"<code>{}</code>", escape_html(tripcode)))
@@ -1872,7 +1872,7 @@ pub fn admin_ip_history_page(
         }
         if parts.is_empty() {
             String::from(
-                r#"<span style="color:var(--text-dim)">no alternate names or tripcodes found on these posts.</span>"#,
+                r#"<span style="color:var(--text-dim)">Bu gönderilerde başka ad ya da tripcode bulunamadı.</span>"#,
             )
         } else {
             format!(
@@ -1890,10 +1890,10 @@ pub fn admin_ip_history_page(
     let pag_html = render_pagination(pagination, &pag_base);
 
     let return_buttons = return_to.filter(|value| !value.is_empty()).map_or_else(
-        || String::from(r#"<a class="admin-toolbar-btn" href="/admin/panel">Go to admin pannel</a>"#),
+        || String::from(r#"<a class="admin-toolbar-btn" href="/admin/panel">Admin paneline git</a>"#),
         |return_to| {
             format!(
-                r#"<a class="admin-toolbar-btn" href="{thread}">Back to thread</a> <a class="admin-toolbar-btn" href="/admin/panel">Go to admin pannel</a>"#,
+                r#"<a class="admin-toolbar-btn" href="{thread}">Konuya dön</a> <a class="admin-toolbar-btn" href="/admin/panel">Admin paneline git</a>"#,
                 thread = escape_html(return_to)
             )
         },
@@ -1901,25 +1901,25 @@ pub fn admin_ip_history_page(
 
     let body = format!(
         r#"<div class="admin-panel">
-<h1>[ IP history ]</h1>
+<h1>[ IP geçmişi ]</h1>
 <section class="admin-section">
-<h2>// posts by Hashed IP <code style="font-size:0.9rem;overflow-wrap:anywhere">{hash_display}</code></h2>
+<h2>// hash’lenmiş IP’ye ait gönderiler <code style="font-size:0.9rem;overflow-wrap:anywhere">{hash_display}</code></h2>
 <p style="color:var(--text-dim);font-size:0.85rem">
-  {total} post{plural} found across all boards.
+  Tüm boardlarda {total} gönderi bulundu.
 </p>
 <p style="color:var(--text-dim);font-size:0.82rem">{identity_summary}</p>
 <p style="margin:0.35rem 0 1rem 0">{return_buttons}</p>
 <div class="admin-table-wrap">
 <table class="admin-table" style="width:100%">
 <thead><tr>
-  <th style="text-align:left">time</th>
-  <th style="text-align:left">post</th>
-  <th style="text-align:left">name</th>
+  <th style="text-align:left">zaman</th>
+  <th style="text-align:left">gönderi</th>
+  <th style="text-align:left">ad</th>
   <th style="text-align:left">tripcode</th>
-  <th>media</th>
-  <th style="text-align:left">body</th>
-  <th>report</th>
-  <th>del</th>
+  <th>medya</th>
+  <th style="text-align:left">gövde</th>
+  <th>şikayet</th>
+  <th>sil</th>
 </tr></thead>
 <tbody>{rows}</tbody>
 </table>
@@ -1930,7 +1930,7 @@ pub fn admin_ip_history_page(
 {report_modal}"#,
         hash_display = escape_html(ip_hash),
         total = pagination.total,
-        plural = if pagination.total == 1 { "" } else { "s" },
+
         rows = rows,
         pagination = pag_html,
         identity_summary = identity_summary,
@@ -1940,7 +1940,7 @@ pub fn admin_ip_history_page(
 
     base_layout(
         &format!(
-            "Hashed IP — {}",
+            "Hash’lenmiş IP — {}",
             ip_hash.get(..ip_hash.len().min(12)).unwrap_or(ip_hash)
         ),
         None,
@@ -2060,7 +2060,7 @@ mod tests {
             verified: true,
             verification_note: "verified".into(),
             scope: "Full site".into(),
-            mode: "Single ZIP".into(),
+            mode: "Tek ZIP".into(),
             part_count: 1,
             part_filenames: Vec::new(),
             contains_tor_hidden_service_keys: true,
@@ -2086,7 +2086,7 @@ mod tests {
             verified: true,
             verification_note: "verified".into(),
             scope: "Board".into(),
-            mode: "Single ZIP".into(),
+            mode: "Tek ZIP".into(),
             part_count: 1,
             part_filenames: Vec::new(),
             contains_tor_hidden_service_keys: false,
@@ -2560,7 +2560,7 @@ mod tests {
         let themes = vec![sample_theme()];
         let html = render_admin_panel_for_test(std::slice::from_ref(&board), &[], &themes, None);
 
-        let site_settings = html.find("// site settings");
+        let site_settings = html.find("// site ayarları");
         let site_health = html.find("// site health");
         let boards = html.find("// boards");
 
@@ -2726,20 +2726,20 @@ mod tests {
         assert!(
             html.contains(r#"<form method="POST" action="/admin/login" class="admin-login-form">"#)
         );
-        assert!(html.contains("<h1>Admin Login</h1>"));
+        assert!(html.contains("<h1>Yönetici Girişi</h1>"));
         assert!(
             html.contains(r#"<div class="error admin-login-error" role="alert">bad login</div>"#)
         );
         assert!(html.contains(r#"<input type="hidden" name="_csrf" value="csrf">"#));
-        assert!(html.contains(r#"<label class="admin-login-field">Username"#));
+        assert!(html.contains(r#"<label class="admin-login-field">Kullanıcı adı"#));
         assert!(html.contains(
             r#"<input type="text" name="username" autofocus required autocomplete="username">"#
         ));
-        assert!(html.contains(r#"<label class="admin-login-field">Password"#));
+        assert!(html.contains(r#"<label class="admin-login-field">Parola"#));
         assert!(html.contains(
             r#"<input type="password" name="password" required autocomplete="current-password">"#
         ));
-        assert!(html.contains(r#"<button type="submit">authenticate</button>"#));
+        assert!(html.contains(r#"<button type="submit">giriş yap</button>"#));
         assert!(!html.contains("admin-login-table"));
     }
 
@@ -2801,8 +2801,8 @@ mod tests {
 
         assert!(html.contains(r#"class="admin-result-card""#));
         assert!(html.contains(r#"class="admin-result-details""#));
-        assert!(html.contains(r#"class="admin-status-error">Problem found"#));
-        assert!(html.contains(r#"class="admin-muted-list-item">No repairs were run."#));
+        assert!(html.contains(r#"class="admin-status-error">Sorun bulundu"#));
+        assert!(html.contains(r#"class="admin-muted-list-item">Hiçbir onarım çalıştırılmadı."#));
         assert!(idle_html.contains(r#"class="admin-result-card""#));
         assert!(
             !html.contains(r#"<div class="page-box" style="margin-top:0.75rem;max-width:760px">"#)
@@ -2853,44 +2853,44 @@ mod tests {
         assert!(moderation < appearance);
         assert!(appearance < backups);
         assert!(backups < maintenance);
-        assert!(html.contains("<h2>// site settings</h2>"));
-        assert!(html.contains("// board directory"));
-        assert!(html.contains("// create board"));
-        assert!(html.contains(r#"name="allow_audio" value="1"> Enable audio uploads"#));
-        assert!(html.contains(r#"name="allow_pdf" value="1"> Allow PDF uploads"#));
-        assert!(html.contains("Enabling this makes posting require JavaScript on this board."));
+        assert!(html.contains("<h2>// site ayarları</h2>"));
+        assert!(html.contains("// board dizini"));
+        assert!(html.contains("// board oluştur"));
+        assert!(html.contains(r#"name="allow_audio" value="1"> Ses yüklemelerini etkinleştir"#));
+        assert!(html.contains(r#"name="allow_pdf" value="1"> PDF yüklemelerini etkinleştir"#));
+        assert!(html.contains("Bunu açmak, bu board’de gönderi yapmayı JavaScript’e bağımlı hâle getirir."));
         assert!(html.contains(r#"data-admin-dropdown-key="boards""#));
-        assert!(html.contains("// board appearance overrides"));
+        assert!(html.contains("// board görünüm geçersiz kılmaları"));
         assert!(html.contains("id=\"board-appearance-tech\""));
-        assert!(html.contains("save board appearance"));
+        assert!(html.contains("board görünümünü kaydet"));
         assert!(html.contains("id=\"board-backup-tech\""));
-        assert!(html.contains("// create board backups"));
-        assert!(html.contains("// automated full backups"));
+        assert!(html.contains("// board yedeği oluştur"));
+        assert!(html.contains("// otomatik tam yedekler"));
         assert!(html.contains(r#"name="auto_full_backup_storage_mode" value="directory" checked"#));
         assert!(html.contains(r#"name="auto_full_backup_storage_mode" value="split_zip""#));
         assert!(html.contains(r#"name="auto_full_backup_split_zip_part_size_gib""#));
         assert!(html.contains(r#"name="backup_directory""#));
-        assert!(html.contains("Effective directory:"));
-        assert!(html.contains("Default directory:"));
-        assert!(html.contains("after restarting TurkChan"));
-        assert!(html.contains("Existing backups are not moved"));
+        assert!(html.contains("Geçerli dizin:"));
+        assert!(html.contains("Varsayılan dizin:"));
+        assert!(html.contains("TurkChan yeniden başlatıldıktan"));
+        assert!(html.contains("Mevcut yedekler taşınmaz"));
         assert!(html.contains(&super::escape_html(
             &crate::config::backups_dir().display().to_string()
         )));
 
-        assert!(html.contains("<summary>Manual backup</summary>"));
+        assert!(html.contains("<summary>Elle yedekleme</summary>"));
         assert!(html.contains(r#"class="backup-output-fieldset""#));
         assert!(html.contains(r#"type="radio" name="storage_mode" value="directory" checked"#));
         assert!(html.contains(r#"type="radio" name="storage_mode" value="split_zip""#));
         assert!(html.contains(r#"name="split_zip_part_size_gib""#));
-        assert!(html.contains("// saved full backups"));
+        assert!(html.contains("// kayıtlı tam yedekler"));
         assert!(html.contains("data-admin-dropdown-key=\"full-backup-restore\""));
-        assert!(html.contains("single-board tools"));
-        assert!(html.contains("// restore from local file"));
-        assert!(html.contains("// saved board backups"));
-        assert!(html.contains("advanced: board backup and restore"));
+        assert!(html.contains("tek board araçları"));
+        assert!(html.contains("// yerel dosyadan geri yükle"));
+        assert!(html.contains("// kayıtlı board yedekleri"));
+        assert!(html.contains("gelişmiş: board yedekleme ve geri yükleme"));
         assert!(!html.contains("<section class=\"admin-section admin-section-collapsible\" id=\"board-backup-restore\">"));
-        assert!(html.contains("Single ZIP"));
+        assert!(html.contains("Tek ZIP"));
         assert!(html.contains(r#"data-admin-dropdown-key="media-settings""#));
         assert!(html.contains(r#"data-admin-dropdown-key="database-maintenance""#));
         assert!(html.contains(
@@ -2901,14 +2901,14 @@ mod tests {
             r#"<section class="admin-section admin-section-collapsible" id="database-maintenance">
 <details class="admin-dropdown" data-admin-dropdown-key="database-maintenance""#
         ));
-        assert!(html.contains("// media settings"));
-        assert!(html.contains("// media pipeline detection"));
-        assert!(html.contains("video thumbnails, waveform jobs, and transcoding entrypoint"));
-        assert!(html.contains("selected renderer: pdftoppm"));
-        assert!(html.contains("Enable automatic active content pruning"));
+        assert!(html.contains("// medya ayarları"));
+        assert!(html.contains("// medya hattı algılama"));
+        assert!(html.contains("video küçük resimleri, ses dalgası işleri ve dönüştürme giriş noktası"));
+        assert!(html.contains("seçili oluşturucu: pdftoppm"));
+        assert!(html.contains("Otomatik etkin içerik temizlemeyi etkinleştir"));
         assert!(html.contains("name=\"media_max_active_content_size\""));
-        assert!(html.contains("Maximum active content database/media size"));
-        assert!(html.contains("save media settings"));
+        assert!(html.contains("En büyük etkin içerik veritabanı/medya boyutu"));
+        assert!(html.contains("medya ayarlarını kaydet"));
 
         let full_backup_start = html.find(
             r#"<section class="admin-section admin-section-collapsible" id="full-backup-restore">"#,
@@ -2929,7 +2929,7 @@ mod tests {
             r#"<details class="admin-dropdown" data-admin-dropdown-key="full-backup-restore""#
         ));
         assert!(full_backup_html.contains(r#"class="backup-extract-details""#));
-        assert!(full_backup_html.contains("advanced: board backup and restore"));
+        assert!(full_backup_html.contains("gelişmiş: board yedekleme ve geri yükleme"));
         assert!(full_backup_html.contains(r#"class="backup-manual-details""#));
         assert!(full_backup_html.contains(r#"name="split_zip_part_size_gib""#));
         assert!(full_backup_html.contains(r#"type="radio" name="storage_mode" value="split_zip""#));
@@ -2937,7 +2937,7 @@ mod tests {
         let maintenance_html = maintenance
             .and_then(|start| html.get(start..))
             .unwrap_or_default();
-        assert!(!maintenance_html.contains("advanced: board backup and restore"));
+        assert!(!maintenance_html.contains("gelişmiş: board yedekleme ve geri yükleme"));
     }
 
     #[test]
@@ -2957,7 +2957,7 @@ mod tests {
             "quick-create form should have a closing tag"
         );
 
-        assert!(form_html.contains(r#"name="allow_audio" value="1"> Enable audio uploads"#));
+        assert!(form_html.contains(r#"name="allow_audio" value="1"> Ses yüklemelerini etkinleştir"#));
         assert!(!form_html.contains(r#"name="allow_audio" value="1" checked"#));
     }
 

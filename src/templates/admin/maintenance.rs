@@ -160,9 +160,9 @@ fn render_media_detection_cards(view: &AdminPanelViewModel<'_>) -> String {
         .pdf_thumbnail_renderer
         .is_some()
     {
-        format!("selected renderer: {pdf_renderer}")
+        format!("seçili oluşturucu: {pdf_renderer}")
     } else {
-        "using built-in generic PDF placeholder thumbnail".to_owned()
+        "yerleşik genel PDF yer tutucu küçük resmi kullanılıyor".to_owned()
     };
 
     let mut cards = String::new();
@@ -175,20 +175,20 @@ fn render_media_detection_cards(view: &AdminPanelViewModel<'_>) -> String {
         (
             "ffprobe",
             view.maintenance.media_detection.ffprobe.is_detected(),
-            "WebM codec inspection for uploads that need it",
+            "gereken yüklemeler için WebM codec incelemesi",
         ),
         (
-            "WebP encoder",
+            "WebP kodlayıcı",
             view.maintenance.media_detection.webp_encoder.is_detected(),
             "resimden WebP’ye dönüştürme",
         ),
         (
-            "VP9/WebM pipeline",
+            "VP9/WebM hattı",
             view.maintenance.media_detection.vp9_pipeline.is_detected(),
-            "MP4 to WebM transcoding with VP9 + Opus",
+            "VP9 + Opus ile MP4’ten WebM’ye dönüştürme",
         ),
         (
-            "PDF thumbnails",
+            "PDF küçük resimleri",
             view.maintenance
                 .media_detection
                 .pdf_thumbnail_renderer
@@ -245,8 +245,8 @@ fn render_admin_maintenance_section(view: &MaintenanceSectionView<'_>) -> String
     <p>Yavaş bir video dönüştürme işlemini sonlandırmadan önce TurkChan’ın bekleyeceği süreyi ayarla.</p>
   </div>
 <p class="admin-copy">
-  TurkChan currently allows ffmpeg to run for <strong>{ffmpeg_timeout_help}</strong> before a long-running media job is killed.
-  This primarily affects uploaded video re-encoding, especially slow MP4 to WebM/VP9 conversion.
+  TurkChan, uzun süren bir medya işi sonlandırılmadan önce ffmpeg’in <strong>{ffmpeg_timeout_help}</strong> çalışmasına izin veriyor.
+  Bu esas olarak yüklenen videoların yeniden kodlanmasını, özellikle yavaş MP4’ten WebM/VP9’e dönüşümü etkiler.
 </p>
   <div class="board-settings-grid admin-settings-grid">
     <label title="Yavaş sistemlerde ffmpeg video dönüştürme işleri için daha yüksek bir değer gerekebilir.">
@@ -255,7 +255,7 @@ fn render_admin_maintenance_section(view: &MaintenanceSectionView<'_>) -> String
     </label>
   </div>
   <p class="admin-meta-note admin-meta-note-spaced">
-    This controls how long TurkChan lets ffmpeg run while converting uploaded videos.
+    Bu, TurkChan’ın yüklenen videoları dönüştürürken ffmpeg’i ne kadar çalıştıracağını belirler.
     Raspberry Pi gibi yavaş sistemler daha yüksek bir değer gerektirebilir.
     Donanım hızlandırma olmadan MP4’ten WebM/VP9’e kodlama özellikle yavaş olabilir.
     Videolar zaman aşımı nedeniyle dönüştürülemiyorsa bu değeri artır.
