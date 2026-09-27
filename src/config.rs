@@ -872,9 +872,10 @@ pub struct Config {
     ///
     /// When true, every request that would render a board, thread, or post
     /// page is redirected to the sign-in screen unless it carries a valid
-    /// `chan_user_session` cookie. Health probes, the sign-in and
-    /// registration screens, static assets, and the administration panel
-    /// stay reachable so an operator can always get back in.
+    /// `chan_user_session` cookie or an administrator session. Health probes,
+    /// the sign-in and registration screens, static assets, and the
+    /// administration panel stay reachable so an operator can always get
+    /// back in.
     pub require_user_account: bool,
     // Internal / env-only settings
     /// Interface or host used by the primary listener.

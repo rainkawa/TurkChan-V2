@@ -15,8 +15,12 @@
 //!   5. `POST /logout`    ends the session
 //!   6. `GET  /auth/username` answers whether a username is still free
 //!
+//! The sign-in screen also accepts a command-line administrator, which has no
+//! `users` row. That identity gets an administrator session, uses the site
+//! like any other member, and reaches the panel from the account menu.
+//!
 //! The `require_user_account` gate runs ahead of every board page and
-//! redirects anonymous visitors to `/login`.
+//! redirects visitors without a session to `/login`.
 
 use crate::{
     config::CONFIG,
@@ -117,13 +121,16 @@ fn admin_session_cookie(session_id: String, secure: bool) -> Cookie<'static> {
 /// Administrators created from the command line are not anonymous board
 /// accounts, so they have no `users` row. Accepting them here means one
 /// sign-in screen serves both, and the existing administration session cookie
-/// and panel are reused unchanged.
+/// and panel are reused unchanged. They land on the page they came from, so an
+/// operator can use the site like a member and open the panel from the account
+/// menu whenever they want it.
 async fn issue_admin_session(
     state: AppState,
     jar: CookieJar,
     username: &str,
     password: &str,
     secure: bool,
+    return_to: &str,
 ) -> Result<Option<Response>> {
     let pool = state.db.clone();
     let username = username.to_owned();
@@ -162,7 +169,7 @@ async fn issue_admin_session(
 
     let jar = jar.add(admin_session_cookie(session_id, secure));
     tracing::info!(target: "auth", admin_id, "Administrator signed in from the sign-in screen");
-    Ok(Some((jar, Redirect::to("/admin/panel")).into_response()))
+    Ok(Some((jar, Redirect::to(return_to)).into_response()))
 }
 
 /// Fields submitted by the sign-in form.
@@ -330,6 +337,25 @@ pub(crate) struct AccountIdentity {
     pub is_admin: bool,
 }
 
+/// Resolve the identity carried by the administrator session cookie.
+fn admin_identity(state: &AppState, jar: &CookieJar) -> Result<Option<AccountIdentity>> {
+    let Some(session_id) = jar.get(ADMIN_SESSION_COOKIE).map(Cookie::value) else {
+        return Ok(None);
+    };
+    let conn = state.db.get()?;
+    let Some(session) = db::get_session(&conn, session_id)? else {
+        return Ok(None);
+    };
+    let Some(username) = db::get_admin_name_by_id(&conn, session.admin_id)? else {
+        return Ok(None);
+    };
+    Ok(Some(AccountIdentity {
+        display_name: username.clone(),
+        username,
+        is_admin: true,
+    }))
+}
+
 /// Resolve the signed-in identity for the account menu.
 ///
 /// An anonymous board account wins when both cookies are present: it is the
@@ -346,21 +372,20 @@ pub(crate) fn account_identity(
             is_admin: false,
         }));
     }
-    let Some(session_id) = jar.get(ADMIN_SESSION_COOKIE).map(Cookie::value) else {
-        return Ok(None);
-    };
-    let conn = state.db.get()?;
-    let Some(session) = db::get_session(&conn, session_id)? else {
-        return Ok(None);
-    };
-    let Some(username) = db::get_admin_name_by_id(&conn, session.admin_id)? else {
-        return Ok(None);
-    };
-    Ok(Some(AccountIdentity {
-        display_name: username.clone(),
-        username,
-        is_admin: true,
-    }))
+    admin_identity(state, jar)
+}
+
+/// Whether a request already carries a session that may enter the site.
+///
+/// An operator who signed in from this screen holds an administrator session
+/// instead of a `users` row, so the account gate has to accept it too. The
+/// operator then browses, posts, and signs out exactly like any other member
+/// and reaches the panel from the account menu.
+fn has_valid_account(state: &AppState, jar: &CookieJar) -> bool {
+    if has_valid_session(state, jar) {
+        return true;
+    }
+    matches!(admin_identity(state, jar), Ok(Some(_)))
 }
 
 /// A real Argon2id hash that matches no account.
@@ -383,7 +408,7 @@ pub(crate) async fn login_page(
     Query(query): Query<LoginQuery>,
 ) -> Result<Response> {
     // A signed-in visitor has no reason to see the sign-in screen.
-    if has_valid_session(&state, &jar) {
+    if has_valid_account(&state, &jar) {
         return Ok(Redirect::to("/").into_response());
     }
 
@@ -448,6 +473,7 @@ pub(crate) async fn login_submit(
             &operator_username,
             &form.password,
             secure,
+            &return_to,
         )
         .await?
         {
@@ -1046,7 +1072,7 @@ pub(crate) async fn require_user_account_middleware(
     if path_is_exempt(request.uri().path()) {
         return Ok(next.run(request).await);
     }
-    if has_valid_session(&state, &jar) {
+    if has_valid_account(&state, &jar) {
         return Ok(next.run(request).await);
     }
 

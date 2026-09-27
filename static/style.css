@@ -417,6 +417,13 @@ html:not([data-theme]) .site-name { text-shadow: 0 0 14px var(--green-bright); }
     padding: 6px 10px;
   }
 
+  /* Keeps the account button on the same row as the board menu button, on the
+     right, instead of jumping ahead of the site name. */
+  .account-menu {
+    order: 3;
+    margin-left: auto;
+  }
+
   .board-list {
     display: none !important;
   }
