@@ -190,9 +190,9 @@ impl FormKind {
     #[must_use]
     pub const fn title(self) -> &'static str {
         match self {
-            Self::CreateBoard => "Create board",
-            Self::CreateAdmin => "Create administrator",
-            Self::DeleteThread => "Delete thread",
+            Self::CreateBoard => "Board oluştur",
+            Self::CreateAdmin => "Yönetici oluştur",
+            Self::DeleteThread => "Konu sil",
         }
     }
 
@@ -200,9 +200,9 @@ impl FormKind {
     #[must_use]
     pub const fn description(self) -> &'static str {
         match self {
-            Self::CreateBoard => "Set the board identity and initial media policy.",
-            Self::CreateAdmin => "Credentials are masked and never written to the console log.",
-            Self::DeleteThread => "Enter a thread ID. A separate confirmation follows.",
+            Self::CreateBoard => "Board kimliğini ve başlangıç medya politikasını belirle.",
+            Self::CreateAdmin => "Kimlik bilgileri maskelenir ve konsol günlüğüne hiçbir zaman yazılmaz.",
+            Self::DeleteThread => "Bir konu kimliği gir. Ayrıca bir onay adımı gelir.",
         }
     }
 }
@@ -365,69 +365,69 @@ impl FormState {
             FormKind::CreateBoard => vec![
                 FormField::text(
                     FormFieldId::BoardShort,
-                    "Short name",
-                    "1-8 ASCII letters or numbers; used in /board/ URLs.",
+                    "Kısa ad",
+                    "1-8 ASCII harf veya rakam; /board/ adreslerinde kullanılır.",
                     8,
                 ),
                 FormField::text(
                     FormFieldId::BoardName,
-                    "Display name",
-                    "Human-readable board name.",
+                    "Görünen ad",
+                    "İnsan tarafından okunabilen board adı.",
                     80,
                 ),
                 FormField::text(
                     FormFieldId::BoardDescription,
-                    "Description",
-                    "Optional concise purpose shown to visitors.",
+                    "Açıklama",
+                    "Ziyaretçilere gösterilen isteğe bağlı kısa amaç.",
                     240,
                 ),
                 FormField::toggle(
                     FormFieldId::BoardNsfw,
                     "NSFW board",
-                    "Marks the board as adult content.",
+                    "Board’ı yetişkin içerikli olarak işaretler.",
                     false,
                 ),
                 FormField::toggle(
                     FormFieldId::BoardImages,
-                    "Image uploads",
-                    "Allow image attachments.",
+                    "Görsel yükleme",
+                    "Görsel eklerine izin ver.",
                     true,
                 ),
                 FormField::toggle(
                     FormFieldId::BoardVideo,
-                    "Video uploads",
-                    "Allow video attachments.",
+                    "Video yükleme",
+                    "Video eklerine izin ver.",
                     true,
                 ),
                 FormField::toggle(
                     FormFieldId::BoardAudio,
-                    "Audio uploads",
-                    "Allow audio attachments.",
+                    "Ses yükleme",
+                    "Ses eklerine izin ver.",
                     false,
                 ),
             ],
             FormKind::CreateAdmin => vec![
                 FormField::text(
                     FormFieldId::AdminUsername,
-                    "Username",
-                    "3-32 ASCII letters, numbers, underscores, or dashes.",
+                    "Kullanıcı adı",
+                    "3-32 ASCII harf, rakam, alt çizgi veya tire.",
                     32,
                 ),
                 FormField::secret(
                     FormFieldId::AdminPassword,
-                    "Password",
-                    "At least 8 characters; input is masked.",
+                    "Parola",
+                    "En az 8 karakter; giriş maskelenir.",
                 ),
                 FormField::secret(
                     FormFieldId::AdminPasswordConfirm,
-                    "Confirm password",
-                    "Repeat the password exactly.",
+                    "Parola tekrar",
+                    "Parolayı birebir tekrarla.",
                 ),
             ],
             FormKind::DeleteThread => vec![FormField::text(
                 FormFieldId::ThreadId,
-                "Thread ID",
-                "Positive numeric database ID; deletion cannot be undone.",
+                "Konu kimliği",
+                "Pozitif sayısal veritabanı kimliği; silme geri alınamaz.",
                 20,
             )],
         };
@@ -455,14 +455,14 @@ impl FormState {
     fn text(&self, id: FormFieldId) -> Result<&str, String> {
         self.field(id)
             .and_then(FormField::text_value)
-            .ok_or_else(|| "The form could not read a required field.".to_owned())
+            .ok_or_else(|| "Form gerekli bir alanı okuyamadı.".to_owned())
     }
 
     /// Return a required toggle field or an internal form error.
     fn toggle(&self, id: FormFieldId) -> Result<bool, String> {
         self.field(id)
             .and_then(FormField::toggle_value)
-            .ok_or_else(|| "The form could not read a required setting.".to_owned())
+            .ok_or_else(|| "Form gerekli bir ayarı okuyamadı.".to_owned())
     }
 
     /// Move focus by one field, wrapping at either end.
@@ -629,11 +629,11 @@ impl FormState {
                         .chars()
                         .all(|character| character.is_ascii_alphanumeric())
                 {
-                    return Err("Short name must be 1-8 ASCII letters or numbers.".to_owned());
+                    return Err("Kısa ad 1-8 ASCII harf veya rakam olmalı.".to_owned());
                 }
                 let name = self.text(FormFieldId::BoardName)?.trim().to_owned();
                 if name.is_empty() {
-                    return Err("Display name is required.".to_owned());
+                    return Err("Görünen ad zorunludur.".to_owned());
                 }
                 Ok(OperationRequest::CreateBoard {
                     short,
@@ -653,7 +653,7 @@ impl FormState {
                     })
                 {
                     return Err(
-                        "Username must be 3-32 ASCII letters, numbers, underscores, or dashes."
+                        "Kullanıcı adı 3-32 ASCII harf, rakam, alt çizgi veya tire olmalı."
                             .to_owned(),
                     );
                 }
@@ -661,7 +661,7 @@ impl FormState {
                 crate::utils::crypto::validate_password(&password)
                     .map_err(|error| error.to_string())?;
                 if password != self.text(FormFieldId::AdminPasswordConfirm)? {
-                    return Err("Passwords do not match.".to_owned());
+                    return Err("Parolalar eşleşmiyor.".to_owned());
                 }
                 Ok(OperationRequest::CreateAdmin { username, password })
             }
@@ -669,9 +669,9 @@ impl FormState {
                 let raw = self.text(FormFieldId::ThreadId)?.trim();
                 let thread_id = raw
                     .parse::<i64>()
-                    .map_err(|_| "Thread ID must be a positive whole number.".to_owned())?;
+                    .map_err(|_| "Konu kimliği pozitif bir tam sayı olmalı.".to_owned())?;
                 if thread_id <= 0 {
-                    return Err("Thread ID must be a positive whole number.".to_owned());
+                    return Err("Konu kimliği pozitif bir tam sayı olmalı.".to_owned());
                 }
                 Ok(OperationRequest::DeleteThread { thread_id })
             }
@@ -793,7 +793,7 @@ impl ConsoleState {
                 self.dialog = Some(Dialog::Form(FormState::new(FormKind::DeleteThread)));
             }
             KeyEvent::Character('r' | 'R') => {
-                self.set_notice(NoticeSeverity::Info, "Refreshing operational metrics…");
+                self.set_notice(NoticeSeverity::Info, "Operasyon ölçümleri yenileniyor…");
                 return ConsoleAction::Reload;
             }
             KeyEvent::Escape => {
@@ -1015,9 +1015,9 @@ impl OperationRequest {
     /// Return the present-tense progress label.
     const fn progress_label(&self) -> &'static str {
         match self {
-            Self::CreateBoard { .. } => "Creating board…",
-            Self::CreateAdmin { .. } => "Securing administrator credentials…",
-            Self::DeleteThread { .. } => "Deleting thread and attached files…",
+            Self::CreateBoard { .. } => "Board oluşturuluyor…",
+            Self::CreateAdmin { .. } => "Yönetici kimlik bilgileri güvenli hale getiriliyor…",
+            Self::DeleteThread { .. } => "Konu ve ekli dosyalar siliniyor…",
         }
     }
 
@@ -1252,7 +1252,7 @@ mod tests {
 
         let result = form.request();
 
-        assert_eq!(result, Err("Passwords do not match.".to_owned()));
+        assert_eq!(result, Err("Parolalar eşleşmiyor.".to_owned()));
     }
     #[test]
     fn hidden_dialogs_reject_input_but_allow_ctrl_c() {

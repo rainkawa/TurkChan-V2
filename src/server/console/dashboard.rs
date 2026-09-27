@@ -107,14 +107,14 @@ fn render_small_terminal(frame: &mut Frame<'_>, area: Rect) {
     block.render(area, frame.buffer_mut());
     let message = Text::from(vec![
         Line::from(Span::styled(
-            "Terminal too small",
+            "Terminal çok küçük",
             Style::default().fg(WARNING).add_modifier(Modifier::BOLD),
         )),
         Line::default(),
-        Line::from(format!("Current: {} × {}", area.width, area.height)),
-        Line::from(format!("Minimum: {MIN_USEFUL_WIDTH} × {MIN_USEFUL_HEIGHT}")),
+        Line::from(format!("Geçerli: {} × {}", area.width, area.height)),
+        Line::from(format!("En az: {MIN_USEFUL_WIDTH} × {MIN_USEFUL_HEIGHT}")),
         Line::default(),
-        Line::from("Resize to continue · Ctrl-C stops the server"),
+        Line::from("Devam etmek için boyutu değiştir · Ctrl-C sunucuyu durdurur"),
     ]);
     Paragraph::new(message)
         .alignment(Alignment::Center)
@@ -155,7 +155,7 @@ fn render_header(frame: &mut Frame<'_>, area: Rect, stats: &ChanStats) {
         } else {
             fmt_uptime_compact(stats.uptime_secs)
         };
-        right_spans.push(Span::raw(format!("Uptime {uptime}")));
+        right_spans.push(Span::raw(format!("Çalışma süresi {uptime}")));
     }
     let right_line = Line::from(right_spans);
     Paragraph::new(right_line)
@@ -167,17 +167,17 @@ fn render_header(frame: &mut Frame<'_>, area: Rect, stats: &ChanStats) {
 fn render_navigation(frame: &mut Frame<'_>, area: Rect, screen: Screen) {
     let titles = if area.width < 58 {
         [
-            Line::from(" 1 Home "),
-            Line::from(" 2 Boards "),
-            Line::from(" 3 Logs "),
-            Line::from(" 4 Help "),
+            Line::from(" 1 Ana "),
+            Line::from(" 2 Board "),
+            Line::from(" 3 Günlük "),
+            Line::from(" 4 Yardım "),
         ]
     } else {
         [
-            Line::from(" 1  Overview "),
-            Line::from(" 2  Boards "),
-            Line::from(" 3  Logs "),
-            Line::from(" 4  Help "),
+            Line::from(" 1  Genel bakış "),
+            Line::from(" 2  Boardlar "),
+            Line::from(" 3  Günlükler "),
+            Line::from(" 4  Yardım "),
         ]
     };
     let selected = match screen {
@@ -206,9 +206,9 @@ fn render_navigation(frame: &mut Frame<'_>, area: Rect, screen: Screen) {
 /// Render one explicit feedback line.
 fn render_notice(frame: &mut Frame<'_>, area: Rect, severity: NoticeSeverity, message: &str) {
     let (label, color) = match severity {
-        NoticeSeverity::Success => ("[OK]", SUCCESS),
-        NoticeSeverity::Info => ("[INFO]", ACCENT),
-        NoticeSeverity::Error => ("[ERROR]", DANGER),
+        NoticeSeverity::Success => ("[TAMAM]", SUCCESS),
+        NoticeSeverity::Info => ("[BİLGİ]", ACCENT),
+        NoticeSeverity::Error => ("[HATA]", DANGER),
     };
     Paragraph::new(Line::from(vec![
         Span::styled(
@@ -285,7 +285,7 @@ fn render_scrollable(
 
 /// Render server transports and direct operator endpoints.
 fn render_service_panel(buffer: &mut Buffer, area: Rect, stats: &ChanStats) {
-    let block = panel("Service & access", ACCENT);
+    let block = panel("Servis ve erişim", ACCENT);
     let inner = block.inner(area);
     block.render(area, buffer);
     let rows = service_rows(stats);
@@ -298,29 +298,29 @@ fn service_rows(stats: &ChanStats) -> Vec<(Line<'static>, Line<'static>)> {
     if CONFIG.tls.enabled {
         if CONFIG.enable_tor_support {
             rows.push((
-                Line::from("HTTP backend"),
+                Line::from("HTTP arka ucu"),
                 status_value(
                     StatusKind::Healthy,
-                    "RUNNING",
+                    "ÇALIŞIYOR",
                     backend_address(stats.http_port),
                 ),
             ));
         } else {
             rows.push((
-                Line::from("HTTP app"),
-                status_value(StatusKind::Neutral, "HTTPS ONLY", ""),
+                Line::from("HTTP uygulama"),
+                status_value(StatusKind::Neutral, "YALNIZCA HTTPS", ""),
             ));
         }
         rows.push((
             Line::from("HTTPS"),
             status_value(
                 StatusKind::Healthy,
-                "RUNNING",
+                "ÇALIŞIYOR",
                 format!("port {} · {}", CONFIG.tls.port, https_cert_label()),
             ),
         ));
         rows.push((
-            Line::from("Public URL"),
+            Line::from("Genel URL"),
             Line::from(Span::styled(
                 format!("https://localhost:{}", CONFIG.tls.port),
                 Style::default().fg(ACCENT),
@@ -328,25 +328,25 @@ fn service_rows(stats: &ChanStats) -> Vec<(Line<'static>, Line<'static>)> {
         ));
         if CONFIG.tls.redirect_http {
             rows.push((
-                Line::from("HTTP redirect"),
+                Line::from("Yönlendirme"),
                 status_value(
                     StatusKind::Healthy,
-                    "RUNNING",
+                    "ÇALIŞIYOR",
                     format!("port {}", CONFIG.tls.http_port),
                 ),
             ));
         }
     } else {
         rows.push((
-            Line::from("Local server"),
+            Line::from("Yerel sunucu"),
             status_value(
                 StatusKind::Healthy,
-                "RUNNING",
+                "ÇALIŞIYOR",
                 format!("port {}", stats.http_port),
             ),
         ));
         rows.push((
-            Line::from("Local URL"),
+            Line::from("Yerel URL"),
             Line::from(Span::styled(
                 local_url(stats.http_port),
                 Style::default().fg(ACCENT),
@@ -354,16 +354,16 @@ fn service_rows(stats: &ChanStats) -> Vec<(Line<'static>, Line<'static>)> {
         ));
         rows.push((
             Line::from("HTTPS"),
-            status_value(StatusKind::Neutral, "NOT CONFIGURED", ""),
+            status_value(StatusKind::Neutral, "YAPILANDIRILMADI", ""),
         ));
     }
 
     match (&stats.onion_address, CONFIG.enable_tor_support) {
         (Some(address), true) => {
             let detail = if CONFIG.tor_only {
-                "READY · tor-only".to_owned()
+                "HAZIR · tor-only".to_owned()
             } else {
-                "READY".to_owned()
+                "HAZIR".to_owned()
             };
             rows.push((
                 Line::from("Tor"),
@@ -381,17 +381,17 @@ fn service_rows(stats: &ChanStats) -> Vec<(Line<'static>, Line<'static>)> {
             Line::from("Tor"),
             status_value(
                 StatusKind::Pending,
-                "WAIT",
+                "BEKLE",
                 if CONFIG.tor_only {
-                    "bootstrapping · tor-only".to_owned()
+                    "önyükleniyor · tor-only".to_owned()
                 } else {
-                    "bootstrapping".to_owned()
+                    "önyükleniyor".to_owned()
                 },
             ),
         )),
         (_, false) => rows.push((
             Line::from("Tor"),
-            status_value(StatusKind::Neutral, "DISABLED", ""),
+            status_value(StatusKind::Neutral, "KAPALI", ""),
         )),
     }
     rows
@@ -399,7 +399,7 @@ fn service_rows(stats: &ChanStats) -> Vec<(Line<'static>, Line<'static>)> {
 
 /// Render activity, content, storage, and background-work metrics.
 fn render_operations_panel(buffer: &mut Buffer, area: Rect, stats: &ChanStats) {
-    let block = panel("Operations", ACCENT);
+    let block = panel("Operasyonlar", ACCENT);
     let inner = block.inner(area);
     block.render(area, buffer);
 
@@ -407,8 +407,8 @@ fn render_operations_panel(buffer: &mut Buffer, area: Rect, stats: &ChanStats) {
         render_centered_state(
             buffer,
             inner,
-            "LOADING",
-            "Collecting the first operational snapshot…",
+            "YÜKLENİYOR",
+            "İlk operasyon anlık görüntüsü toplanıyor…",
             ACCENT,
         );
         return;
@@ -425,13 +425,13 @@ fn render_operations_panel(buffer: &mut Buffer, area: Rect, stats: &ChanStats) {
         Style::default()
     };
     let work_label = if stats.active_uploads == 0 && stats.active_ffmpeg_videos == 0 {
-        status_value(StatusKind::Healthy, "IDLE", "no active media work")
+        status_value(StatusKind::Healthy, "BOŞTA", "etkin medya işi yok")
     } else {
         status_value(
             StatusKind::Pending,
-            "BUSY",
+            "MEŞGUL",
             format!(
-                "{} upload(s) · {} video(s)",
+                "{} yükleme · {} video",
                 stats.active_uploads, stats.active_ffmpeg_videos
             ),
         )
@@ -439,46 +439,46 @@ fn render_operations_panel(buffer: &mut Buffer, area: Rect, stats: &ChanStats) {
     let mut rows = Vec::with_capacity(7);
     if let Some(error) = &stats.collection_error {
         rows.push((
-            Line::from("Snapshot"),
-            status_value(StatusKind::Error, "DEGRADED", error),
+            Line::from("Özet"),
+            status_value(StatusKind::Error, "BOZUK", error),
         ));
     }
     rows.extend([
         (
-            Line::from("Traffic"),
+            Line::from("Trafik"),
             Line::from(vec![
                 Span::raw(format!(
-                    "{} total · ",
+                    "{} toplam · ",
                     format_number_compact(stats.req_count)
                 )),
                 Span::styled(format!("{:.2}/s", stats.rps), rate_style),
                 Span::raw(" · "),
                 Span::styled(
-                    format!("{} active", format_number_compact(stats.in_flight)),
+                    format!("{} etkin", format_number_compact(stats.in_flight)),
                     in_flight_style,
                 ),
             ]),
         ),
-        (Line::from("Online"), Line::from(stats.online.to_string())),
+        (Line::from("Çevrimiçi"), Line::from(stats.online.to_string())),
         (
-            Line::from("Content"),
+            Line::from("İçerik"),
             Line::from(format!(
-                "{} boards · {} threads · {} posts",
+                "{} board · {} konu · {} gönderi",
                 format_number_signed_compact(stats.boards),
                 format_number_signed_compact(stats.threads),
                 format_number_signed_compact(stats.posts)
             )),
         ),
         (
-            Line::from("Storage"),
+            Line::from("Depolama"),
             Line::from(format!(
-                "{} DB · {} uploads",
+                "{} VT · {} yükleme",
                 fmt_bytes(stats.db_bytes),
                 fmt_bytes(stats.upload_bytes)
             )),
         ),
-        (Line::from("Memory"), Line::from(fmt_bytes(stats.mem_bytes))),
-        (Line::from("Media work"), work_label),
+        (Line::from("Bellek"), Line::from(fmt_bytes(stats.mem_bytes))),
+        (Line::from("Medya işi"), work_label),
     ]);
     render_label_rows(buffer, inner, rows, 12);
 }
@@ -510,34 +510,34 @@ fn render_label_rows(
 /// Render the board table, detail panel, and empty state.
 fn render_boards(frame: &mut Frame<'_>, area: Rect, app: &mut ConsoleState, metrics: &ChanStats) {
     if !metrics.is_ready {
-        let block = panel("Boards", ACCENT);
+        let block = panel("Boardlar", ACCENT);
         let inner = block.inner(area);
         block.render(area, frame.buffer_mut());
         render_centered_state(
             frame.buffer_mut(),
             inner,
-            "LOADING",
-            "Collecting board statistics…",
+            "YÜKLENİYOR",
+            "Board istatistikleri toplanıyor…",
             ACCENT,
         );
         return;
     }
     if let Some(error) = &metrics.collection_error {
-        let block = panel("Boards", DANGER);
+        let block = panel("Boardlar", DANGER);
         let inner = block.inner(area);
         block.render(area, frame.buffer_mut());
-        render_centered_state(frame.buffer_mut(), inner, "DATA UNAVAILABLE", error, DANGER);
+        render_centered_state(frame.buffer_mut(), inner, "VERİ ALINAMADI", error, DANGER);
         return;
     }
     if metrics.board_rows.is_empty() {
-        let block = panel("Boards", ACCENT);
+        let block = panel("Boardlar", ACCENT);
         let inner = block.inner(area);
         block.render(area, frame.buffer_mut());
         render_centered_state(
             frame.buffer_mut(),
             inner,
-            "NO BOARDS",
-            "Create the first board with C.",
+            "BOARD YOK",
+            "İlk board’u C ile oluştur.",
             MUTED,
         );
         return;
@@ -566,8 +566,8 @@ fn render_board_table(
     app: &mut ConsoleState,
     metrics: &ChanStats,
 ) {
-    let block = panel("Boards", ACCENT).title_bottom(Line::from(Span::styled(
-        format!(" {} total ", metrics.board_rows.len()),
+    let block = panel("Boardlar", ACCENT).title_bottom(Line::from(Span::styled(
+        format!(" {} toplam ", metrics.board_rows.len()),
         Style::default().fg(MUTED),
     )));
     let rows = metrics.board_rows.iter().map(|(short, threads, posts)| {
@@ -577,7 +577,7 @@ fn render_board_table(
             Cell::from(format_number_signed(*posts)),
         ])
     });
-    let header = Row::new(["BOARD", "THREADS", "POSTS"])
+    let header = Row::new(["BOARD", "KONULAR", "GÖNDERİ"])
         .style(Style::default().fg(MUTED).add_modifier(Modifier::BOLD))
         .bottom_margin(1);
     let table = Table::new(
@@ -609,7 +609,7 @@ fn render_board_table(
 
 /// Render context for the selected board row.
 fn render_board_detail(frame: &mut Frame<'_>, area: Rect, app: &ConsoleState, metrics: &ChanStats) {
-    let block = panel("Selected board", ACCENT);
+    let block = panel("Seçili board", ACCENT);
     let inner = block.inner(area);
     block.render(area, frame.buffer_mut());
     let selected = app
@@ -620,8 +620,8 @@ fn render_board_detail(frame: &mut Frame<'_>, area: Rect, app: &ConsoleState, me
         render_centered_state(
             frame.buffer_mut(),
             inner,
-            "NO SELECTION",
-            "Choose a board row.",
+            "SEÇİM YOK",
+            "Bir board satırı seç.",
             MUTED,
         );
         return;
@@ -633,20 +633,20 @@ fn render_board_detail(frame: &mut Frame<'_>, area: Rect, app: &ConsoleState, me
         )),
         Line::default(),
         Line::from(vec![
-            Span::styled("Threads  ", Style::default().fg(MUTED)),
+            Span::styled("Konular  ", Style::default().fg(MUTED)),
             Span::raw(format_number_signed(*threads)),
         ]),
         Line::from(vec![
-            Span::styled("Posts    ", Style::default().fg(MUTED)),
+            Span::styled("Gönderi  ", Style::default().fg(MUTED)),
             Span::raw(format_number_signed(*posts)),
         ]),
         Line::default(),
         Line::from(Span::styled(
-            "C  Create another board",
+            "C  Yeni board oluştur",
             Style::default().fg(MUTED),
         )),
         Line::from(Span::styled(
-            "D  Delete a thread",
+            "D  Bir konu sil",
             Style::default().fg(MUTED),
         )),
     ];
@@ -677,24 +677,24 @@ fn render_logs(frame: &mut Frame<'_>, area: Rect, app: &mut ConsoleState, logs: 
             .unwrap_or(u16::MAX),
     );
     let follow = if app.logs.follow {
-        Span::styled("[FOLLOWING]", Style::default().fg(SUCCESS))
+        Span::styled("[TAKİPTE]", Style::default().fg(SUCCESS))
     } else {
         Span::styled(
-            format!("[PAUSED · {} lines back]", app.logs.rows_from_bottom),
+            format!("[DURAKLADI · {} satır geride]", app.logs.rows_from_bottom),
             Style::default().fg(WARNING),
         )
     };
     let source = logs
         .source
         .as_deref()
-        .unwrap_or("waiting for first log file");
+        .unwrap_or("ilk günlük dosyası bekleniyor");
     Paragraph::new(Line::from(vec![
         follow,
         Span::styled("  Source  ", Style::default().fg(MUTED)),
         Span::raw(source.to_owned()),
         Span::styled(
             format!(
-                "   {} retained lines",
+                "   {} satır saklanıyor",
                 format_number(u64::try_from(logs.lines.len()).unwrap_or(u64::MAX))
             ),
             Style::default().fg(MUTED),
@@ -702,23 +702,23 @@ fn render_logs(frame: &mut Frame<'_>, area: Rect, app: &mut ConsoleState, logs: 
     ]))
     .render(info_area, frame.buffer_mut());
 
-    let block = panel("Live log", ACCENT).title_bottom(Line::from(Span::styled(
-        " ↑↓/PgUp/PgDn scroll · ←→ pan · End/F follow ",
+    let block = panel("Canlı günlük", ACCENT).title_bottom(Line::from(Span::styled(
+        " ↑↓/PgUp/PgDn kaydır · ←→ kaydır · End/F takip ",
         Style::default().fg(MUTED),
     )));
     let inner = block.inner(body_area);
     block.render(body_area, frame.buffer_mut());
 
     if let Some(error) = &logs.error {
-        render_centered_state(frame.buffer_mut(), inner, "LOG ERROR", error, DANGER);
+        render_centered_state(frame.buffer_mut(), inner, "GÜNLÜK HATASI", error, DANGER);
         return;
     }
     if logs.lines.is_empty() {
         render_centered_state(
             frame.buffer_mut(),
             inner,
-            "NO LOG ENTRIES",
-            "New application events will appear here automatically.",
+            "GÜNLÜK YOK",
+            "Yeni uygulama olayları burada otomatik olarak görünecek.",
             MUTED,
         );
         return;
@@ -762,29 +762,29 @@ fn log_line_style(line: &str) -> Style {
 /// Render a responsive keyboard and workflow reference.
 fn render_help(frame: &mut Frame<'_>, area: Rect, offset: &mut u16) {
     let navigation = [
-        ("1 / G", "Operational overview"),
-        ("2 / B", "Board list"),
-        ("3 / L", "Live logs"),
-        ("4 / ? / H", "Keyboard reference"),
-        ("R", "Refresh metrics now"),
-        ("C", "Create board"),
-        ("A", "Create administrator"),
-        ("D / X", "Delete thread"),
-        ("Q", "Graceful shutdown prompt"),
-        ("Esc", "Close / return to overview"),
+        ("1 / G", "Operasyon genel bakışı"),
+        ("2 / B", "Board listesi"),
+        ("3 / L", "Canlı günlükler"),
+        ("4 / ? / H", "Klavye referansı"),
+        ("R", "Ölçümleri şimdi yenile"),
+        ("C", "Board oluştur"),
+        ("A", "Yönetici oluştur"),
+        ("D / X", "Konu sil"),
+        ("Q", "Düzgün kapatma istemi"),
+        ("Esc", "Kapat / genel bakışa dön"),
     ];
     let editing = [
-        ("↑ ↓ / J K", "Move selection or scroll"),
-        ("PgUp PgDn", "Move by one page"),
-        ("Home End", "First/last row or newest log"),
-        ("← →", "Pan long log lines"),
-        ("F", "Resume log follow mode"),
-        ("Tab / Shift-Tab", "Move form focus"),
-        ("Space", "Toggle a setting"),
-        ("Enter", "Advance or submit final field"),
-        ("Ctrl-Enter / F2", "Submit the full form"),
-        ("Ctrl-U", "Clear focused text"),
-        ("Ctrl-C", "Immediate server stop"),
+        ("↑ ↓ / J K", "Seçimi taşı veya kaydır"),
+        ("PgUp PgDn", "Bir sayfa taşı"),
+        ("Home End", "İlk/son satır veya en yeni günlük"),
+        ("← →", "Uzun günlük satırlarını kaydır"),
+        ("F", "Günlük takip kipine dön"),
+        ("Tab / Shift-Tab", "Form odağını taşı"),
+        ("Space", "Bir ayarı aç/kapat"),
+        ("Enter", "İlerle veya son alanı gönder"),
+        ("Ctrl-Enter / F2", "Formun tamamını gönder"),
+        ("Ctrl-U", "Odaktaki metni temizle"),
+        ("Ctrl-C", "Sunucuyu hemen durdur"),
     ];
     let wide = area.width >= 84;
     let panel_width = if wide {
@@ -815,13 +815,13 @@ fn render_help(frame: &mut Frame<'_>, area: Rect, offset: &mut u16) {
         render_help_panel(
             buffer,
             sections.first().copied().unwrap_or(area),
-            "Navigation & actions",
+            "Gezinme ve işlemler",
             &navigation,
         );
         render_help_panel(
             buffer,
             sections.get(1).copied().unwrap_or(area),
-            "Lists, logs & forms",
+            "Listeler, günlükler ve formlar",
             &editing,
         );
     });
@@ -881,41 +881,41 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, app: &ConsoleState) {
     let hints: &[(&str, &str)] = if area.width < 76 {
         match app.screen {
             Screen::Dashboard => &[
-                ("↑↓", "Scroll"),
+                ("↑↓", "Kaydır"),
                 ("C", "Board"),
-                ("A", "Admin"),
-                ("?", "Help"),
-                ("Q", "Quit"),
+                ("A", "Yönetici"),
+                ("?", "Yardım"),
+                ("Q", "Çık"),
             ],
-            Screen::Boards => &[("↑↓", "Select"), ("C", "Create"), ("Esc", "Back")],
-            Screen::Logs => &[("↑↓", "Scroll"), ("F", "Follow"), ("Esc", "Back")],
-            Screen::Help => &[("↑↓", "Scroll"), ("Esc", "Back"), ("Q", "Quit")],
+            Screen::Boards => &[("↑↓", "Seç"), ("C", "Oluştur"), ("Esc", "Geri")],
+            Screen::Logs => &[("↑↓", "Kaydır"), ("F", "Takip"), ("Esc", "Geri")],
+            Screen::Help => &[("↑↓", "Kaydır"), ("Esc", "Geri"), ("Q", "Çık")],
         }
     } else {
         match app.screen {
             Screen::Dashboard => &[
                 ("↑↓", "Scroll"),
                 ("C", "Board"),
-                ("A", "New admin"),
-                ("D", "Delete thread"),
-                ("R", "Refresh"),
-                ("Q", "Quit"),
+                ("A", "Yeni yönetici"),
+                ("D", "Konu sil"),
+                ("R", "Yenile"),
+                ("Q", "Çık"),
             ],
             Screen::Boards => &[
                 ("↑↓", "Select"),
-                ("C", "New board"),
-                ("D", "Delete thread"),
-                ("R", "Refresh"),
-                ("Esc", "Overview"),
+                ("C", "Yeni board"),
+                ("D", "Konu sil"),
+                ("R", "Yenile"),
+                ("Esc", "Genel bakış"),
             ],
             Screen::Logs => &[
                 ("↑↓", "Scroll"),
-                ("←→", "Pan"),
-                ("F", "Follow"),
-                ("R", "Refresh"),
-                ("Esc", "Overview"),
+                ("←→", "Kaydır"),
+                ("F", "Takip"),
+                ("R", "Yenile"),
+                ("Esc", "Genel bakış"),
             ],
-            Screen::Help => &[("↑↓", "Scroll"), ("Esc", "Overview"), ("Q", "Quit")],
+            Screen::Help => &[("↑↓", "Scroll"), ("Esc", "Genel bakış"), ("Q", "Quit")],
         }
     };
     let mut spans = Vec::with_capacity(hints.len().saturating_mul(3));
@@ -948,17 +948,17 @@ fn render_dialog(frame: &mut Frame<'_>, area: Rect, dialog: &Dialog, spinner_tic
         Dialog::ConfirmQuit => render_confirm_dialog(
             frame,
             area,
-            "Stop TurkChan?",
-            "New requests will stop and in-flight requests will drain gracefully.",
-            "Y / Enter  Stop server",
+            "TurkChan durdurulsun mu?",
+            "Yeni istekler durur ve süren istekler düzgün şekilde tamamlanır.",
+            "Y / Enter  Sunucuyu durdur",
             WARNING,
         ),
         Dialog::ConfirmDelete { thread_id } => render_confirm_dialog(
             frame,
             area,
-            "Permanently delete thread?",
-            &format!("Thread {thread_id} and all of its posts and attached files will be removed."),
-            "Y  Delete permanently",
+            "Konu kalıcı olarak silinsin mi?",
+            &format("{thread_id} numaralı konu ve tüm gönderileri ile ekli dosyaları kaldırılacak."),
+            "Y  Kalıcı olarak sil",
             DANGER,
         ),
         Dialog::Progress { label } => render_progress_dialog(frame, area, label, spinner_tick),
@@ -1002,7 +1002,7 @@ fn render_confirm_dialog(
                     .bg(accent)
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::styled("    N / Esc  Cancel", Style::default().fg(MUTED)),
+            Span::styled("    N / Esc  İptal", Style::default().fg(MUTED)),
         ]),
     ];
     Paragraph::new(lines)
@@ -1014,7 +1014,7 @@ fn render_confirm_dialog(
 fn render_progress_dialog(frame: &mut Frame<'_>, area: Rect, label: &str, spinner_tick: u8) {
     let popup = centered_rect(area, 62, 7);
     Clear.render(popup, frame.buffer_mut());
-    let block = panel("Working", ACCENT);
+    let block = panel("Çalışıyor", ACCENT);
     let inner = block.inner(popup);
     block.render(popup, frame.buffer_mut());
     Paragraph::new(Line::from(vec![
@@ -1085,7 +1085,7 @@ fn render_form_dialog(frame: &mut Frame<'_>, area: Rect, form: &FormState) {
 
     if let Some(error) = &form.error {
         Paragraph::new(Line::from(vec![
-            Span::styled("[ERROR] ", Style::default().fg(DANGER).bold()),
+            Span::styled("[HATA] ", Style::default().fg(DANGER).bold()),
             Span::styled(error.clone(), Style::default().fg(DANGER)),
         ]))
         .wrap(Wrap { trim: true })
@@ -1100,9 +1100,9 @@ fn render_form_dialog(frame: &mut Frame<'_>, area: Rect, form: &FormState) {
     Paragraph::new(vec![
         Line::from(vec![
             Span::styled(" Tab ", key_style()),
-            Span::styled(" Next   ", Style::default().fg(MUTED)),
+            Span::styled(" Sonraki   ", Style::default().fg(MUTED)),
             Span::styled(" Space ", key_style()),
-            Span::styled(" Toggle", Style::default().fg(MUTED)),
+            Span::styled(" Aç/Kapat", Style::default().fg(MUTED)),
         ]),
         Line::from(vec![
             Span::styled(
@@ -1113,9 +1113,9 @@ fn render_form_dialog(frame: &mut Frame<'_>, area: Rect, form: &FormState) {
                 },
                 key_style(),
             ),
-            Span::styled(" Submit   ", Style::default().fg(MUTED)),
+            Span::styled(" Gönder   ", Style::default().fg(MUTED)),
             Span::styled(" Esc ", key_style()),
-            Span::styled(" Cancel", Style::default().fg(MUTED)),
+            Span::styled(" İptal", Style::default().fg(MUTED)),
         ]),
     ])
     .render(actions_area, frame.buffer_mut());
@@ -1156,9 +1156,9 @@ fn render_form_field(
     match &field.value {
         FieldValue::Toggle(enabled) => {
             let (symbol, text) = if *enabled {
-                ("[x]", "Enabled")
+                ("[x]", "Etkin")
             } else {
-                ("[ ]", "Disabled")
+                ("[ ]", "Devre dışı")
             };
             Paragraph::new(Line::from(vec![
                 Span::styled(
@@ -1309,12 +1309,12 @@ struct StatusSummary {
 fn stats_freshness(stats: &ChanStats) -> StatusSummary {
     if !stats.is_ready {
         StatusSummary {
-            label: "[LOADING]",
+            label: "[YÜKLENİYOR]",
             kind: StatusKind::Pending,
         }
     } else if stats.collection_error.is_some() {
         StatusSummary {
-            label: "[DEGRADED]",
+            label: "[BOZUK]",
             kind: StatusKind::Error,
         }
     } else if stats
@@ -1322,12 +1322,12 @@ fn stats_freshness(stats: &ChanStats) -> StatusSummary {
         .is_some_and(|sampled_at| sampled_at.elapsed().as_secs() > 10)
     {
         StatusSummary {
-            label: "[STALE]",
+            label: "[BAYAT]",
             kind: StatusKind::Pending,
         }
     } else {
         StatusSummary {
-            label: "[LIVE]",
+            label: "[CANLI]",
             kind: StatusKind::Healthy,
         }
     }
@@ -1348,10 +1348,10 @@ fn status_style(kind: StatusKind) -> Style {
 fn status_value(kind: StatusKind, label: &str, detail: impl Into<String>) -> Line<'static> {
     let detail = detail.into();
     let tag = match kind {
-        StatusKind::Healthy => format!("[OK] {label}"),
-        StatusKind::Pending => format!("[WAIT] {label}"),
-        StatusKind::Neutral => format!("[OFF] {label}"),
-        StatusKind::Error => format!("[ERROR] {label}"),
+        StatusKind::Healthy => format!("[TAMAM] {label}"),
+        StatusKind::Pending => format!("[BEKLE] {label}"),
+        StatusKind::Neutral => format!("[KAPALI] {label}"),
+        StatusKind::Error => format!("[HATA] {label}"),
     };
     let mut spans = vec![Span::styled(tag, status_style(kind))];
     if !detail.is_empty() {
@@ -1368,9 +1368,9 @@ fn https_cert_label() -> &'static str {
     if CONFIG.tls.acme.enabled {
         "Let's Encrypt"
     } else if CONFIG.tls.manual_cert.is_some() {
-        "manual cert"
+        "elle sertifika"
     } else {
-        "self-signed"
+        "kendinden imzalı"
     }
 }
 
@@ -1677,19 +1677,19 @@ mod tests {
             "header should retain product identity"
         );
         assert!(
-            text.contains("Service & access"),
+            text.contains("Servis ve erişim"),
             "transport health should have a clear panel"
         );
         assert!(
-            text.contains("Operations"),
+            text.contains("Operasyonlar"),
             "operator metrics should have a clear panel"
         );
         assert!(
-            text.contains("Content"),
+            text.contains("İçerik"),
             "content metrics should remain grouped"
         );
         assert!(
-            text.contains("1,200 posts"),
+            text.contains("1,200 gönderi"),
             "large counts should remain scannable"
         );
         Ok(())
@@ -1717,15 +1717,15 @@ mod tests {
         let text = buffer_text(&buffer);
 
         assert!(
-            text.contains("Create administrator"),
+            text.contains("Yönetici oluştur"),
             "form should name its action"
         );
         assert!(
-            text.contains("Password"),
+            text.contains("Parola"),
             "password fields should be discoverable"
         );
         assert!(
-            text.contains("Credentials are masked"),
+            text.contains("Kimlik bilgileri maskelenir"),
             "the form should explain password masking"
         );
         assert!(
@@ -1750,7 +1750,7 @@ mod tests {
         let text = buffer_text(&buffer);
 
         assert!(
-            text.contains("Terminal too small"),
+            text.contains("Terminal çok küçük"),
             "undersized terminals should receive an actionable state"
         );
         assert!(
@@ -1869,13 +1869,13 @@ mod tests {
                     })?;
                     let text = buffer_text(terminal.backend().buffer());
                     assert!(
-                        !text.contains("Secret"),
+                        !text.contains("Gizli"),
                         "password values must never reach the terminal buffer"
                     );
                     if terminal_is_usable(width, height) && matches!(dialog, Some(Dialog::Form(_)))
                     {
                         assert!(
-                            text.contains("Submit") && text.contains("Cancel"),
+                            text.contains("Gönder") && text.contains("İptal"),
                             "form actions must be reachable at {width}x{height}: {text}"
                         );
                         let cursor = terminal.get_cursor_position()?;
@@ -2081,11 +2081,11 @@ mod tests {
         )?;
         let text = buffer_text(&buffer);
         assert!(
-            text.contains("dashes."),
+            text.contains("tire."),
             "validation rules must not lose their final line: {text}"
         );
         assert!(
-            text.contains("Submit") && text.contains("Cancel"),
+            text.contains("Gönder") && text.contains("İptal"),
             "validation must not displace form actions"
         );
         Ok(())

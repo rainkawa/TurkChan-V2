@@ -785,7 +785,7 @@ pub fn set_live_ffmpeg_timeout_secs(timeout_secs: u64) -> anyhow::Result<()> {
 pub fn validate_ffmpeg_timeout_secs(timeout_secs: u64) -> anyhow::Result<u64> {
     if !(MIN_FFMPEG_TIMEOUT_SECS..=MAX_FFMPEG_TIMEOUT_SECS).contains(&timeout_secs) {
         anyhow::bail!(
-            "CONFIG ERROR: ffmpeg_timeout_secs must be between {MIN_FFMPEG_TIMEOUT_SECS} and {MAX_FFMPEG_TIMEOUT_SECS} seconds."
+            "YAPILANDIRMA HATASI: ffmpeg_timeout_secs {MIN_FFMPEG_TIMEOUT_SECS} ile {MAX_FFMPEG_TIMEOUT_SECS} saniye arasında olmalı."
         );
     }
     Ok(timeout_secs)
@@ -2655,7 +2655,7 @@ port = 8080
             .err()
             .map(|error| error.to_string());
         let expected = format!(
-            "CONFIG ERROR: ffmpeg_timeout_secs must be between {MIN_FFMPEG_TIMEOUT_SECS} and {MAX_FFMPEG_TIMEOUT_SECS} seconds."
+            "YAPILANDIRMA HATASI: ffmpeg_timeout_secs {MIN_FFMPEG_TIMEOUT_SECS} ile {MAX_FFMPEG_TIMEOUT_SECS} saniye arasında olmalı."
         );
         assert_eq!(
             error.as_deref(),
@@ -2671,7 +2671,7 @@ port = 8080
             .err()
             .map(|error| error.to_string());
         let expected = format!(
-            "CONFIG ERROR: ffmpeg_timeout_secs must be between {MIN_FFMPEG_TIMEOUT_SECS} and {MAX_FFMPEG_TIMEOUT_SECS} seconds."
+            "YAPILANDIRMA HATASI: ffmpeg_timeout_secs {MIN_FFMPEG_TIMEOUT_SECS} ile {MAX_FFMPEG_TIMEOUT_SECS} saniye arasında olmalı."
         );
         assert_eq!(
             error.as_deref(),

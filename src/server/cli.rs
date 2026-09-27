@@ -7,40 +7,41 @@ use clap::{Parser, Subcommand};
 #[command(
     name = "rustchan-cli",
     version,
-    about = "Self-contained imageboard server",
-    long_about = "TurkChan Imageboard — single binary, zero dependencies.\n\
-                  Config, database, logs, and uploads default to <exe-dir>/rustchan-data/.\n\
-                  Use --data-dir with an absolute path to select another location.\n\
-                  Run without arguments to start the server."
+    about = "Kendinden yeterli imageboard sunucusu",
+    long_about = "TurkChan Imageboard — tek ikili dosya, sıfır bağımlılık.\n\
+                  Yapılandırma, veritabanı, günlükler ve yüklemeler varsayılan olarak\n\
+                  <exe-dir>/rustchan-data/ konumundadır.\n\
+                  Başka bir konum seçmek için --data-dir ile mutlak yol ver.\n\
+                  Sunucuyu başlatmak için argümansız çalıştır."
 )]
 /// Top-level command-line arguments.
 pub struct Cli {
-    /// Absolute directory for config, database, uploads, logs, and backups
+    /// Yapılandırma, veritabanı, yüklemeler, günlükler ve yedekler için mutlak dizin
     #[arg(long, global = true, value_name = "PATH")]
     pub data_dir: Option<std::path::PathBuf>,
 
-    /// TCP port to bind the main forum server
+    /// Ana forum sunucusunun bağlanacağı TCP portu
     #[arg(long, short = 'p', global = true)]
     pub port: Option<u16>,
 
-    /// Enable the `ChanNet` / `RustWave` API on a second port (see `chan_net_bind` in config)
+    /// `ChanNet` / `RustWave` API’sini ikinci bir portta etkinleştir (yapılandırmada `chan_net_bind` bakın)
     #[arg(long = "chan-net", global = true)]
     pub chan_net: bool,
 
     #[command(subcommand)]
-    /// Optional server or administration command.
+    /// İsteğe bağlı sunucu veya yönetim komutu.
     pub command: Option<Command>,
 }
 
 #[derive(Debug, Subcommand)]
 /// Top-level operating mode.
 pub enum Command {
-    /// Start the web server.
+    /// Web sunucusunu başlat.
     Serve,
-    /// Run one administration action without starting the server.
+    /// Sunucuyu başlatmadan tek bir yönetim işlemi çalıştır.
     Admin {
         #[command(subcommand)]
-        /// Administration action to execute.
+        /// Çalıştırılacak yönetim işlemi.
         action: AdminAction,
     },
 }
@@ -50,69 +51,69 @@ pub enum Command {
 pub enum AdminAction {
     /// Create an administrator account.
     CreateAdmin {
-        /// Login name for the new administrator.
+        /// Yeni yönetici için giriş adı.
         username: String,
-        /// Initial administrator password.
+        /// Başlangıç yönetici parolası.
         password: String,
     },
-    /// Replace an administrator password.
+    /// Bir yönetici parolasını değiştir.
     ResetPassword {
-        /// Existing administrator login name.
+        /// Mevcut yönetici giriş adı.
         username: String,
-        /// Replacement password.
+        /// Yeni parola.
         new_password: String,
     },
-    /// List administrator accounts.
+    /// Yönetici hesaplarını listele.
     ListAdmins,
-    /// Create a board.
+    /// Board oluştur.
     CreateBoard {
-        /// Short URL-safe board name.
+        /// URL uyumlu kısa board adı.
         short: String,
-        /// Human-readable board name.
+        /// İnsan tarafından okunabilir board adı.
         name: String,
         #[arg(default_value = "")]
-        /// Optional board description.
+        /// İsteğe bağlı board açıklaması.
         description: String,
         #[arg(long)]
-        /// Whether the board contains not-safe-for-work material.
+        /// Board’ın iş yeri için güvenli olmayan içerik barındırıp barındırmadığı.
         nsfw: bool,
-        /// Disable image uploads on this board (default: images allowed)
+        /// Bu board’da görsel yüklemelerini kapat (varsayılan: görseller açık)
         #[arg(long = "no-images")]
         no_images: bool,
-        /// Disable video uploads on this board (default: video allowed)
+        /// Bu board’da video yüklemelerini kapat (varsayılan: video açık)
         #[arg(long = "no-videos")]
         no_videos: bool,
-        /// Enable audio uploads on this board (default: audio disabled)
+        /// Bu board’da ses yüklemelerini aç (varsayılan: ses kapalı)
         #[arg(long = "audio", conflicts_with = "no_audio")]
         audio: bool,
-        /// Compatibility flag; audio uploads are already disabled by default
+        /// Uyumluluk bayrağı; ses yüklemeleri zaten varsayılan olarak kapalı
         #[arg(long = "no-audio")]
         no_audio: bool,
     },
-    /// Delete a board and its content.
+    /// Bir board’ı ve içeriğini sil.
     DeleteBoard {
-        /// Short name of the board to delete.
+        /// Silinecek board’ın kısa adı.
         short: String,
     },
-    /// List boards.
+    /// Board’ları listele.
     ListBoards,
-    /// Ban an IP hash.
+    /// Bir IP hash’ini yasakla.
     Ban {
-        /// Privacy-preserving IP hash to ban.
+        /// Yasaklanacak gizliliği koruyan IP hash’i.
         ip_hash: String,
-        /// Operator-facing ban reason.
+        /// Operatör için yasak sebebi.
         reason: String,
-        /// Optional ban duration in hours.
+        /// İsteğe bağlı yasak süresi (saat).
         hours: Option<i64>,
     },
-    /// Remove a ban.
+    /// Bir yasağı kaldır.
     Unban {
-        /// Database identifier of the ban to remove.
+        /// Kaldırılacak yasağın veritabanı kimliği.
         ban_id: i64,
     },
-    /// List active bans.
+    /// Etkin yasakları listele.
     ListBans,
-    /// Print database schema and `SQLite` version status.
+    /// Veritabanı şemasını ve `SQLite` sürüm durumunu yazdır.
     DbStatus,
 }
 
@@ -188,7 +189,7 @@ fn write_db_status_output<W: std::io::Write>(
     schema_status: &str,
     sqlite_version: &str,
 ) -> std::io::Result<()> {
-    writeln!(writer, "Database schema: {schema_status}")?;
+    writeln!(writer, "Veritabanı şeması: {schema_status}")?;
     writeln!(writer, "SQLite: {sqlite_version}")?;
     Ok(())
 }
@@ -222,7 +223,7 @@ pub fn run_admin(action: AdminAction) -> anyhow::Result<()> {
             let id = db::create_admin(&conn, &username, &hash)?;
             writeln!(
                 std::io::stdout().lock(),
-                "✓ Admin '{username}' created (id={id})."
+                "✓ '{username}' yöneticisi oluşturuldu (id={id})."
             )?;
         }
         AdminAction::ResetPassword {
@@ -231,12 +232,12 @@ pub fn run_admin(action: AdminAction) -> anyhow::Result<()> {
         } => {
             crypto::validate_password(&new_password)?;
             db::get_admin_by_username(&conn, &username)?
-                .ok_or_else(|| anyhow::anyhow!("Admin '{username}' not found."))?;
+                .ok_or_else(|| anyhow::anyhow!("'{username}' yöneticisi bulunamadı."))?;
             let hash = crypto::hash_password(&new_password)?;
             db::update_admin_password(&conn, &username, &hash)?;
             writeln!(
                 std::io::stdout().lock(),
-                "✓ Password updated for '{username}'."
+                "✓ '{username}' parolası güncellendi."
             )?;
         }
         AdminAction::ListAdmins => {
@@ -244,14 +245,14 @@ pub fn run_admin(action: AdminAction) -> anyhow::Result<()> {
             if rows.is_empty() {
                 writeln!(
                     std::io::stdout().lock(),
-                    "No admins. Run: rustchan-cli admin create-admin <user> <pass>"
+                    "Yönetici yok. Çalıştır: rustchan-cli admin create-admin <kullanıcı> <parola>"
                 )?;
             } else {
                 writeln!(
                     std::io::stdout().lock(),
-                    "{:<6} {:<24} Created",
+                    "{:<6} {:<24} Oluşturulma",
                     "ID",
-                    "Username"
+                    "Kullanıcı adı"
                 )?;
                 writeln!(std::io::stdout().lock(), "{}", "-".repeat(45))?;
                 for (id, user, ts) in &rows {
@@ -278,7 +279,7 @@ pub fn run_admin(action: AdminAction) -> anyhow::Result<()> {
                 || short.len() > 8
                 || !short.chars().all(|c| c.is_ascii_alphanumeric())
             {
-                anyhow::bail!("Short name must be 1-8 alphanumeric chars (e.g. 'tech', 'b').");
+                anyhow::bail!("Kısa ad 1-8 alfanümerik karakter olmalı (örn. 'tech', 'b').");
             }
             let allow_images = !no_images;
             let allow_video = !no_videos;
@@ -295,50 +296,50 @@ pub fn run_admin(action: AdminAction) -> anyhow::Result<()> {
             )?;
             let nsfw_str = if nsfw { " [NSFW]" } else { "" };
             let media_info = format!(
-                "  images:{} video:{} audio:{}",
-                if allow_images { "yes" } else { "no" },
-                if allow_video { "yes" } else { "no" },
-                if allow_audio { "yes" } else { "no" },
+                "  görsel:{} video:{} ses:{}",
+                if allow_images { "evet" } else { "hayır" },
+                if allow_video { "evet" } else { "hayır" },
+                if allow_audio { "evet" } else { "hayır" },
             );
             writeln!(
                 std::io::stdout().lock(),
-                "✓ Board /{short}/ — {name}{nsfw_str} created (id={id}).{media_info}"
+                "✓ Board /{short}/ — {name}{nsfw_str} oluşturuldu (id={id}).{media_info}"
             )?;
         }
         AdminAction::DeleteBoard { short } => {
             let board = db::get_board_by_short(&conn, &short)?
-                .ok_or_else(|| anyhow::anyhow!("Board /{short}/ not found."))?;
+                .ok_or_else(|| anyhow::anyhow!("Board /{short}/ bulunamadı."))?;
             {
                 let mut stdout = std::io::stdout().lock();
                 write!(
                     stdout,
-                    "Delete /{short}/ and ALL its content? Type 'yes' to confirm: "
+                    /{short}/ ve TÜM içeriği silinsin mi? Onaylamak için 'yes' yaz: "
                 )?;
                 stdout.flush()?;
             }
             let mut input = String::new();
             std::io::stdin().read_line(&mut input)?;
             if input.trim() != "yes" {
-                writeln!(std::io::stdout().lock(), "Aborted.")?;
+                writeln!(std::io::stdout().lock(), "İşlem iptal edildi.")?;
                 return Ok(());
             }
             db::delete_board(&conn, board.id)?;
-            writeln!(std::io::stdout().lock(), "✓ Board /{short}/ deleted.")?;
+            writeln!(std::io::stdout().lock(), "✓ Board /{short}/ silindi.")?;
         }
         AdminAction::ListBoards => {
             let boards = db::get_all_boards(&conn)?;
             if boards.is_empty() {
                 writeln!(
                     std::io::stdout().lock(),
-                    "No boards. Run: rustchan-cli admin create-board <short> <n>"
+                    "Board yok. Çalıştır: rustchan-cli admin create-board <kısa> <ad>"
                 )?;
             } else {
                 writeln!(
                     std::io::stdout().lock(),
                     "{:<5} {:<12} {:<22} NSFW",
                     "ID",
-                    "Short",
-                    "Name"
+                    "Kısa",
+                    "Ad"
                 )?;
                 writeln!(std::io::stdout().lock(), "{}", "-".repeat(50))?;
                 for b in &boards {
@@ -348,7 +349,7 @@ pub fn run_admin(action: AdminAction) -> anyhow::Result<()> {
                         b.id,
                         format!("{}/", b.short_name),
                         b.name,
-                        if b.nsfw { "yes" } else { "no" }
+                        if b.nsfw { "evet" } else { "hayır" }
                     )?;
                 }
             }
@@ -365,29 +366,29 @@ pub fn run_admin(action: AdminAction) -> anyhow::Result<()> {
             let exp_str = expires
                 .and_then(|ts| chrono::Local.timestamp_opt(ts, 0).single())
                 .map_or_else(
-                    || "permanent".to_owned(),
+                    || "süresiz".to_owned(),
                     |d| d.format("%Y-%m-%d %H:%M").to_string(),
                 );
             writeln!(
                 std::io::stdout().lock(),
-                "✓ Ban #{id} added (expires: {exp_str})."
+                "✓ #{id} numaralı yasak eklendi (bitiş: {exp_str})."
             )?;
         }
         AdminAction::Unban { ban_id } => {
             db::remove_ban(&conn, ban_id)?;
-            writeln!(std::io::stdout().lock(), "✓ Ban #{ban_id} lifted.")?;
+            writeln!(std::io::stdout().lock(), "✓ #{ban_id} numaralı yasak kaldırıldı.")?;
         }
         AdminAction::ListBans => {
             let bans = db::list_bans(&conn)?;
             if bans.is_empty() {
-                writeln!(std::io::stdout().lock(), "No active bans.")?;
+                writeln!(std::io::stdout().lock(), "Etkin yasak yok.")?;
             } else {
                 writeln!(
                     std::io::stdout().lock(),
-                    "{:<5} {:<18} {:<28} Expires",
+                    "{:<5} {:<18} {:<28} Bitiş",
                     "ID",
-                    "IP Hash (partial)",
-                    "Reason"
+                    "IP Hash (kısmi)",
+                    "Sebep"
                 )?;
                 writeln!(std::io::stdout().lock(), "{}", "-".repeat(75))?;
                 for b in &bans {
@@ -398,7 +399,7 @@ pub fn run_admin(action: AdminAction) -> anyhow::Result<()> {
                         .expires_at
                         .and_then(|ts| chrono::Local.timestamp_opt(ts, 0).single())
                         .map_or_else(
-                            || "Permanent".to_owned(),
+                            || "Süresiz".to_owned(),
                             |d| d.format("%Y-%m-%d %H:%M").to_string(),
                         );
                     let ban_id = b.id;
@@ -566,7 +567,7 @@ mod tests {
         write_db_status_output(&mut out, &schema_status, "3.test")?;
         let output = String::from_utf8(out)?;
         anyhow::ensure!(
-            output.contains(&format!("Database schema: {schema_status}")),
+            output.contains(&format!("Veritabanı şeması: {schema_status}")),
             "status output should include the release schema label"
         );
         anyhow::ensure!(

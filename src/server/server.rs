@@ -146,7 +146,7 @@ async fn tls_plaintext_backend_gate(
         return build_redirect_response(&req, https_port).unwrap_or_else(|| {
             (
                 axum::http::StatusCode::BAD_REQUEST,
-                "Refusing HTTP redirect for untrusted host header",
+                "Güvenilmeyen host başlığı için HTTP yönlendirmesi reddedildi",
             )
                 .into_response()
         });
@@ -154,7 +154,7 @@ async fn tls_plaintext_backend_gate(
 
     let mut response = (
         axum::http::StatusCode::UPGRADE_REQUIRED,
-        "HTTPS is required",
+        "HTTPS gereklidir",
     )
         .into_response();
     response.headers_mut().insert(
@@ -1976,7 +1976,7 @@ pub async fn run_http_redirect(
                 build_redirect_response(&req, https_port).unwrap_or_else(|| {
                     (
                         StatusCode::BAD_REQUEST,
-                        "Refusing HTTP redirect for untrusted host header",
+                        "Güvenilmeyen host başlığı için HTTP yönlendirmesi reddedildi",
                     )
                         .into_response()
                 })

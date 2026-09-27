@@ -997,42 +997,42 @@ pub fn attempt_db_repair(
 
     if let Some(backup) = &repair_backup {
         repair_summary.push(format!(
-            "Created pre-repair {} backup: {}.",
+            "Onarım öncesi {} yedeği oluşturuldu: {}.",
             backup.backup_type, backup.backup_id
         ));
     }
 
     if before.ok() {
         repair_summary.push(
-            "No database health problems were detected before the maintenance run.".to_owned(),
+            "Bakım çalıştırılmasından önce veritabanı sağlık sorunu tespit edilmedi.".to_owned(),
         );
         repair_summary.push(
-            "No corruption-specific fixes were required; the system only ran maintenance and index rebuild steps.".to_owned(),
+            "Bozulmaya özel bir düzeltme gerekmedi; sistem yalnızca bakım ve dizin yeniden oluşturma adımlarını çalıştırdı.".to_owned(),
         );
     } else {
         repair_summary.push(
-            "The initial database health check reported a problem, so repair steps were attempted."
+            "Başlangıç veritabanı sağlık denetimi bir sorun bildirdi, bu yüzden onarım adımları denendi."
                 .to_owned(),
         );
     }
 
     match conn.execute_batch("REINDEX;") {
-        Ok(()) => repair_steps.push("Rebuilt SQLite indexes.".to_owned()),
-        Err(error) => repair_steps.push(format!("Could not rebuild SQLite indexes: {error}")),
+        Ok(()) => repair_steps.push("SQLite dizinleri yeniden kuruldu.".to_owned()),
+        Err(error) => repair_steps.push(format!("SQLite dizinleri yeniden kurulamadı: {error}")),
     }
 
     match rebuild_posts_fts(conn) {
         Ok(()) => repair_steps
-            .push("Rebuilt the post search index and recreated its update triggers.".to_owned()),
+            .push("Gönderi arama dizini yeniden kuruldu ve güncelleme tetikleyicileri yeniden oluşturuldu.".to_owned()),
         Err(error) => repair_steps.push(format!(
-            "Could not rebuild the post search index and triggers: {error}"
+            "Gönderi arama dizini ve tetikleyicileri yeniden kurulamadı: {error}"
         )),
     }
 
     match conn.execute_batch("PRAGMA optimize;") {
-        Ok(()) => repair_steps.push("Optimized SQLite query-planner statistics.".to_owned()),
+        Ok(()) => repair_steps.push("SQLite sorgu planlayıcı istatistikleri optimize edildi.".to_owned()),
         Err(error) => repair_steps.push(format!(
-            "Could not optimize SQLite query-planner statistics: {error}"
+            "SQLite sorgu planlayıcı istatistikleri optimize edilemedi: {error}"
         )),
     }
 
@@ -1040,15 +1040,15 @@ pub fn attempt_db_repair(
 
     if before.ok() && after.ok() {
         repair_summary.push(
-            "The final database health check still passed, confirming that no additional repairs were needed.".to_owned(),
+            "Nihai veritabanı sağlık denetimi yine geçti; bu da ek onarıma gerek olmadığını doğruluyor.".to_owned(),
         );
     } else if after.ok() {
         repair_summary.push(
-            "The final database health check passed after the repair run, so the detected problem was cleared.".to_owned(),
+            "Onarım çalıştırmasından sonraki nihai veritabanı sağlık denetimi geçti, yani tespit edilen sorun temizlendi.".to_owned(),
         );
     } else {
         repair_summary.push(
-            "The repair run finished, but the final database health check still reports a problem."
+            "Onarım çalıştırması bitti, ancak nihai veritabanı sağlık denetimi hâlâ bir sorun bildiriyor."
                 .to_owned(),
         );
     }
@@ -1076,8 +1076,8 @@ pub fn db_repair_aborted_for_backup_failure(
         repair_backup: None,
         repair_backup_error: Some(backup_error.to_owned()),
         repair_summary: vec![
-            format!("Pre-repair backup failed: {backup_error}"),
-            "No repair or maintenance actions were run.".to_owned(),
+            format!("Onarım öncesi yedekleme başarısız: {backup_error}"),
+            "Hiçbir onarım veya bakım işlemi çalıştırılmadı.".to_owned(),
         ],
         repair_steps: Vec::new(),
         after: None,
@@ -1300,7 +1300,7 @@ mod tests {
             report
                 .repair_summary
                 .iter()
-                .any(|line| line.contains("No corruption-specific fixes were required")),
+                .any(|line| line.contains("Bozulmaya özel bir düzeltme gerekmedi")),
             "a clean database should report that no corruption repair was needed"
         );
         Ok(())

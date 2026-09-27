@@ -16,7 +16,7 @@ use std::io::BufRead;
 /// database mutation, or required filesystem bookkeeping fails.
 pub fn execute(request: &OperationRequest, pool: &DbPool) -> Result<String, String> {
     execute_inner(request, pool).map_err(|error| {
-        tracing::error!(target: "console", operation = ?request, error = %error, "Console operation failed");
+        tracing::error!(target: "console", operation = ?request, error = %error, "Konsol işlemi başarısız");
         error.to_string()
     })
 }
@@ -52,7 +52,7 @@ fn execute_inner(request: &OperationRequest, pool: &DbPool) -> anyhow::Result<St
                 id,
                 "Board created via console"
             );
-            Ok(format!("Board /{short}/ — {name} created (ID {id})."))
+            Ok(format!("Board /{short}/ — {name} oluşturuldu (ID {id})."))
         }
         OperationRequest::CreateAdmin { username, password } => {
             validate_username(username)?;
@@ -66,11 +66,11 @@ fn execute_inner(request: &OperationRequest, pool: &DbPool) -> anyhow::Result<St
                 id,
                 "Administrator created via console"
             );
-            Ok(format!("Administrator '{username}' created (ID {id})."))
+            Ok(format!("'{username}' yöneticisi oluşturuldu (ID {id})."))
         }
         OperationRequest::DeleteThread { thread_id } => {
             if *thread_id <= 0 {
-                anyhow::bail!("Thread ID must be a positive whole number.");
+                anyhow::bail!("Konu kimliği pozitif bir tam sayı olmalı.");
             }
             let connection = pool.get()?;
             let deleted = crate::db::delete_thread(&connection, *thread_id)?;
@@ -97,11 +97,11 @@ fn execute_inner(request: &OperationRequest, pool: &DbPool) -> anyhow::Result<St
             );
             if cleanup_result.is_ok() {
                 Ok(format!(
-                    "Thread {thread_id} deleted; {file_count} attached file(s) removed."
+                    "{thread_id} numaralı konu silindi; {file_count} ekli dosya kaldırıldı."
                 ))
             } else {
                 Ok(format!(
-                    "Thread {thread_id} deleted; attached-file cleanup remains queued."
+                    "{thread_id} numaralı konu silindi; ekli dosya temizliği kuyrukta bekliyor."
                 ))
             }
         }
@@ -116,13 +116,13 @@ fn validate_board(short: &str, name: &str, description: &str) -> anyhow::Result<
             .chars()
             .all(|character| character.is_ascii_alphanumeric())
     {
-        anyhow::bail!("Short name must be 1-8 ASCII letters or numbers.");
+        anyhow::bail!("Kısa ad 1-8 ASCII harf veya rakam olmalı.");
     }
     if name.trim().is_empty() || name.chars().count() > 80 {
-        anyhow::bail!("Display name must be 1-80 characters.");
+        anyhow::bail!("Görünen ad 1-80 karakter olmalı.");
     }
     if description.chars().count() > 240 {
-        anyhow::bail!("Description must be 240 characters or fewer.");
+        anyhow::bail!("Açıklama en fazla 240 karakter olmalı.");
     }
     Ok(())
 }
@@ -134,7 +134,7 @@ fn validate_username(username: &str) -> anyhow::Result<()> {
             .chars()
             .all(|character| character.is_ascii_alphanumeric() || matches!(character, '_' | '-'))
     {
-        anyhow::bail!("Username must be 3-32 ASCII letters, numbers, underscores, or dashes.");
+        anyhow::bail!("Kullanıcı adı 3-32 ASCII harf, rakam, alt çizgi veya tire olmalı.");
     }
     Ok(())
 }
@@ -168,7 +168,7 @@ fn prompt(reader: &mut dyn BufRead, label: &str) -> Option<String> {
 /// Prompt until a valid first administrator username is supplied.
 fn prompt_username(reader: &mut dyn BufRead) -> Option<String> {
     loop {
-        let username = prompt(reader, "Username:")?;
+        let username = prompt(reader, "Kullanıcı adı:")?;
         match validate_username(&username) {
             Ok(()) => return Some(username),
             Err(error) => print_line(&format!(
@@ -184,9 +184,9 @@ fn prompt_username(reader: &mut dyn BufRead) -> Option<String> {
 fn prompt_password(reader: &mut dyn BufRead) -> Option<String> {
     loop {
         let password = if crate::logging::is_tty() {
-            prompt_terminal("Password (8+ characters):", true)?
+            prompt_terminal("Parola (en az 8 karakter):", true)?
         } else {
-            prompt(reader, "Password (8+ characters):")?
+            prompt(reader, "Parola (en az 8 karakter):")?
         };
         if let Err(error) = crate::utils::crypto::validate_password(&password) {
             print_line(&format!(
@@ -197,9 +197,9 @@ fn prompt_password(reader: &mut dyn BufRead) -> Option<String> {
             continue;
         }
         let confirmation = if crate::logging::is_tty() {
-            prompt_terminal("Confirm password:", true)?
+            prompt_terminal("Parola tekrar:", true)?
         } else {
-            prompt(reader, "Confirm password:")?
+            prompt(reader, "Parola tekrar:")?
         };
         if password == confirmation {
             return Some(password);
@@ -345,7 +345,7 @@ pub fn prompt_create_first_admin(
 ) {
     let _input_guard = if crate::logging::is_tty() {
         if let Err(error) = super::start_line_input() {
-            print_line(&format!("Setup input unavailable: {error}"));
+            print_line(&format!("Kurulum girişi kullanılamıyor: {error}"));
             return;
         }
         Some(SetupInputGuard)
@@ -356,39 +356,39 @@ pub fn prompt_create_first_admin(
         return;
     }
     print_raw(&format!(
-        "\n  {}┌─ First-run setup ─────────────────────────────────────┐\n\
-           │  Create the administrator used at /admin.             │\n\
-           │  Ctrl-C or end-of-input skips setup for now.           │\n\
-           └────────────────────────────────────────────────────────┘{}\n\n",
+        "\n  {}┌─ İlk çalıştırma kurulumu ─────────────────────────────┐\n\
+           │  /admin için kullanılacak yöneticivi oluştur.          │\n\
+           │  Ctrl-C ya da giriş sonu kurulumu atlar.               │\n\
+           └──────────────────────────────────────────────────────┘{}\n\n",
         color("\x1b[36m"),
         color("\x1b[0m")
     ));
     if crate::logging::is_tty() {
         print_line(&format!(
-            "  {}[SECURE] Password input is masked.{}",
+            "  {}[GÜVENLİ] Parola girişi maskelenir.{}",
             color("\x1b[32m"),
             color("\x1b[0m")
         ));
     }
 
     let Some(username) = prompt_username(reader) else {
-        print_line("\n  Setup skipped. Use: rustchan-cli admin create-admin <user> <pass>");
+        print_line("\n  Kurulum atlandı. Çalıştır: rustchan-cli admin create-admin <kullanıcı> <parola>");
         return;
     };
     let Some(password) = prompt_password(reader) else {
-        print_line("\n  Setup skipped.");
+        print_line("\n  Kurulum atlandı.");
         return;
     };
     let request = OperationRequest::CreateAdmin { username, password };
     match execute(&request, pool) {
         Ok(message) => print_line(&format!(
-            "\n  {}[OK]{} {message}",
+            "\n  {}[TAMAM]{} {message}",
             color("\x1b[32m"),
             color("\x1b[0m")
         )),
         Err(error) => {
             print_line(&format!(
-                "\n  {}[ERROR]{} {error}",
+                "\n  {}[HATA]{} {error}",
                 color("\x1b[31m"),
                 color("\x1b[0m")
             ));
@@ -396,7 +396,7 @@ pub fn prompt_create_first_admin(
         }
     }
 
-    let create_board = prompt(reader, "Create the first board now? [y/N]:")
+    let create_board = prompt(reader, "İlk board şimdi oluşturulsun mu? [y/N]:")
         .is_some_and(|answer| matches!(answer.to_ascii_lowercase().as_str(), "y" | "yes"));
     if create_board {
         prompt_create_first_board(pool, reader);
@@ -407,12 +407,12 @@ pub fn prompt_create_first_admin(
 /// Collect and create an optional first board during line-mode setup.
 fn prompt_create_first_board(pool: &DbPool, reader: &mut dyn BufRead) {
     print_line("");
-    let Some(short) = prompt(reader, "Short name (for example, tech):") else {
-        print_line("  Board setup skipped.");
+    let Some(short) = prompt(reader, "Kısa ad (örn. tech):") else {
+        print_line("  Board kurulumu atlandı.");
         return;
     };
-    let Some(name) = prompt(reader, "Display name:") else {
-        print_line("  Board setup skipped.");
+    let Some(name) = prompt(reader, "Görünen ad:") else {
+        print_line("  Board kurulumu atlandı.");
         return;
     };
     // Cancellation at any remaining field must not create a board using
@@ -421,20 +421,20 @@ fn prompt_create_first_board(pool: &DbPool, reader: &mut dyn BufRead) {
         Some(OperationRequest::CreateBoard {
             short: short.to_ascii_lowercase(),
             name,
-            description: prompt(reader, "Description (optional):")?,
+            description: prompt(reader, "Açıklama (isteğe bağlı):")?,
             nsfw: yes(&prompt(reader, "NSFW board? [y/N]:")?),
-            allow_images: !yes(&prompt(reader, "Disable image uploads? [y/N]:")?),
-            allow_video: !yes(&prompt(reader, "Disable video uploads? [y/N]:")?),
-            allow_audio: yes(&prompt(reader, "Enable audio uploads? [y/N]:")?),
+            allow_images: !yes(&prompt(reader, "Görsel yüklemeleri kapatılsın mı? [y/N]:")?),
+            allow_video: !yes(&prompt(reader, "Video yüklemeleri kapatılsın mı? [y/N]:")?),
+            allow_audio: yes(&prompt(reader, "Ses yüklemeleri açılsın mı? [y/N]:")?),
         })
     })();
     let Some(request) = request else {
-        print_line("  Board setup skipped.");
+        print_line("  Board kurulumu atlandı.");
         return;
     };
     match execute(&request, pool) {
         Ok(message) => print_line(&format!(
-            "  {}[OK]{} {message}",
+            "  {}[TAMAM]{} {message}",
             color("\x1b[32m"),
             color("\x1b[0m")
         )),

@@ -324,7 +324,7 @@ pub fn collect_stats(
                 threads: -1,
                 posts: -1,
                 db_bytes: -1,
-                collection_error: Some("Database metrics are temporarily unavailable.".to_owned()),
+                collection_error: Some("Veritabanı ölçümleri geçici olarak kullanılamıyor.".to_owned()),
                 ..ChanStats::default()
             }
         }
