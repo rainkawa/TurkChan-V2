@@ -270,6 +270,26 @@ pub struct AccountMenu {
     pub is_admin: bool,
 }
 
+/// The cache-busting version of an account's stored picture.
+///
+/// An upload is stored under a fresh file name, and that name is its version.
+/// A page has to link to the version as well as the picture: the avatar is
+/// served with a one-year cache lifetime, so a URL that does not change hands
+/// back the very first picture the browser ever saw, and a freshly uploaded
+/// one is never fetched at all.
+#[must_use]
+pub fn avatar_version(avatar_file: Option<&str>) -> String {
+    avatar_file.map_or_else(
+        || "0".to_owned(),
+        |file_name| {
+            crate::utils::crypto::sha256_hex(file_name.as_bytes())
+                .chars()
+                .take(12)
+                .collect()
+        },
+    )
+}
+
 /// Return the single letter an account is shown as when it has no picture.
 ///
 /// The chosen display name leads, because that is what a visitor reads
@@ -343,6 +363,8 @@ pub struct AccountSettings {
     pub user_id: i64,
     /// Whether a picture has been uploaded for this account.
     pub has_avatar: bool,
+    /// Cache-busting version of that picture, `"0"` when there is none.
+    pub avatar_version: String,
     /// Whether the password form is offered for this identity.
     ///
     /// An operator browses under an administrator name whose credential lives
@@ -440,8 +462,9 @@ pub fn account_settings_page(
     // account without a picture looks.
     let avatar = if settings.has_avatar {
         format!(
-            r#"<img class="account-avatar-preview" src="/auth/avatar/{user_id}" width="96" height="96" alt="Mevcut profil resmi">"#,
+            r#"<img class="account-avatar-preview" src="/auth/avatar/{user_id}?v={version}" width="96" height="96" alt="Mevcut profil resmi">"#,
             user_id = settings.user_id,
+            version = escape_html(&settings.avatar_version),
         )
     } else {
         format!(
@@ -540,7 +563,8 @@ pub fn account_settings_page(
 #[cfg(test)]
 mod tests {
     use super::{
-        account_settings_page, AccountSettings, AccountSettingsNotice, AccountSettingsTokens,
+        account_settings_page, avatar_version, AccountSettings, AccountSettingsNotice,
+        AccountSettingsTokens,
     };
     use crate::templates::UserPreferences;
 
@@ -552,6 +576,7 @@ mod tests {
             bio: "selam".to_owned(),
             user_id: 7,
             has_avatar: false,
+            avatar_version: "0".to_owned(),
             can_change_password: true,
         }
     }
@@ -642,6 +667,42 @@ mod tests {
         assert!(
             html.contains(r#"<p class="account-notice is-error" role="alert">"#),
             "a rejected submission is announced as an error"
+        );
+    }
+
+    #[test]
+    /// The picture is served with a one-year cache lifetime, so the URL has to
+    /// carry the upload it belongs to. An account with no picture gets its own
+    /// version, and each new upload gets one the browser has never seen.
+    fn the_picture_version_follows_the_stored_upload() {
+        assert_eq!(avatar_version(None), "0");
+        assert_eq!(
+            avatar_version(Some("7-a1b2c3d4e5f6-0.png")),
+            avatar_version(Some("7-a1b2c3d4e5f6-0.png")),
+            "the same upload always renders the same version"
+        );
+        assert_ne!(
+            avatar_version(Some("7-a1b2c3d4e5f6-0.png")),
+            avatar_version(Some("7-998877665544-1.png")),
+            "a replacement upload must not reuse the previous version, or the browser keeps the old picture"
+        );
+    }
+
+    #[test]
+    /// The settings screen links to the versioned URL, so the preview a visitor
+    /// looks at after saving is the picture that was just stored.
+    fn the_settings_preview_links_to_the_versioned_picture() {
+        let mut account = settings();
+        account.has_avatar = true;
+        account.avatar_version = avatar_version(Some("7-a1b2c3d4e5f6-0.png"));
+        let html = render(&account, &AccountSettingsNotice::empty());
+
+        assert!(
+            html.contains(&format!(
+                r#"src="/auth/avatar/7?v={}""#,
+                account.avatar_version
+            )),
+            "the preview has to ask for the stored version, got {html}"
         );
     }
 }

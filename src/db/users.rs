@@ -337,6 +337,25 @@ pub fn delete_user_session_for_owner(
     Ok(())
 }
 
+/// End every session an account holds, used after a password change.
+///
+/// Changing a password is how an owner takes back an account, so the sessions
+/// that were opened with the old secret have to stop working: leaving them
+/// alive is what makes a stolen session survive the fix.
+///
+/// # Errors
+/// Returns an error if the database operation fails.
+pub fn delete_user_sessions_for_user(
+    conn: &rusqlite::Connection,
+    user_id: i64,
+) -> Result<usize> {
+    conn.execute(
+        "DELETE FROM user_sessions WHERE user_id = ?1",
+        params![user_id],
+    )
+    .context("Failed to delete user sessions")
+}
+
 /// Attach a post to the account that wrote it.
 ///
 /// The link is written after the post row exists, so a posting path that never
@@ -558,9 +577,10 @@ pub fn purge_expired_user_sessions(conn: &rusqlite::Connection) -> Result<usize>
 /// Schema-upgrade coverage for the anonymous-account tables.
 mod tests {
     use super::{
-        count_users, create_user, create_user_session, ensure_admin_profile, find_user_by_id,
-        find_user_by_username, set_user_avatar, update_bio, update_display_name,
-        update_password_hash, update_username, username_exists,
+        count_users, create_user, create_user_session, delete_user_sessions_for_user,
+        ensure_admin_profile, find_user_by_id, find_user_by_username, get_user_session,
+        set_user_avatar, update_bio, update_display_name, update_password_hash, update_username,
+        username_exists,
     };
     use crate::models::ProfilePostScope;
     use crate::db::schema::{install_or_migrate_schema, normalize_database_schema_version};
@@ -906,6 +926,40 @@ mod tests {
             find_user_by_id(&conn, user_id)?.map(|user| user.username),
             Some("yeni-ad".to_owned()),
             "a refused rename must leave the account where it was"
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "test assertions intentionally panic on failure"
+    )]
+    /// Changing a password ends every session the account holds, and only that
+    /// account's: a session opened with the old password must not keep working,
+    /// and a neighbour signing in at the same moment must not be signed out.
+    fn password_change_ends_only_that_account_sessions() -> Result<()> {
+        let conn = pre_account_database()?;
+        let hash = crate::utils::crypto::hash_password("Hunter2Hunter2")?;
+        let user_id = create_user(&conn, "anon", "Anonim", &hash, None, "selam")?;
+        let neighbour = create_user(&conn, "komsu", "Komsu", &hash, None, "selam")?;
+        let expires_at = chrono::Utc::now().timestamp() + 3600;
+        create_user_session(&conn, "own-one", user_id, expires_at)?;
+        create_user_session(&conn, "own-two", user_id, expires_at)?;
+        create_user_session(&conn, "theirs", neighbour, expires_at)?;
+
+        assert_eq!(delete_user_sessions_for_user(&conn, user_id)?, 2);
+        assert!(
+            get_user_session(&conn, "own-one")?.is_none(),
+            "a session opened with the replaced password must not survive it"
+        );
+        assert!(
+            get_user_session(&conn, "own-two")?.is_none(),
+            "every session of that account is ended, not just the newest one"
+        );
+        assert!(
+            get_user_session(&conn, "theirs")?.is_some(),
+            "another account's session is none of this one's business"
         );
         Ok(())
     }

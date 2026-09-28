@@ -11,7 +11,9 @@
 //!      account in immediately, so the visitor never has to type the same
 //!      password twice
 //!   3. `GET  /login`     renders the single-screen sign-in form
-//!   4. `POST /login`     verifies the Argon2id hash and issues a session
+//!   4. `POST /login`     verifies the Argon2id hash and issues a session,
+//!      after counting the attempt against the address and the name so a run
+//!      of guesses is refused before any further hashing is paid for
 //!   5. `POST /logout`    ends the session
 //!   6. `GET  /auth/username` answers whether a username is still free
 //!
@@ -22,7 +24,8 @@
 //!   8. `POST /account/profile` stores the picture, the display name, a new
 //!      unique username, and the description the profile shows
 //!   9. `POST /account/password` replaces the password after the current one
-//!      is verified
+//!      is verified, ends every session opened with the old one, and signs the
+//!      visitor back in on a session id minted after the change
 //!
 //! The sign-in screen also accepts a command-line administrator, which has no
 //! `users` row. That identity gets an administrator session, uses the site
@@ -58,8 +61,11 @@ use axum::{
 };
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use chrono::Utc;
+use dashmap::DashMap;
 use serde::Deserialize;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::LazyLock;
+use std::time::{SystemTime, UNIX_EPOCH};
 use time::Duration;
 
 /// Cookie carrying the opaque anonymous-account session identifier.
@@ -520,6 +526,101 @@ static DUMMY_PASSWORD_HASH: LazyLock<String> = LazyLock::new(|| {
     ))
 });
 
+/// Failed sign-ins allowed per address inside [`LOGIN_FAIL_WINDOW`].
+const LOGIN_FAIL_LIMIT: u32 = 8;
+/// Failed sign-ins allowed against one account before it is locked.
+///
+/// Counted separately from the address, because guessing a single name is
+/// worth doing from many addresses while one address signing many people in is
+/// ordinary, so the two limits are deliberately not the same number.
+const ACCOUNT_LOGIN_FAIL_LIMIT: u32 = 20;
+/// Sliding window, in seconds, that sign-in failures are counted over.
+const LOGIN_FAIL_WINDOW: u64 = 900;
+
+/// `key` -> (`fail_count`, `window_start_secs`).
+///
+/// Keys are SHA-256 digests of the address and of the account name, so no raw
+/// address or submitted name is retained in memory.
+static LOGIN_FAILS: LazyLock<DashMap<String, (u32, u64)>> = LazyLock::new(DashMap::new);
+/// Timestamp of the last opportunistic sweep over [`LOGIN_FAILS`].
+static LOGIN_FAILS_PRUNED: AtomicU64 = AtomicU64::new(0);
+
+/// Seconds since the Unix epoch, for the sign-in failure windows.
+fn login_now_secs() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
+
+/// Build the in-memory key for one failure counter.
+///
+/// `purpose` keeps an address counter and an account counter apart, so the same
+/// text cannot collide across the two.
+fn login_fail_key(purpose: &str, value: &str) -> String {
+    let mut material = String::with_capacity(purpose.len() + value.len() + 1);
+    material.push_str(purpose);
+    material.push(':');
+    material.push_str(value.trim());
+    crate::utils::crypto::sha256_hex(material.as_bytes())
+}
+
+/// Whether a counter has reached `limit` inside the current window.
+fn login_fails_locked(key: &str, limit: u32) -> bool {
+    let now = login_now_secs();
+    if let Some(entry) = LOGIN_FAILS.get(key) {
+        let (count, window_start) = *entry;
+        if now.saturating_sub(window_start) <= LOGIN_FAIL_WINDOW {
+            return count >= limit;
+        }
+    }
+    false
+}
+
+/// Record one failure and return the new count.
+///
+/// The window is measured from the first failure of a run, so an attacker
+/// cannot extend a lockout by keeping the counter warm.
+#[expect(
+    clippy::significant_drop_tightening,
+    reason = "the DashMap entry guard must remain held while its attempt count is updated"
+)]
+fn record_login_fail(key: &str) -> u32 {
+    let now = login_now_secs();
+    let mut entry = LOGIN_FAILS.entry(key.to_owned()).or_insert((0, now));
+    let (count, window_start) = entry.value_mut();
+    if now.saturating_sub(*window_start) > LOGIN_FAIL_WINDOW {
+        *count = 1;
+        *window_start = now;
+    } else {
+        *count = count.saturating_add(1);
+    }
+    *count
+}
+
+/// Forget the failures recorded for a successful sign-in, so an operator who
+/// fumbled their own password is not locked out by their own typos.
+fn clear_login_fails(keys: &[String]) {
+    for key in keys {
+        LOGIN_FAILS.remove(key);
+    }
+}
+
+/// Drop counters whose window has passed.
+///
+/// Called from the background task in `server/server.rs`; a sustained attack
+/// that never signs in successfully would otherwise grow the map forever.
+pub(in crate::server) fn prune_login_fails() {
+    let now = login_now_secs();
+    let last = LOGIN_FAILS_PRUNED.load(Ordering::Relaxed);
+    if now.saturating_sub(last) < LOGIN_FAIL_WINDOW {
+        return;
+    }
+    LOGIN_FAILS_PRUNED.store(now, Ordering::Relaxed);
+    LOGIN_FAILS
+        .retain(|_, (_, window_start)| now.saturating_sub(*window_start) <= LOGIN_FAIL_WINDOW);
+}
+
 // GET /login
 pub(crate) async fn login_page(
     State(state): State<AppState>,
@@ -550,6 +651,7 @@ pub(crate) async fn login_submit(
     jar: CookieJar,
     headers: HeaderMap,
     secure_context: crate::middleware::SecureCookieContext,
+    crate::middleware::ClientIp(client_ip): crate::middleware::ClientIp,
     Form(form): Form<LoginForm>,
 ) -> Result<Response> {
     let secure = crate::handlers::admin::should_set_secure_cookie(&headers, secure_context);
@@ -563,6 +665,18 @@ pub(crate) async fn login_submit(
     // Administrator names are stored as typed, so the operator lookup uses the
     // trimmed form rather than the lower-cased board-account one.
     let operator_username = form.username.trim().to_owned();
+    let fail_keys = signin_fail_keys(&client_ip, &operator_username);
+    // The lockout is checked before Argon2 runs, so a locked-out guess costs the
+    // server nothing while a real sign-in still pays the full hash.
+    if signin_locked(&fail_keys) {
+        tracing::warn!(target: "auth", "Account sign-in blocked by brute-force lockout");
+        return Ok(render_login_failure(
+            jar,
+            secure,
+            &form.username,
+            "Çok fazla başarısız giriş denemesi. Lütfen birkaç dakika bekleyip tekrar dene.",
+        ));
+    }
     let return_to = strict_safe_internal_path_or(Some(&form.return_to), "/").to_owned();
     let pool = state.db.clone();
     let password = form.password.clone();
@@ -598,8 +712,11 @@ pub(crate) async fn login_submit(
         )
         .await?
         {
+            clear_login_fails(&fail_keys);
             return Ok(response);
         }
+        let fails = record_signin_failure(&fail_keys);
+        tracing::warn!(target: "auth", attempts = fails, "Failed account sign-in");
         return Ok(render_login_failure(
             jar,
             secure,
@@ -608,7 +725,32 @@ pub(crate) async fn login_submit(
         ));
     };
 
+    clear_login_fails(&fail_keys);
     issue_session(state, jar, user_id, secure, &return_to).await
+}
+
+/// The two counters a sign-in attempt is measured against.
+///
+/// The pair is returned together because every read, write, and clear of a
+/// sign-in failure touches both.
+fn signin_fail_keys(client_ip: &str, username: &str) -> [String; 2] {
+    [
+        login_fail_key("ip", client_ip),
+        login_fail_key("account", username),
+    ]
+}
+
+/// Whether either the address or the account is currently locked out.
+fn signin_locked(keys: &[String; 2]) -> bool {
+    login_fails_locked(&keys[0], LOGIN_FAIL_LIMIT)
+        || login_fails_locked(&keys[1], ACCOUNT_LOGIN_FAIL_LIMIT)
+}
+
+/// Record one failed sign-in against both counters, returning the address count.
+fn record_signin_failure(keys: &[String; 2]) -> u32 {
+    let address_fails = record_login_fail(&keys[0]);
+    record_login_fail(&keys[1]);
+    address_fails
 }
 
 /// Render the sign-in screen again with a failure message.
@@ -988,11 +1130,35 @@ fn store_avatar(user_id: i64, bytes: &[u8]) -> Result<String> {
     let dir = avatar_dir();
     std::fs::create_dir_all(&dir)
         .with_context(|| format!("Failed to create avatar directory {}", dir.display()))?;
-    let file_name = format!("{user_id}.png");
+    // The name carries the upload that produced it rather than only the
+    // account, so a page that links to a new picture also links to a new URL.
+    // A picture served for a year under one unchanging URL is never fetched
+    // again, which is how a stored upload ends up invisible.
+    let stamp = Utc::now().timestamp_millis().max(0) as u64;
+    let sequence = AVATAR_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    let file_name = format!("{user_id}-{stamp:x}-{sequence:x}.png");
     let path = dir.join(&file_name);
     std::fs::write(&path, encoded.into_inner())
         .with_context(|| format!("Failed to write avatar {}", path.display()))?;
     Ok(file_name)
+}
+
+/// Counter that keeps two uploads made in the same millisecond from sharing a
+/// file name.
+static AVATAR_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+/// Whether a stored avatar name is a plain file name this handler wrote.
+///
+/// The name is read back out of the database, so a row naming `../secret` or an
+/// absolute path must not turn into a read outside the avatar directory.
+fn avatar_file_name_is_safe(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 64
+        && name.ends_with(".png")
+        && !name.starts_with('.')
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
 }
 
 // GET /auth/avatar/{user_id}
@@ -1000,19 +1166,29 @@ pub(crate) async fn serve_avatar(
     State(state): State<AppState>,
     axum::extract::Path(user_id): axum::extract::Path<i64>,
 ) -> Result<Response> {
-    let file_name = format!("{user_id}.png");
-    let path = avatar_dir().join(&file_name);
+    let conn = state.db.get()?;
+    let Some(user) = db::find_user_by_id(&conn, user_id)? else {
+        return Err(AppError::NotFound("Profil resmi bulunamadı.".into()));
+    };
+
+    // The picture is served from the file the row names, not from a name built
+    // out of the account id, so a replacement upload is actually the file that
+    // gets read.
+    let stored = user
+        .avatar_file
+        .as_deref()
+        .filter(|name| avatar_file_name_is_safe(name))
+        .and_then(|name| std::fs::read(avatar_dir().join(name)).ok());
+
     // A missing file is not an error: the account simply uses the generated
-    // default avatar.
-    let bytes = match std::fs::read(&path) {
-        Ok(bytes) => bytes,
-        Err(_) => {
-            let conn = state.db.get()?;
-            let Some(user) = db::find_user_by_id(&conn, user_id)? else {
-                return Err(AppError::NotFound("Profil resmi bulunamadı.".into()));
-            };
-            default_avatar(&user.username)?
-        }
+    // default avatar. That picture is derived from the account rather than
+    // content-addressed, so it revalidates instead of being served immutably.
+    let (bytes, policy) = match stored {
+        Some(bytes) => (bytes, crate::cache::CACHE_CONTROL_IMMUTABLE_MEDIA),
+        None => (
+            default_avatar(&user.username)?,
+            crate::cache::CACHE_CONTROL_DYNAMIC_PUBLIC,
+        ),
     };
     let mut response = bytes.into_response();
     let headers = response.headers_mut();
@@ -1020,7 +1196,7 @@ pub(crate) async fn serve_avatar(
         header::CONTENT_TYPE,
         header::HeaderValue::from_static("image/png"),
     );
-    crate::cache::set_cache_control(headers, crate::cache::CACHE_CONTROL_IMMUTABLE_MEDIA);
+    crate::cache::set_cache_control(headers, policy);
     Ok(response)
 }
 
@@ -1552,6 +1728,7 @@ async fn render_account_edit(
         bio: page.bio,
         user_id: page.account.id,
         has_avatar: page.account.avatar_file.is_some(),
+        avatar_version: templates::auth::avatar_version(page.account.avatar_file.as_deref()),
         can_change_password: page.can_change_password,
     };
     let html = templates::auth::account_settings_page(
@@ -1696,6 +1873,7 @@ pub(crate) async fn account_profile_submit(
     ));
     let page = account_page(&state, &jar, None).await?;
     let user_id = page.account.id;
+    let replaced_avatar = page.account.avatar_file.clone();
     let changes = match validate_profile_changes(&submitted, &page.account.username) {
         Ok(changes) => changes,
         Err(message) => {
@@ -1763,8 +1941,27 @@ pub(crate) async fn account_profile_submit(
         .await?);
     }
 
+    // The replaced picture is only dropped once the new row is committed, so a
+    // rejected change never leaves the account without a picture.
+    if let Some(previous) = replaced_avatar {
+        remove_stored_avatar(&previous);
+    }
+
     tracing::info!(target: "auth", user_id, "Account profile updated");
     Ok((jar, Redirect::to("/account/edit?saved=profile")).into_response())
+}
+
+/// Remove a picture an account no longer points at, best effort.
+///
+/// A file that is already gone, or that a name from the database turned out not
+/// to be a plain file, is not worth failing a save over.
+fn remove_stored_avatar(file_name: &str) {
+    if !avatar_file_name_is_safe(file_name) {
+        return;
+    }
+    if let Err(error) = std::fs::remove_file(avatar_dir().join(file_name)) {
+        tracing::debug!(target: "auth", "Replaced avatar not removed: {error}");
+    }
 }
 
 // POST /account/password
@@ -1836,6 +2033,10 @@ pub(crate) async fn account_password_submit(
         let new_hash = hash_password(&chosen)?;
         let conn = pool.get()?;
         db::update_password_hash(&conn, user_id, &new_hash)?;
+        // Every session this account holds, including the one making the
+        // request, was opened with the password that just stopped being
+        // valid. The requester is signed in again below on a fresh id.
+        db::delete_user_sessions_for_user(&conn, user_id)?;
         Ok(true)
     })
     .await
@@ -1853,8 +2054,11 @@ pub(crate) async fn account_password_submit(
         .await?);
     }
 
+    // Signing in again here mints a new session id. The cookie the visitor was
+    // holding is dead, so a value an attacker planted before the change cannot
+    // ride along across it.
     tracing::info!(target: "auth", user_id, "Account password changed");
-    Ok((jar, Redirect::to("/account/edit?saved=password")).into_response())
+    issue_session(state, jar, user_id, secure, "/account/edit?saved=password").await
 }
 
 /// Read the settings form's multipart body, bounding every field.
@@ -2020,5 +2224,170 @@ mod tests {
             Some(center),
             "the initial should be drawn in the middle of the avatar"
         );
+    }
+}
+
+#[cfg(test)]
+/// The stored picture has to come back out of the file the row names, and a
+/// locked-out sign-in has to stay locked until it is cleared.
+mod avatar_and_signin_tests {
+    use super::{
+        avatar_dir, avatar_file_name_is_safe, clear_login_fails, record_login_fail, serve_avatar,
+        signin_fail_keys, signin_locked, store_avatar, ACCOUNT_LOGIN_FAIL_LIMIT, LOGIN_FAIL_LIMIT,
+    };
+    use crate::{cache, db, error::Result};
+    use axum::body::to_bytes;
+    use axum::extract::{Path, State};
+    use axum::http::header;
+
+    /// A small solid-colour PNG, standing in for an uploaded picture.
+    #[expect(
+        clippy::expect_used,
+        reason = "the test asserts on the encoded bytes, so a failed encode must fail the test immediately"
+    )]
+    fn uploaded_png() -> Vec<u8> {
+        let picture = image::DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(
+            8,
+            8,
+            image::Rgba([200, 30, 30, 255]),
+        ));
+        let mut encoded = std::io::Cursor::new(Vec::new());
+        picture
+            .write_to(&mut encoded, image::ImageFormat::Png)
+            .expect("the test picture should encode as a PNG");
+        encoded.into_inner()
+    }
+
+    /// Read one header of a response as a string.
+    fn header_of(response: &axum::response::Response, name: header::HeaderName) -> String {
+        response
+            .headers()
+            .get(name)
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or_default()
+            .to_owned()
+    }
+
+    #[tokio::test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "test assertions intentionally panic on failure"
+    )]
+    /// A stored upload is served from the file the row names, and the file is
+    /// named after the upload rather than only the account, so a replacement
+    /// picture is a different file instead of an overwritten one.
+    async fn a_stored_upload_is_served_from_the_file_the_row_names() -> Result<()> {
+        let state = crate::test_support::app_state();
+        let conn = state.db.get()?;
+        let user_id = db::create_user(&conn, "avataruser", "Avatar", "hash", None, "")?;
+        let file_name = store_avatar(user_id, &uploaded_png())?;
+        db::set_user_avatar(&conn, user_id, &file_name)?;
+        let path = avatar_dir().join(&file_name);
+
+        let response = serve_avatar(State(state), Path(user_id)).await?;
+
+        assert_eq!(header_of(&response, header::CONTENT_TYPE), "image/png");
+        assert_eq!(
+            header_of(&response, header::CACHE_CONTROL),
+            cache::CACHE_CONTROL_IMMUTABLE_MEDIA,
+            "a stored picture sits at a URL that changes with the upload, so it may be kept for a year"
+        );
+        let body = to_bytes(response.into_body(), 1024 * 1024).await?;
+        assert_eq!(
+            body.as_ref(),
+            std::fs::read(&path)?,
+            "the bytes served are the bytes the upload wrote"
+        );
+        assert!(
+            file_name.starts_with(&format!("{user_id}-")) && file_name.ends_with(".png"),
+            "an upload is stored under its own name, got {file_name}"
+        );
+
+        let _ignored = std::fs::remove_file(&path);
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "test assertions intentionally panic on failure"
+    )]
+    /// The drawn placeholder is derived from the account rather than
+    /// content-addressed, so it revalidates instead of being pinned in a cache
+    /// for a year under a URL that never changes.
+    async fn an_account_without_an_upload_revalidates_its_placeholder() -> Result<()> {
+        let state = crate::test_support::app_state();
+        let conn = state.db.get()?;
+        let user_id = db::create_user(&conn, "avatarless", "Avatarless", "hash", None, "")?;
+
+        let response = serve_avatar(State(state), Path(user_id)).await?;
+
+        assert_eq!(
+            header_of(&response, header::CACHE_CONTROL),
+            cache::CACHE_CONTROL_DYNAMIC_PUBLIC
+        );
+        Ok(())
+    }
+
+    #[test]
+    /// A name read back out of the database is only ever treated as a plain
+    /// file inside the avatar directory, so a row naming something else cannot
+    /// turn the picture route into an arbitrary file read.
+    fn a_stored_name_cannot_point_outside_the_avatar_directory() {
+        assert!(avatar_file_name_is_safe("12-1a2b3c4d5e6f-0.png"));
+        for name in [
+            "../secret.png",
+            "../../etc/passwd.png",
+            "12/avatar.png",
+            "/etc/avatar.png",
+            ".hidden.png",
+            "avatar.jpg",
+            "",
+        ] {
+            assert!(
+                !avatar_file_name_is_safe(name),
+                "{name:?} must not be read as an avatar file"
+            );
+        }
+    }
+
+    #[test]
+    /// Failures add up: the address is locked out once its budget is spent, and
+    /// a sign-in that finally succeeds clears what it followed.
+    fn repeated_failures_lock_the_address_until_a_sign_in_succeeds() {
+        let keys = signin_fail_keys("203.0.113.9", "anon");
+        clear_login_fails(&keys);
+        assert!(!signin_locked(&keys), "a first attempt is never locked out");
+        for _ in 0..LOGIN_FAIL_LIMIT {
+            record_login_fail(&keys[0]);
+            record_login_fail(&keys[1]);
+        }
+        assert!(
+            signin_locked(&keys),
+            "one address spending its whole budget is locked out"
+        );
+        clear_login_fails(&keys);
+        assert!(
+            !signin_locked(&keys),
+            "a real sign-in clears the failures that came before it"
+        );
+    }
+
+    #[test]
+    /// Counting per address alone is not enough: the same name guessed from a
+    /// fresh address each time still runs out of budget on the account.
+    fn one_name_guessed_from_many_addresses_still_locks_the_account() {
+        for index in 0..ACCOUNT_LOGIN_FAIL_LIMIT {
+            let keys = signin_fail_keys(&format!("198.51.100.{index}"), "hedef");
+            assert!(!signin_locked(&keys));
+            record_login_fail(&keys[0]);
+            record_login_fail(&keys[1]);
+        }
+        let spread = signin_fail_keys("198.51.100.240", "hedef");
+        assert!(
+            signin_locked(&spread),
+            "each address is under its own budget, but the account is not"
+        );
+        clear_login_fails(&spread);
     }
 }

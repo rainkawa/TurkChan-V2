@@ -879,7 +879,7 @@ pub async fn run_server(port_override: Option<u16>, chan_net: bool) -> anyhow::R
         });
     }
 
-    // Background: prune expired entries from ADMIN_LOGIN_FAILS every 5 min.
+    // Background: prune expired sign-in failure counters every 5 min.
     // Prevents unbounded growth under a sustained brute-force attack that
     // never produces a successful login (which would trigger the existing
     // opportunistic prune path inside clear_login_fails).
@@ -891,6 +891,7 @@ pub async fn run_server(port_override: Option<u16>, chan_net: bool) -> anyhow::R
                 tokio::select! {
                     _ = iv.tick() => {
                         crate::handlers::admin::prune_login_fails();
+                        crate::handlers::auth::prune_login_fails();
                     }
                     () = cancel_clone.cancelled() => {
                         tracing::debug!("Login fail prune task shutting down");

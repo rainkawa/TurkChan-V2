@@ -1323,6 +1323,11 @@ a.account-menu-item:hover {
   border: 1px solid var(--green-dim);
   background: var(--bg-op);
   flex: 0 0 auto;
+  /* The upload is cropped square, not letterboxed: without this a picture
+     wider than it is tall is squeezed into the circle and reads as a blank
+     tile. */
+  object-fit: cover;
+  display: block;
 }
 
 /* An account with no uploaded picture is drawn as a letter tile. It is real

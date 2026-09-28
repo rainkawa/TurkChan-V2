@@ -142,8 +142,11 @@ fn fmt_account_age(ts: i64) -> String {
 fn render_avatar(account: &User) -> String {
     if account.avatar_file.is_some() {
         return format!(
-            r#"<img class="profile-avatar" src="/auth/avatar/{user_id}" width="96" height="96" alt="{alt}">"#,
+            r#"<img class="profile-avatar" src="/auth/avatar/{user_id}?v={version}" width="96" height="96" alt="{alt}">"#,
             user_id = account.id,
+            version = escape_html(&crate::templates::auth::avatar_version(
+                account.avatar_file.as_deref(),
+            )),
             alt = escape_html(&account.display_name),
         );
     }
@@ -431,6 +434,37 @@ mod tests {
         // A reference with no matching post stays plain text instead of
         // becoming a link that leads nowhere.
         assert!(html.contains("&gt;&gt;1 selam"));
+    }
+
+    #[test]
+    /// The header links to the uploaded picture by its version. The picture is
+    /// cached for a year, so an unversioned URL here is exactly how a fresh
+    /// upload never shows up.
+    fn profile_header_links_to_the_versioned_picture() {
+        let mut with_picture = account();
+        with_picture.avatar_file = Some("7-a1b2c3d4e5f6-0.png".to_owned());
+        let html = profile_page(
+            &with_picture,
+            &stats(),
+            ProfileTab::Posts,
+            &posts(),
+            &threads(),
+            &HashMap::new(),
+            &Pagination::new(1, 10, 2),
+            &[],
+            None,
+            UserPreferences::default(),
+            "csrf",
+            "",
+        );
+
+        assert!(
+            html.contains(&format!(
+                r#"<img class="profile-avatar" src="/auth/avatar/7?v={}""#,
+                crate::templates::auth::avatar_version(with_picture.avatar_file.as_deref())
+            )),
+            "the header has to ask for the stored version of the picture"
+        );
     }
 
     #[test]
