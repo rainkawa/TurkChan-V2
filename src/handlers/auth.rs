@@ -366,13 +366,13 @@ pub(crate) fn account_menu_for_request(
     state: &AppState,
     jar: CookieJar,
     secure: bool,
-) -> Result<(Option<crate::templates::auth::AccountMenu>, String, CookieJar)> {
+) -> Result<(Option<templates::auth::AccountMenu>, String, CookieJar)> {
     let Some(identity) = account_identity(state, &jar)? else {
         return Ok((None, String::new(), jar));
     };
     let (jar, token) = account_menu_csrf(jar, secure);
     Ok((
-        Some(crate::templates::auth::AccountMenu {
+        Some(templates::auth::AccountMenu {
             display_name: identity.display_name,
             username: identity.username,
             is_admin: identity.is_admin,
@@ -389,7 +389,7 @@ pub(crate) fn account_menu_for_request(
 /// the signed-out page is answered `304 Not Modified` and keeps the old body,
 /// which has no account menu at all.
 #[must_use]
-pub(crate) fn account_etag_tag(account: Option<&crate::templates::auth::AccountMenu>) -> String {
+pub(crate) fn account_etag_tag(account: Option<&templates::auth::AccountMenu>) -> String {
     account.map_or_else(String::new, |menu| {
         format!(
             "-am{}",

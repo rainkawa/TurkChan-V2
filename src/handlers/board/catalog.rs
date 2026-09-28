@@ -172,7 +172,7 @@ pub(in crate::server) async fn catalog(
         &state,
         jar,
         should_set_public_secure_cookie(&req_headers, optional_connect_info_peer(peer)),
-    );
+    )?;
     let account_tag = crate::handlers::auth::account_etag_tag(account.as_ref());
     let theme_tag =
         templates::page_theme_etag_fragment(current_theme.as_deref(), Some(&board.default_theme));
@@ -320,7 +320,7 @@ pub(in crate::server) async fn hidden_threads(
         &state,
         jar,
         should_set_public_secure_cookie(&req_headers, optional_connect_info_peer(peer)),
-    );
+    )?;
     let html = tokio::task::spawn_blocking({
         let pool = state.db.clone();
         let board_short = board_short.clone();
@@ -412,7 +412,7 @@ pub(in crate::server) async fn board_archive(
         &state,
         jar,
         should_set_public_secure_cookie(&req_headers, optional_connect_info_peer(peer)),
-    );
+    )?;
     let html = tokio::task::spawn_blocking({
         let pool = state.db.clone();
         let csrf_clone = csrf.clone();
@@ -510,7 +510,7 @@ pub(in crate::server) async fn search(
         &state,
         jar,
         should_set_public_secure_cookie(&req_headers, optional_connect_info_peer(peer)),
-    );
+    )?;
     let html = tokio::task::spawn_blocking({
         let pool = state.db.clone();
         let csrf_clone = csrf.clone();

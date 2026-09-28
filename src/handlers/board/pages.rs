@@ -388,7 +388,7 @@ pub(in crate::server) async fn board_index(
         &state,
         jar,
         should_set_public_secure_cookie(&req_headers, optional_connect_info_peer(peer)),
-    );
+    )?;
     let account_tag = crate::handlers::auth::account_etag_tag(account.as_ref());
     let theme_tag = templates::page_theme_etag_fragment(
         current_theme.as_deref(),

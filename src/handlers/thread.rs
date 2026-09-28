@@ -181,7 +181,7 @@ pub(in crate::server) async fn view_thread(
             &req_headers,
             crate::handlers::board::optional_connect_info_peer(peer),
         ),
-    );
+    )?;
     let account_tag = crate::handlers::auth::account_etag_tag(account.as_ref());
     let theme_tag = crate::templates::page_theme_etag_fragment(
         current_theme.as_deref(),

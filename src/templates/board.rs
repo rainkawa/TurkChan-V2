@@ -1577,6 +1577,10 @@ pub fn search_page(
 
 // Archive page
 #[must_use]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the archive page consumes distinct paging, theme, preference, and account contexts"
+)]
 /// Renders a board's paginated archived-thread list.
 pub fn archive_page(
     board: &Board,
