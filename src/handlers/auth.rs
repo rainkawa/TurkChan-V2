@@ -923,10 +923,89 @@ pub(crate) async fn serve_avatar(
     Ok(response)
 }
 
+/// Number of pixel columns in one built-in font glyph.
+const GLYPH_COLUMNS: usize = 5;
+
+/// Number of pixel rows in one built-in font glyph.
+const GLYPH_ROWS: usize = 7;
+
+/// One font pixel is drawn as a block this many image pixels on a side.
+///
+/// Dividing the avatar edge keeps the glyph a fixed fraction of the image, so
+/// the initial stays readable and centered at any avatar size.
+const GLYPH_SCALE: usize = (AVATAR_EDGE / 10) as usize;
+
+/// Return the character an account's fallback avatar is drawn with.
+///
+/// Usernames are stored lower-cased and restricted to ASCII letters, digits,
+/// `_`, `-`, and `.`, so the first alphanumeric character of the username is
+/// the account's initial. A name with none falls back to `?`.
+fn avatar_initial(username: &str) -> char {
+    username
+        .chars()
+        .find(|c| c.is_ascii_alphanumeric())
+        .map_or('?', |c| c.to_ascii_uppercase())
+}
+
+/// Return the bitmap of one character for the fallback avatar.
+///
+/// Each entry is one row, top to bottom, where bit 0 is the leftmost column:
+/// `0x1F` is a full row and `0x11` the two vertical strokes of a letter like
+/// `H`. Only the characters an account name can start with are drawn; anything
+/// else uses the same `?` an account with no initial at all gets, so an
+/// unsupported character can never render as a blank tile.
+///
+/// The font is embedded rather than pulled from a crate: an avatar needs one
+/// glyph, and a font dependency would weigh more than the image it decorates.
+fn glyph_rows(c: char) -> [u8; GLYPH_ROWS] {
+    match c {
+        'A' => [0x0E, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11],
+        'B' => [0x1E, 0x11, 0x11, 0x1E, 0x11, 0x11, 0x1E],
+        'C' => [0x0F, 0x10, 0x10, 0x10, 0x10, 0x10, 0x0F],
+        'D' => [0x1E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x1E],
+        'E' => [0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x1F],
+        'F' => [0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x10],
+        'G' => [0x0E, 0x11, 0x10, 0x13, 0x11, 0x11, 0x0E],
+        'H' => [0x11, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11],
+        'I' => [0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x1F],
+        'J' => [0x07, 0x02, 0x02, 0x02, 0x02, 0x12, 0x0C],
+        'K' => [0x11, 0x12, 0x14, 0x18, 0x14, 0x12, 0x11],
+        'L' => [0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1F],
+        'M' => [0x11, 0x1B, 0x15, 0x11, 0x11, 0x11, 0x11],
+        'N' => [0x11, 0x19, 0x15, 0x13, 0x11, 0x11, 0x11],
+        'O' => [0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E],
+        'P' => [0x1E, 0x11, 0x11, 0x1E, 0x10, 0x10, 0x10],
+        'Q' => [0x0E, 0x11, 0x11, 0x11, 0x15, 0x12, 0x0D],
+        'R' => [0x1E, 0x11, 0x11, 0x1E, 0x14, 0x12, 0x11],
+        'S' => [0x0F, 0x10, 0x10, 0x0E, 0x01, 0x01, 0x1E],
+        'T' => [0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04],
+        'U' => [0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E],
+        'V' => [0x11, 0x11, 0x11, 0x11, 0x11, 0x0A, 0x04],
+        'W' => [0x11, 0x11, 0x11, 0x11, 0x15, 0x1B, 0x11],
+        'X' => [0x11, 0x11, 0x0A, 0x04, 0x0A, 0x11, 0x11],
+        'Y' => [0x11, 0x11, 0x0A, 0x04, 0x04, 0x04, 0x04],
+        'Z' => [0x1F, 0x01, 0x02, 0x04, 0x08, 0x10, 0x1F],
+        '0' => [0x0E, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0E],
+        '1' => [0x04, 0x0C, 0x04, 0x04, 0x04, 0x04, 0x0E],
+        '2' => [0x0E, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1F],
+        '3' => [0x1F, 0x01, 0x01, 0x0E, 0x01, 0x01, 0x1F],
+        '4' => [0x02, 0x06, 0x0A, 0x12, 0x1F, 0x02, 0x02],
+        '5' => [0x1F, 0x10, 0x10, 0x0E, 0x01, 0x01, 0x1E],
+        '6' => [0x06, 0x08, 0x10, 0x1E, 0x11, 0x11, 0x0E],
+        '7' => [0x1F, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08],
+        '8' => [0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E],
+        '9' => [0x0E, 0x11, 0x11, 0x0F, 0x01, 0x02, 0x06],
+        _ => [0x0E, 0x11, 0x01, 0x06, 0x04, 0x00, 0x04],
+    }
+}
+
 /// Render the fallback avatar used when no file was uploaded.
 ///
-/// The pattern is derived from the username so two anonymous accounts never
-/// look identical, without storing anything extra for the account.
+/// The tile pattern and its colors are derived from the username so two
+/// anonymous accounts never look identical, without storing anything extra for
+/// the account. The account's initial is drawn over that pattern, so a visitor
+/// who never chose a picture still sees which account they are looking at
+/// instead of an empty tile.
 fn default_avatar(username: &str) -> Result<Vec<u8>> {
     use sha2::{Digest as _, Sha256};
     let mut hasher = Sha256::new();
@@ -947,12 +1026,36 @@ fn default_avatar(username: &str) -> Result<Vec<u8>> {
         base.0[1].saturating_add(40),
         base.0[2].saturating_add(40),
     ]);
+    // A light tint of the tile colors, so the initial reads on both halves of
+    // the pattern.
+    let ink = image::Rgb([
+        base.0[0].saturating_add(120),
+        base.0[1].saturating_add(150),
+        base.0[2].saturating_add(120),
+    ]);
 
-    let tile = 16u32;
+    // The glyph is scaled up and centered, so it reads as a letter rather than
+    // as noise in the middle of the pattern.
+    let edge = AVATAR_EDGE as usize;
+    let scale = GLYPH_SCALE.max(1);
+    let glyph_width = GLYPH_COLUMNS * scale;
+    let glyph_height = GLYPH_ROWS * scale;
+    let origin_x = edge.saturating_sub(glyph_width) / 2;
+    let origin_y = edge.saturating_sub(glyph_height) / 2;
+    let glyph = glyph_rows(avatar_initial(username));
+
+    let tile = 16usize;
     let canvas = image::RgbImage::from_fn(AVATAR_EDGE, AVATAR_EDGE, |x, y| {
-        let row = y / tile;
-        let column = x / tile;
-        if (row + column) % 2 == 0 {
+        let (x, y) = (x as usize, y as usize);
+        if x >= origin_x
+            && x < origin_x + glyph_width
+            && y >= origin_y
+            && y < origin_y + glyph_height
+            && (glyph[(y - origin_y) / scale] >> ((x - origin_x) / scale)) & 1 == 1
+        {
+            return ink;
+        }
+        if ((y / tile) + (x / tile)) % 2 == 0 {
             base
         } else {
             accent
@@ -1135,4 +1238,57 @@ pub(crate) async fn require_user_account_middleware(
         ));
     }
     Ok(Redirect::to("/login").into_response())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use super::{avatar_initial, default_avatar, AVATAR_EDGE};
+
+    #[test]
+    /// The generated avatar leads with the first letter of the account name.
+    fn generated_avatar_uses_the_first_letter_of_the_name() {
+        assert_eq!(avatar_initial("anon"), 'A');
+        assert_eq!(avatar_initial("9mayak"), '9');
+        assert_eq!(avatar_initial("_-.anonymous"), 'A');
+        assert_eq!(avatar_initial("___"), '?');
+        assert_eq!(avatar_initial(""), '?');
+    }
+
+    #[test]
+    #[expect(
+        clippy::expect_used,
+        reason = "the test asserts on the decoded avatar, so a failed encode must fail the test immediately"
+    )]
+    /// An account with no uploaded picture is drawn with its initial over the
+    /// pattern, not left as a bare tile.
+    fn generated_avatar_draws_the_initial_over_the_pattern() {
+        let png = default_avatar("anon").expect("the fallback avatar should encode");
+        let decoded = image::load_from_memory_with_format(&png, image::ImageFormat::Png)
+            .expect("the fallback avatar should be a readable PNG")
+            .to_rgb8();
+        assert_eq!(decoded.width(), AVATAR_EDGE);
+        assert_eq!(decoded.height(), AVATAR_EDGE);
+
+        let mut counts: BTreeMap<[u8; 3], usize> = BTreeMap::new();
+        for pixel in decoded.pixels() {
+            *counts.entry(pixel.0).or_insert(0) += 1;
+        }
+        assert_eq!(
+            counts.len(),
+            3,
+            "the tile pattern plus the initial, expected {counts:?}"
+        );
+
+        // The glyph is drawn in the middle, so the center pixel carries the
+        // least frequent color: the initial over both halves of the pattern.
+        let center = decoded.get_pixel(AVATAR_EDGE / 2, AVATAR_EDGE / 2).0;
+        let least_frequent = counts.iter().min_by_key(|(_, count)| **count).map(|(c, _)| *c);
+        assert_eq!(
+            least_frequent,
+            Some(center),
+            "the initial should be drawn in the middle of the avatar"
+        );
+    }
 }

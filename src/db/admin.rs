@@ -117,6 +117,9 @@ pub fn get_admin_by_username(
 
 /// Create an administrator and return the row id from the same statement.
 ///
+/// The new administrator also receives the board profile their account menu
+/// links to, so "Profili Gör" resolves the moment the account exists.
+///
 /// # Errors
 /// Returns an error if the database operation fails.
 pub fn create_admin(conn: &rusqlite::Connection, username: &str, hash: &str) -> Result<i64> {
@@ -127,6 +130,7 @@ pub fn create_admin(conn: &rusqlite::Connection, username: &str, hash: &str) -> 
             |r| r.get(0),
         )
         .context("Failed to create admin user")?;
+    super::users::ensure_admin_profile(conn, username)?;
     Ok(id)
 }
 

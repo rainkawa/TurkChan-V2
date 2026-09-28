@@ -198,6 +198,16 @@ hr { border: none; border-top: 1px solid var(--border); margin: 0.6rem 0; }
   box-shadow: 0 2px 12px rgba(0,200,64,0.12);
 }
 
+/* The account button is pinned to the header's top-right corner instead of
+   flowing with the rest of the row. The header's own contents change from page
+   to page — the board list, the per-board search box, and the site name all
+   differ in width — which used to slide the button left and right as a visitor
+   moved between boards. The reserved padding keeps the last header item clear of
+   it. */
+.site-header:has(.account-menu) {
+  padding-right: 58px;
+}
+
 .site-header::before {
   content: '>';
   color: var(--green-bright);
@@ -417,11 +427,18 @@ html:not([data-theme]) .site-name { text-shadow: 0 0 14px var(--green-bright); }
     padding: 6px 10px;
   }
 
-  /* Keeps the account button on the same row as the board menu button, on the
-     right, instead of jumping ahead of the site name. */
+  /* On narrow screens the site name claims its own line, so the row below it
+     already has a fixed composition. The button goes back into that flow,
+     pushed to its right edge by the auto margin instead of pinned, so it never
+     lands on top of the site name. */
   .account-menu {
+    position: static;
     order: 3;
     margin-left: auto;
+  }
+
+  .site-header:has(.account-menu) {
+    padding-right: 8px;
   }
 
   .board-list {
@@ -996,8 +1013,10 @@ html:not([data-theme]) .auth-step-marker.is-current { box-shadow: 0 0 10px rgba(
 /* Header account menu */
 
 .account-menu {
-  position: relative;
-  margin-left: auto;
+  position: absolute;
+  top: 8px;
+  right: 14px;
+  margin-left: 0;
 }
 
 .account-menu-button {
@@ -1173,10 +1192,15 @@ html:not([data-theme]) .profile-name { text-shadow: 0 0 10px rgba(0,255,65,0.4);
 
 .profile-bio.is-empty { color: var(--text-dim); font-style: italic; }
 
-.profile-joined {
-  margin: 8px 0 0;
-  color: var(--text-dim);
-  font-size: 0.78rem;
+/* The score and the account age travel together as one centered pair, so they
+   never end up stacked in a corner or pushed to opposite edges. */
+.profile-metrics {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: center;
+  gap: var(--space-2);
 }
 
 .profile-score {
@@ -1184,6 +1208,7 @@ html:not([data-theme]) .profile-name { text-shadow: 0 0 10px rgba(0,255,65,0.4);
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 2px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -1197,6 +1222,13 @@ html:not([data-theme]) .profile-name { text-shadow: 0 0 10px rgba(0,255,65,0.4);
   font-size: 1.5rem;
   font-weight: bold;
   line-height: 1;
+}
+
+/* A date is wider and shorter than a score, so it is set a step down to keep
+   both tiles the same visual weight. */
+.profile-score-value-date {
+  font-size: 1.05rem;
+  padding: 0.25rem 0;
 }
 
 .profile-score-label {

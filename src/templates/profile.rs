@@ -2,19 +2,21 @@
 //!
 //! The page follows the shared document layout, so the site chrome, theme
 //! picker, and header account menu behave exactly as they do on a board. Only
-//! the body is new: a header with the account's avatar, chosen names, and
-//! score, followed by tabbed history of everything the account wrote.
+//! the body is new: a header with the account's avatar, chosen names, score,
+//! and account age, followed by tabbed history of everything the account
+//! wrote.
 //!
 //! Nothing here exposes more than the account already publishes on a board:
-//! the display name, the unique username, the self-description, the join date,
-//! and the account's own posts. There is no field for a real name, an address,
-//! or any other identifying detail.
+//! the display name, the unique username, the self-description, the account's
+//! age, and the account's own posts. There is no field for a real name, an
+//! address, or any other identifying detail.
 
 use std::collections::HashMap;
 
 use crate::models::{Board, Pagination, ProfilePost, ProfileStats, ProfileThread, User};
 use crate::templates::{fmt_ts_short, UserPreferences};
 use crate::utils::sanitize::{escape_html, render_post_excerpt};
+use chrono::TimeZone as _;
 
 /// One profile tab.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -116,7 +118,26 @@ fn render_tabs(username: &str, active: ProfileTab, stats: &ProfileStats) -> Stri
     html
 }
 
-/// Render the header with the avatar, names, description, and score.
+/// Format the day, month, and year an account was created on.
+///
+/// The profile shows the account's age as a plain calendar date: the exact
+/// moment an account was created is not something a visitor needs, and the
+/// board's own timestamps carry it.
+///
+/// Falls back to the same `?` as [`fmt_ts_short`] when the stored timestamp is
+/// not a representable date.
+fn fmt_account_age(ts: i64) -> String {
+    match chrono::Local.timestamp_opt(ts, 0) {
+        chrono::LocalResult::Single(dt) => dt.format("%d/%m/%Y").to_string(),
+        _ => "?".to_owned(),
+    }
+}
+
+/// Render the header with the avatar, names, description, and the two summary
+/// tiles.
+///
+/// The score and the account age sit next to each other in one centered row so
+/// they read as a pair rather than as two unrelated corners of the header.
 fn render_header(account: &User, stats: &ProfileStats) -> String {
     let bio = if account.bio.trim().is_empty() {
         r#"<p class="profile-bio is-empty">bu hesap henüz bir açıklama eklememiş.</p>"#.to_owned()
@@ -133,11 +154,16 @@ fn render_header(account: &User, stats: &ProfileStats) -> String {
 <h1 class="profile-name">{display_name}</h1>
 <p class="profile-handle">@{username}</p>
 {bio}
-<p class="profile-joined">Katıldı: {created_at}</p>
 </div>
+<div class="profile-metrics">
 <div class="profile-score">
 <span class="profile-score-value">{karma}</span>
 <span class="profile-score-label">beğeni puanı</span>
+</div>
+<div class="profile-score">
+<span class="profile-score-value profile-score-value-date">{account_age}</span>
+<span class="profile-score-label">hesap yaşı</span>
+</div>
 </div>
 </header>"#,
         user_id = account.id,
@@ -145,7 +171,7 @@ fn render_header(account: &User, stats: &ProfileStats) -> String {
         display_name = escape_html(&account.display_name),
         username = escape_html(&account.username),
         bio = bio,
-        created_at = escape_html(&fmt_ts_short(account.created_at)),
+        account_age = escape_html(&fmt_account_age(account.created_at)),
         karma = stats.karma,
     )
 }
@@ -302,7 +328,7 @@ pub fn profile_page(
 mod tests {
     use std::collections::HashMap;
 
-    use super::{profile_page, ProfileTab};
+    use super::{fmt_account_age, profile_page, ProfileTab};
     use crate::models::{Pagination, ProfilePost, ProfileStats, ProfileThread, User};
     use crate::templates::UserPreferences;
 
@@ -420,5 +446,47 @@ mod tests {
             "",
         );
         assert!(empty_html.contains("henüz yanıt yazmamış."));
+    }
+
+    #[test]
+    /// The score and the account age share one centered row, and the age is a
+    /// plain day, month, and year rather than a full timestamp.
+    fn profile_header_pairs_the_score_with_a_day_month_year_account_age() {
+        let html = profile_page(
+            &account(),
+            &stats(),
+            ProfileTab::Posts,
+            &posts(),
+            &threads(),
+            &HashMap::new(),
+            &Pagination::new(1, 10, 2),
+            &[],
+            None,
+            UserPreferences::default(),
+            "csrf",
+            "",
+        );
+
+        let metrics = html
+            .split_once(r#"<div class="profile-metrics">"#)
+            .and_then(|(_, rest)| rest.split_once(r#"<section class="profile-feed">"#))
+            .map_or("", |(metrics, _)| metrics);
+        assert!(
+            metrics.contains("beğeni puanı") && metrics.contains("hesap yaşı"),
+            "the score and the account age should share one centered row: {metrics}"
+        );
+        assert!(!html.contains("Katıldı"), "the old join label should be gone");
+
+        let expected = fmt_account_age(1_700_000_000);
+        assert!(
+            html.contains(&expected),
+            "the account age should be rendered as {expected}"
+        );
+        // Day, month, and year only: no time and no weekday.
+        assert_eq!(expected.split('/').count(), 3);
+        assert!(
+            !expected.contains(':') && !expected.contains('('),
+            "the account age carries no time of day: {expected}"
+        );
     }
 }

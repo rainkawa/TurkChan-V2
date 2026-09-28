@@ -59,6 +59,58 @@ pub fn create_user(
     Ok(id)
 }
 
+/// Description shown on an administrator's generated profile.
+const ADMIN_PROFILE_BIO: &str = "Site yöneticisi.";
+
+/// Give an administrator the public profile the account menu links to.
+///
+/// The header account menu offers every signed-in identity a "Profili Gör"
+/// entry, and an administrator's board name is their `admin_users` name. That
+/// link is a dead end without a matching `users` row, so an administrator is
+/// given a profile of their own.
+///
+/// The generated row identifies the operator on the board but cannot be signed
+/// into: its password hash covers 32 random bytes that are discarded right
+/// after hashing, so the stored hash is a real, well-formed Argon2id hash that
+/// matches no password a visitor could present. An administrator whose name is
+/// already registered keeps that account, and no existing row is ever
+/// overwritten.
+///
+/// Safe to call repeatedly: it is a no-op once the profile exists.
+///
+/// # Errors
+/// Returns an error if the database operation fails.
+pub fn ensure_admin_profile(conn: &rusqlite::Connection, admin_name: &str) -> Result<()> {
+    // Board usernames are stored trimmed and lower-cased, and the profile route
+    // matches a requested name the same way, so the row is written that way.
+    let username = admin_name.trim().to_lowercase();
+    if username.is_empty() || username_exists(conn, &username)? {
+        return Ok(());
+    }
+    let unusable_hash = admin_profile_password_hash()?;
+    conn.execute(
+        "INSERT INTO users (username, display_name, password_hash, avatar_file, bio)
+         VALUES (?1, ?2, ?3, NULL, ?4)",
+        params![username, admin_name.trim(), unusable_hash, ADMIN_PROFILE_BIO],
+    )
+    .context("Failed to create the administrator's profile")?;
+    tracing::info!(target: "db", %username, "Created the administrator's board profile");
+    Ok(())
+}
+
+/// Hash a value that is generated and immediately discarded.
+///
+/// The result is a valid Argon2id hash that no password can match, used to give
+/// an administrator's board profile a credential column that cannot be signed
+/// into.
+///
+/// # Errors
+/// Returns an error if hashing fails.
+fn admin_profile_password_hash() -> Result<String> {
+    let secret = uuid::Uuid::new_v4().simple().to_string();
+    crate::utils::crypto::hash_password(&secret)
+}
+
 /// Return whether a username is already registered.
 ///
 /// # Errors
@@ -231,6 +283,11 @@ pub fn link_post_to_account(
 
 /// Return the activity totals shown in a profile header.
 ///
+/// Only posts that still belong to a live thread are counted. A row whose
+/// thread is gone is content a visitor can no longer open, and counting it
+/// would keep a deleted post visible as a tab badge that the listing below
+/// refuses to show.
+///
 /// `karma` mirrors `users.karma`, the column the upvote and downvote system
 /// will maintain. It reads zero until that system exists.
 ///
@@ -240,15 +297,20 @@ pub fn profile_stats(conn: &rusqlite::Connection, user_id: i64) -> Result<Profil
     let (post_count, reply_count): (i64, i64) = conn
         .query_row(
             "SELECT
-                 (SELECT COUNT(*) FROM posts WHERE user_id = ?1),
-                 (SELECT COUNT(*) FROM posts WHERE user_id = ?1 AND is_op = 0)",
+                 (SELECT COUNT(*) FROM posts p
+                   JOIN threads t ON t.id = p.thread_id WHERE p.user_id = ?1),
+                 (SELECT COUNT(*) FROM posts p
+                   JOIN threads t ON t.id = p.thread_id
+                   WHERE p.user_id = ?1 AND p.is_op = 0)",
             params![user_id],
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .context("Failed to count account posts")?;
     let thread_count: i64 = conn
         .query_row(
-            "SELECT COUNT(*) FROM posts WHERE user_id = ?1 AND is_op = 1",
+            "SELECT COUNT(*) FROM posts p
+             JOIN threads t ON t.id = p.thread_id
+             WHERE p.user_id = ?1 AND p.is_op = 1",
             params![user_id],
             |row| row.get(0),
         )
@@ -289,9 +351,12 @@ fn map_profile_post(row: &rusqlite::Row<'_>) -> rusqlite::Result<ProfilePost> {
 
 /// Return one page of an account's posts, newest first.
 ///
-/// The scope picks the history tab the listing serves. The rows are what a
-/// profile page renders, so they deliberately carry no password, address, or
-/// contact data from any account.
+/// The scope picks the history tab the listing serves. The thread join is
+/// inner, not left, so a post whose thread no longer exists is never listed:
+/// that row is content a visitor cannot open, whether it was left behind by a
+/// deletion, an older build, or a restore. The rows are what a profile page
+/// renders, so they deliberately carry no password, address, or contact data
+/// from any account.
 ///
 /// # Errors
 /// Returns an error if the database query fails.
@@ -310,7 +375,7 @@ pub fn list_profile_posts(
         "SELECT {PROFILE_POST_COLUMNS}
          FROM posts p
          JOIN boards b ON b.id = p.board_id
-         LEFT JOIN threads t ON t.id = p.thread_id
+         JOIN threads t ON t.id = p.thread_id
          WHERE p.user_id = ?1 {op_filter}
          ORDER BY p.created_at DESC, p.id DESC
          LIMIT ?2 OFFSET ?3"
@@ -416,7 +481,8 @@ pub fn purge_expired_user_sessions(conn: &rusqlite::Connection) -> Result<usize>
 /// Schema-upgrade coverage for the anonymous-account tables.
 mod tests {
     use super::{
-        create_user, create_user_session, find_user_by_id, find_user_by_username, username_exists,
+        count_users, create_user, create_user_session, ensure_admin_profile, find_user_by_id,
+        find_user_by_username, username_exists,
     };
     use crate::models::ProfilePostScope;
     use crate::db::schema::{install_or_migrate_schema, normalize_database_schema_version};
@@ -618,6 +684,94 @@ mod tests {
             super::purge_expired_user_sessions(&conn)?,
             0,
             "a live session must survive the sweep"
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "test assertions intentionally panic on failure"
+    )]
+    /// An administrator gets a public profile under the same name the account
+    /// menu links to, and the row cannot be signed into.
+    fn administrator_gets_a_profile_that_cannot_be_signed_into() -> Result<()> {
+        let conn = pre_account_database()?;
+        normalize_database_schema_version(&conn)?;
+
+        ensure_admin_profile(&conn, "Admin")?;
+        let account = find_user_by_username(&conn, "admin")?
+            .context("the administrator should have a public profile")?;
+        assert_eq!(
+            account.display_name, "Admin",
+            "the profile keeps the operator's own name"
+        );
+        assert!(
+            !crate::utils::crypto::verify_password("Admin", &account.password_hash)?,
+            "a generated profile must never accept a password"
+        );
+
+        // Signing in again must not add a second row or disturb the first.
+        ensure_admin_profile(&conn, "Admin")?;
+        assert_eq!(count_users(&conn)?, 1);
+        Ok(())
+    }
+
+    #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "test assertions intentionally panic on failure"
+    )]
+    /// An administrator who shares a name with a registered account keeps that
+    /// account instead of overwriting it.
+    fn administrator_profile_never_overwrites_a_registered_account() -> Result<()> {
+        let conn = pre_account_database()?;
+        normalize_database_schema_version(&conn)?;
+        let hash = crate::utils::crypto::hash_password("Hunter2Hunter2")?;
+        create_user(&conn, "admin", "Gerçek Anonim", &hash, None, "gerçek hesap")?;
+
+        ensure_admin_profile(&conn, "admin")?;
+
+        let account = find_user_by_username(&conn, "admin")?
+            .context("the registered account should still exist")?;
+        assert_eq!(account.display_name, "Gerçek Anonim");
+        assert_eq!(account.bio, "gerçek hesap");
+        assert_eq!(count_users(&conn)?, 1);
+        Ok(())
+    }
+
+    #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "test assertions intentionally panic on failure"
+    )]
+    /// A post whose thread is gone is content nobody can open, so it stays off
+    /// the profile listing and out of the tab totals.
+    fn posts_left_without_a_thread_stay_off_the_profile() -> Result<()> {
+        let conn = pre_account_database()?;
+        normalize_database_schema_version(&conn)?;
+        let hash = crate::utils::crypto::hash_password("Hunter2Hunter2")?;
+        let user_id = create_user(&conn, "anon", "Anonim", &hash, None, "selam")?;
+        super::link_post_to_account(&conn, 1, user_id)?;
+        assert_eq!(super::profile_stats(&conn, user_id)?.post_count, 1);
+
+        // Remove the thread but keep its post, which is the shape a deletion or
+        // a restore can leave behind. The pragma keeps the post from going with
+        // its thread, so the listing is actually exercised.
+        conn.execute_batch(
+            "PRAGMA foreign_keys = OFF;
+             DELETE FROM threads WHERE id = (SELECT thread_id FROM posts WHERE id = 1);",
+        )?;
+
+        let posts = super::list_profile_posts(&conn, user_id, ProfilePostScope::All, 10, 0)?;
+        assert!(
+            posts.is_empty(),
+            "a post with no surviving thread must not be listed"
+        );
+        assert_eq!(
+            super::profile_stats(&conn, user_id)?.post_count,
+            0,
+            "an unopenable post must not be counted either"
         );
         Ok(())
     }

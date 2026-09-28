@@ -2,6 +2,23 @@
 
 All notable changes to TurkChan will be documented in this file.
 
+## Unreleased
+
+### Added
+
+- Added public account profiles with tabbed posting history, a header avatar, chosen names, self-description, and score.
+- Gave administrators a board profile of their own, created on administrator creation and on sign-in, so the header account menu's profile entry resolves for the default administrator. The generated row carries a hash of a value that is discarded immediately, so it identifies the operator on the board and can never be signed into.
+- Generated account avatars now show the account's first letter, so an account with no uploaded picture is recognizable instead of a bare pattern.
+
+### Improved
+
+- Replaced the profile's join date with a "Hesap Yaşı" tile showing only the day, month, and year the account was created, and placed it beside the score in one centered row.
+- Pinned the header account button to the header's top-right corner so it keeps the same position instead of sliding with header content that changes between boards and pages.
+
+### Fixed
+
+- Fixed deleted posts remaining visible in a profile's post history; the listing and its tab totals now skip any post whose thread no longer exists.
+
 ## TurkChan 1.4.1
 
 ### Improved

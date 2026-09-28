@@ -345,9 +345,14 @@ pub(in crate::server) async fn admin_login(
             let sid_clone = session_id.clone();
             tokio::task::spawn_blocking({
                 let pool = state.db.clone();
+                let admin_name = username.clone();
                 move || -> Result<()> {
                     let conn = pool.get()?;
                     db::create_session(&conn, &sid_clone, admin_id, expires_at)?;
+                    // Give the operator the board profile their account menu
+                    // links to. This is a no-op once the profile exists, and it
+                    // covers an administrator created before profiles existed.
+                    db::ensure_admin_profile(&conn, &admin_name)?;
                     Ok(())
                 }
             })
