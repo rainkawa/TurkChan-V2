@@ -208,12 +208,24 @@ fn audit(conn: &rusqlite::Connection, staff: &ActingStaff, action: &str, target:
 }
 
 /// Redirect back to the listing with a message the operator can read.
-fn back_to_users(message: &str, is_error: bool) -> Redirect {
+///
+/// The redirect is turned into a response here rather than at each call site,
+/// so an action handler returns the same type whatever it decided.
+fn back_to_users(message: &str, is_error: bool) -> Response {
     let key = if is_error { "flash_error" } else { "flash" };
     Redirect::to(&format!(
         "/admin/users?{key}={}",
         crate::utils::redirect::encode_query_component(message)
     ))
+    .into_response()
+}
+
+/// Whether a role change was applied, and what the operator is told.
+enum RoleOutcome {
+    /// The role was written.
+    Applied(&'static str),
+    /// The change was refused, and nothing was written.
+    Refused,
 }
 
 /// A username an operator may set, or the reason it cannot be one.
@@ -424,7 +436,7 @@ pub(in crate::server) async fn admin_user_role(
     let scoped_jar = jar.clone();
     let pool = state.db.clone();
 
-    let outcome = tokio::task::spawn_blocking(move || -> Result<Result<&'static str, ()>> {
+    let outcome = tokio::task::spawn_blocking(move || -> Result<RoleOutcome> {
         let conn = pool.get()?;
         let staff = acting_staff(&conn, &scoped_jar)?;
         staff.require(Permission::AssignRoles, "Rol verme yetkin yok.")?;
@@ -433,10 +445,10 @@ pub(in crate::server) async fn admin_user_role(
         // Ownership is the one grant that cannot come from below: only the
         // owner hands it out, and only the owner takes it back.
         if requested == UserRole::Owner && staff.role != UserRole::Owner {
-            return Ok(Err(()));
+            return Ok(RoleOutcome::Refused);
         }
         if account.role == UserRole::Owner && staff.role != UserRole::Owner {
-            return Ok(Err(()));
+            return Ok(RoleOutcome::Refused);
         }
         // The site keeps one owner. Removing the last one would leave nobody
         // able to appoint a replacement.
@@ -444,7 +456,7 @@ pub(in crate::server) async fn admin_user_role(
             && requested != UserRole::Owner
             && db::count_users_with_role(&conn, UserRole::Owner)? <= 1
         {
-            return Ok(Err(()));
+            return Ok(RoleOutcome::Refused);
         }
         db::set_user_role(&conn, user_id, requested)?;
         audit(
@@ -454,14 +466,14 @@ pub(in crate::server) async fn admin_user_role(
             user_id,
             &format!("role set to {}", requested.as_str()),
         );
-        Ok(Ok("Rol güncellendi."))
+        Ok(RoleOutcome::Applied("Rol güncellendi."))
     })
     .await
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
-    return Ok(match outcome?? {
-        Ok(message) => back_to_users(message, false),
-        Err(()) => back_to_users("Bu rol değişikliği yapılamaz.", true),
+    return Ok(match outcome? {
+        RoleOutcome::Applied(message) => back_to_users(message, false),
+        RoleOutcome::Refused => back_to_users("Bu rol değişikliği yapılamaz.", true),
     });
 }
 
