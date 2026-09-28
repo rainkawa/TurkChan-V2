@@ -40,7 +40,17 @@ All notable changes to TurkChan will be documented in this file.
   the read-only post preview fetched as JSON, and the two halves of the thread
   auto-update. Rust stops type-checking a crate partway through, so the build
   reported one of the four and would have reported the rest one at a time.
-- Added `scripts/check-struct-literals.py`, which reports both of those classes
+- Added `scripts/check-rust-shape.py`, which reports three classes of error
+  without a Rust toolchain and is now the first line of the documented
+  validation sequence: a struct literal that does not name every field of its
+  struct, two modules re-exporting the same name through a glob, and a path
+  qualified further than it has to be. The last is judged against the module
+  each use appears in, because the same path is correct in a test module that
+  has not imported the module and an error in the one that has. A fourth check,
+  a call passing the wrong number of arguments, was tried and dropped: it
+  produced three hundred false positives against one true one. The check stays
+  quiet about everything it cannot judge with certainty, because a checker that
+  cries wolf teaches its reader to ignore it.
   of error without a Rust toolchain and is now the first line of the documented
   validation sequence. It reports a struct literal that does not name every
   field of its struct, and two modules re-exporting the same name through a

@@ -71,20 +71,31 @@ Start with the narrowest test that covers the change. The repository's baseline
 Rust checks are:
 
 ```sh
-python3 scripts/check-struct-literals.py $(git ls-files '*.rs')
+python3 scripts/check-rust-shape.py $(git ls-files '*.rs')
 cargo fmt --all --check
 cargo clippy --locked --workspace --all-targets --all-features
 cargo test --locked --workspace --all-features
 ```
 
-`scripts/check-struct-literals.py` needs no toolchain and runs first, because
-the two errors it looks for are the two a reviewer cannot see: a struct literal
-that no longer names every field of its struct, and two modules re-exporting the
-same name through a glob. Both have shipped from this tree. The second one is
-worth running first in particular, because the compiler reports it as an
-ambiguous glob rather than as the duplicate name that caused it, and because
-Rust stops type-checking a crate partway through — a first build can show one
-missing-field error where the next one, after that is fixed, shows three more.
+`scripts/check-rust-shape.py` needs no toolchain and runs first, because the
+three errors it looks for are the three a reviewer cannot see:
+
+- a struct literal that no longer names every field of its struct;
+- two modules re-exporting the same name through a glob;
+- a path qualified further than it has to be.
+
+All three have shipped from this tree. The second is worth running first in
+particular, because the compiler reports it as an ambiguous glob rather than as
+the duplicate name that caused it. The first is worth running first because
+Rust stops type-checking a crate partway through: one build can show one
+missing-field error where the next, after that one is fixed, shows three more.
+The third is correct in a test module that has not imported the module and an
+error in the one that has, so the check judges each use against the module it
+appears in rather than against the file.
+
+The check is deliberately quiet about what it cannot judge, and a fourth check
+— a call passing the wrong number of arguments — was tried and dropped because
+it produced three hundred false positives against one true one.
 
 Use a local Playwright harness for public UI, admin UI, media, backup and restore,
 moderation, Tor/proxy, and no-JavaScript changes. Browser-test infrastructure is

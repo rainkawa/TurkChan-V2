@@ -1,29 +1,39 @@
 #!/usr/bin/env python3
-"""Catch the two classes of error a reviewer cannot see without a compiler.
+"""Catch the errors a reviewer cannot see without a compiler, and that a
+compiler reports one at a time rather than all at once.
 
-Both are mechanical, and both have shipped from this tree before:
+Four checks, all mechanical, all of which have shipped from this tree:
 
   1. a struct literal that does not name every field of its struct, which the
      compiler reports as E0063 at the literal, hundreds of lines away from the
-     field that was added, and only one place at a time;
+     field that was added;
   2. two modules re-exporting the same name through `pub use module::*;`, which
      the compiler reports as an ambiguous glob rather than as the duplicate name
-     that caused it.
+     that caused it;
+  3. a path qualified further than it needs to be, which the workspace denies as
+     `unused_qualifications` -- correct in a test module that has not imported
+     the module, and an error in the one that has.
 
-Neither needs a Rust toolchain, so both are checked here instead. Struct fields
-come from the same source the compiler reads.
+Rust stops type-checking a crate partway through, so a build can report one of
+the first kind and say nothing about the rest until that one is fixed. These run
+first, in a couple of seconds, with no toolchain.
 
-A checker that cries wolf is worse than no checker, so anything this cannot
-judge with certainty is left alone rather than guessed at: a struct whose name
-is declared with two different shapes, a literal that fills the rest of its
-fields from a base with `..`, a type from outside this tree, a function body, an
-`impl` block, a type definition, and a named enum variant all share enough
-syntax with a literal that reporting against one of them teaches a reader to
-ignore the report.
+A checker that cries wolf is worse than no checker, so anything that cannot be
+judged with certainty is left alone rather than guessed at: a struct whose name
+is declared with two shapes, a literal that fills the rest of its fields from a
+base with `..`, a type from outside this tree, a function body, an `impl` block,
+a type definition, and a named enum variant all share enough syntax with a
+literal that reporting against one of them teaches a reader to ignore the
+report.
+
+A fourth check was tried and dropped: a call passing the wrong number of
+arguments. A tree that imports `post` and `get` from a router, calls `metadata`
+on a path, and keeps its SQL in raw strings gave three hundred false positives
+against one true one, and no amount of narrowing made it trustworthy.
 
 Run it with the same file list the build uses:
 
-    python3 scripts/check-struct-literals.py $(git ls-files '*.rs')
+    python3 scripts/check-rust-shape.py $(git ls-files '*.rs')
 """
 import re
 import sys
@@ -58,6 +68,23 @@ ENUM = re.compile(
 )
 VARIANT = re.compile(r"^ {4}([A-Z][A-Za-z0-9_]*)[ \t]*(?:,|\(|=|\{|$)", re.M)
 
+# `name(` is a call rather than the start of a definition when the token in
+# front of it is not one of the keywords that introduce a definition.
+DEFINITION = frozenset(
+    ("fn", "struct", "enum", "impl", "trait", "mod", "use", "const", "static", "type",
+     "let", "as", "in", "unsafe")
+)
+
+
+def looks_like_call(text, name_start):
+    """Whether the `name(` at name_start is a call rather than a definition."""
+    window = text[max(0, name_start - LOOKBEHIND):name_start]
+    m = BEFORE.search(PATH_TAIL.sub('', window))
+    if m is None:
+        return True
+    return m.group(1) not in DEFINITION
+
+
 # `Name {` also opens a function body, an `impl` block, a type definition, and a
 # named enum variant. None of those is a literal, so the token in front of the
 # name has to agree before the braces are read as one.
@@ -70,13 +97,29 @@ BEFORE = re.compile(r"([A-Za-z_][A-Za-z0-9_]*|->)[ \t]*$")
 PATH_TAIL = re.compile(r"(?:[A-Za-z_][A-Za-z0-9_]*[ \t]*::)+[ \t]*$")
 LOOKBEHIND = 256
 
+# A module named in a qualified path, and the `use` that would make it shorter.
+# The captured group ends in `::`, so it always covers the whole path: `crate::`
+# in a `use` statement and `crate::db::` in a signature are the same shape, and
+# the `use` one is excluded by position rather than by pattern.
+QUALIFIED = re.compile(
+    r"(?<![A-Za-z0-9_])(?:crate|self|super)::((?:[a-z_][A-Za-z0-9_]*::)+)"
+)
+MODULE_HEAD = re.compile(r"^[ \t]*(?:pub(?:\([^)]*\))?[ \t]+)?mod[ \t]+([a-z_][A-Za-z0-9_]*)[ \t]*\{", re.M)
+USE_STMT = re.compile(r"^[ \t]*(?:pub(?:[ \t]+(?:crate|super|self|in))?[ \t]+)?use[ \t]+", re.M)
+
 # How many braces deep a field list may nest. A literal that closes deeper than
 # this is a match pattern reaching past its own arm, not something to judge.
 MAX_LITERAL_DEPTH = 2
 
 
 def strip_noise(text):
-    """Blank out comments and string literals, keeping every byte offset."""
+    """Blank out comments and string literals, keeping every byte offset.
+
+    An offset found in the blanked text is the same offset in the file as it
+    was written, which is what turns a match into a line number. A `Name {`
+    inside a string cannot pose as a struct literal, which is the reason for
+    blanking the strings rather than just the comments.
+    """
     out = list(text)
     i = 0
     n = len(text)
@@ -133,11 +176,12 @@ def strip_noise(text):
     return ''.join(out)
 
 
-def body_end(text, open_index):
+def block_end(text, open_index, max_depth=None):
     """Index of the brace closing the one at open_index, or -1 if unbalanced.
 
-    Returns as soon as the closing brace of the literal's own nesting level is
-    reached, so a runaway pattern cannot walk the rest of the file.
+    `max_depth` stops the walk early, so a literal whose braces were misread
+    cannot walk the rest of the file looking for a close that belongs to
+    something else.
     """
     depth = 0
     for i in range(open_index, len(text)):
@@ -148,9 +192,14 @@ def body_end(text, open_index):
             depth -= 1
             if depth == 0:
                 return i
-            if depth > MAX_LITERAL_DEPTH:
+            if max_depth is not None and depth > max_depth:
                 return -1
     return -1
+
+
+def body_end(text, open_index):
+    """The closing brace of a struct, enum, or literal body."""
+    return block_end(text, open_index, MAX_LITERAL_DEPTH)
 
 
 def looks_like_literal(text, name_start):
@@ -161,6 +210,105 @@ def looks_like_literal(text, name_start):
         return True
     return m.group(1) not in NOT_A_LITERAL
 
+
+# --- module scope -----------------------------------------------------------
+#
+# A child module does not inherit its parent's imports: it names them
+# `super::db`, or pulls them in with `use super::*`. Treating a file's imports
+# as if they reached every module in it reports `crate::db::` in a test module
+# that has not imported `db` as an error, which it is not.
+
+def module_regions(text):
+    """Every `mod name {` body in a file, as (name, start, end) in order."""
+    regions = []
+    for m in MODULE_HEAD.finditer(text):
+        end = block_end(text, m.end() - 1)
+        if end > 0:
+            regions.append((m.group(1), m.end(), end))
+    return regions
+
+
+def chain_at(regions, offset):
+    """The chain of enclosing module names at an offset, outermost first."""
+    chain = []
+    for name, start, end in regions:
+        if start <= offset < end:
+            chain.append(name)
+    return tuple(chain)
+
+
+def bound_names(statement):
+    """The names one `use` statement binds, or None if it is a glob.
+
+    `use a::b;` binds `b`, and `use a::{b, c};` binds `b` and `c` but not `a`.
+    A glob imports everything a module holds, which is not knowable from one
+    file, so it is reported as None and the caller falls back to a glob import
+    of the parent chain, which is the shape a test module actually uses.
+    """
+    statement = statement.strip()
+    if statement.endswith('::*') or statement.endswith('::*;'):
+        return None
+    head, brace, rest = statement.partition('{')
+    names = set()
+    if brace:
+        for piece in rest.rstrip('}').split(','):
+            leaf = re.findall(r'([A-Za-z_][A-Za-z0-9_]*)', piece)
+            if leaf:
+                names.add(leaf[-1])
+    else:
+        head = head.rstrip(';')
+        # An `as` renames the binding to the alias, not to the last segment.
+        if ' as ' in head:
+            head = head.rsplit(' as ', 1)[1]
+        leaves = re.findall(r'([A-Za-z_][A-Za-z0-9_]*)', head)
+        if len(leaves) >= 2:
+            names.add(leaves[-1])
+    return names
+
+
+def is_super_glob(statement):
+    return bool(re.match(r'^\s*(?:pub[^\s]*[ \t]+)?use[ \t]+super[ \t]*::[ \t]*\*\s*;?\s*$',
+                         statement))
+
+
+def read_bindings(paths, texts):
+    """Map each (file, module chain) to the names imported into it.
+
+    The file is part of the key on purpose. Imports are private to their
+    module, so a name one file brings in says nothing about any other, and a
+    single shared table would report every `crate::db::` in the crate the
+    moment one file somewhere imported `db`.
+    """
+    bindings = defaultdict(set)
+    for path in paths:
+        text = texts[path]
+        regions = module_regions(text)
+        for m in USE_STMT.finditer(text):
+            i = m.end()
+            j = i
+            while j < len(text) and text[j] != ';':
+                j += 1
+            statement = text[i:j]
+            chain = chain_at(regions, m.start())
+            if is_super_glob(statement):
+                # A test module reaching for everything its parent imported is
+                # the common shape, and it is the one that makes a parent's
+                # names visible again.
+                if len(chain) > 1:
+                    bindings[(path, chain)] |= bindings[(path, chain[:-1])]
+                continue
+            names = bound_names(statement)
+            if names:
+                bindings[(path, chain)] |= names
+    return bindings
+
+
+def in_scope(bindings, path, chain, name):
+    """Whether `name` is importable in a file's module chain."""
+    return name in bindings.get((path, chain), ())
+
+
+# --- checks -----------------------------------------------------------------
 
 def read_structs(texts):
     """Map each struct this tree declares, unambiguously, to its public fields.
@@ -271,15 +419,48 @@ def find_glob_collisions(paths, texts, by_stem):
     return problems
 
 
+def find_over_qualified(paths, texts, bindings):
+    """Report a path that is longer than it has to be.
+
+    A child module does not inherit its parent's imports, so the same path is
+    correct in one module and an error in another. Each use is therefore judged
+    against the chain it appears in.
+    """
+    problems = []
+    for path in paths:
+        text = texts[path]
+        regions = module_regions(text)
+        # A `use` statement is the one place a path has to be written out in
+        # full, because it is the statement that brings the name into scope.
+        uses = []
+        for um in USE_STMT.finditer(text):
+            end = text.find(';', um.end())
+            uses.append((um.start(), len(text) if end < 0 else end))
+        for m in QUALIFIED.finditer(text):
+            segments = m.group(1).split('::')
+            module = segments[0]
+            if not module or module in ('crate', 'self', 'super'):
+                continue
+            if any(start <= m.start() <= stop for start, stop in uses):
+                continue
+            chain = chain_at(regions, m.start())
+            if in_scope(bindings, path, chain, module):
+                line = text[:m.start()].count('\n') + 1
+                problems.append('%s:%d: `%s` is already imported here, so the '
+                                'path can be shortened' % (path, line, module))
+    return problems
+
+
 def main(argv):
     paths = sorted(p for p in argv if p.endswith('.rs'))
     texts = {p: strip_noise(open(p, encoding='utf-8').read()) for p in paths}
     by_stem = {}
     for p in paths:
         by_stem.setdefault(p.split('/')[-1][:-3], p)
-    structs = read_structs(texts)
-    problems = find_missing_fields(paths, texts, structs, read_variants(texts))
+
+    problems = find_missing_fields(paths, texts, read_structs(texts), read_variants(texts))
     problems += find_glob_collisions(paths, texts, by_stem)
+    problems += find_over_qualified(paths, texts, read_bindings(paths, texts))
     for problem in problems:
         print(problem)
     return 1 if problems else 0

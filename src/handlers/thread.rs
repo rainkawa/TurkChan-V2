@@ -475,7 +475,11 @@ pub(in crate::server) async fn post_reply(
                     &identity_key_err,
                     admin_session_err.as_deref(),
                     &CONFIG.cookie_secret,
-                    account_id,
+                    // A reply only reaches this point once the account has
+                    // been resolved, and a reply requires one, so the viewer
+                    // of the page this error is rendered into is known rather
+                    // than merely possible.
+                    Some(account_id),
                 )?;
                 let admin_csrf_for_error = if page_data.is_admin {
                     admin_session_err.as_deref().map(|session_id| {

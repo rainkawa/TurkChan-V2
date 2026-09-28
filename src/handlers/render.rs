@@ -22,7 +22,7 @@ pub(super) struct ThreadPageData {
     pub poll: Option<PollData>,
     pub is_admin: bool,
     pub owned_post_controls: std::collections::BTreeMap<i64, templates::thread::OwnedPostControls>,
-    pub votes: std::collections::BTreeMap<i64, crate::db::PostVoteView>,
+    pub votes: std::collections::BTreeMap<i64, db::PostVoteView>,
 }
 
 #[must_use]

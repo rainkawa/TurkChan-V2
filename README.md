@@ -216,16 +216,16 @@ TurkChan uses Axum, Tokio, bundled SQLite through `rusqlite`, server-rendered Ru
 Run the Rust checks before submitting changes:
 
 ```bash
-python3 scripts/check-struct-literals.py $(git ls-files '*.rs')
+python3 scripts/check-rust-shape.py $(git ls-files '*.rs')
 cargo fmt --all --check
 cargo clippy --locked --workspace --all-targets --all-features
 cargo test --locked --workspace --all-features
 ```
 
 The first command needs no Rust toolchain. It reports a struct literal that
-does not name every field of its struct, and two modules re-exporting the same
-name through a glob — the two errors the compiler otherwise reports a long way
-from their cause, and one at a time.
+does not name every field of its struct, two modules re-exporting the same name
+through a glob, and a path qualified further than it needs to be — the errors
+the compiler otherwise reports a long way from their cause, and one at a time.
 
 Browser regression tests use a local-only Playwright harness. Keep its configs,
 package metadata, tests, fixtures, and generated artifacts in the ignored paths
