@@ -247,6 +247,23 @@ fn admin_auth_routes() -> Router<AppState> {
             "/admin/log/live",
             get(crate::handlers::admin::admin_live_log),
         )
+        .route("/admin/users", get(crate::handlers::admin::admin_users))
+        .route("/admin/users/rename", post(crate::handlers::admin::admin_user_rename))
+        .route(
+            "/admin/users/password",
+            post(crate::handlers::admin::admin_user_password),
+        )
+        .route("/admin/users/role", post(crate::handlers::admin::admin_user_role))
+        .route(
+            "/admin/users/suspend",
+            post(crate::handlers::admin::admin_user_suspend),
+        )
+        .route("/admin/users/lift", post(crate::handlers::admin::admin_user_lift))
+        .route("/admin/users/ban", post(crate::handlers::admin::admin_user_ban))
+        .route(
+            "/admin/users/unban",
+            post(crate::handlers::admin::admin_user_unban),
+        )
 }
 
 /// Compose board and site asset management routes.

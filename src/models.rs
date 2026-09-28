@@ -617,8 +617,38 @@ pub struct User {
     /// downvote system will maintain; it stays at zero until that system
     /// exists, so the profile can already show the field it will fill.
     pub karma: i64,
+    /// Stored staff role, the only thing that grants administration access.
+    pub role: crate::roles::UserRole,
+    /// Stored moderation state: active, suspended, or banned.
+    pub status: crate::roles::AccountStatus,
+    /// Second a current suspension ends, or `None` when there is none.
+    pub suspended_until: Option<i64>,
     /// Account creation time as a Unix timestamp.
     pub created_at: i64,
+}
+
+impl User {
+    /// The moderation state of the account right now.
+    ///
+    /// A suspension carries the second it ends, so it is resolved against the
+    /// clock rather than read straight off the row: a suspension nobody
+    /// remembered to clear still lifts on time.
+    #[must_use]
+    pub fn effective_status(&self, now: i64) -> crate::roles::AccountStatus {
+        self.status.effective(self.suspended_until, now)
+    }
+
+    /// The single badge shown next to this account's name.
+    #[must_use]
+    pub fn badge(&self, now: i64) -> crate::roles::RoleBadge {
+        crate::roles::RoleBadge::resolve(self.role, self.effective_status(now), self.karma)
+    }
+
+    /// Whether this account carries `permission` right now.
+    #[must_use]
+    pub fn can(&self, permission: crate::roles::Permission) -> bool {
+        self.role.has(permission)
+    }
 }
 
 /// One post as shown on a public profile page.

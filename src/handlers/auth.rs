@@ -397,6 +397,32 @@ pub(crate) fn current_account_id(state: &AppState, jar: &CookieJar) -> Result<Op
     Ok(Some(session.user_id))
 }
 
+/// Return the id of the account a posting should be attached to.
+///
+/// A suspended account keeps its session and can still read the site, so this
+/// is the one place that turns the state into a refusal: writing is what a
+/// suspension takes away, and it has to be refused in words rather than quietly
+/// turning the post into an anonymous one.
+///
+/// # Errors
+/// Returns an error if the account is suspended, or if the database query
+/// fails.
+pub(crate) fn posting_account_id(state: &AppState, jar: &CookieJar) -> Result<Option<i64>> {
+    let Some(user_id) = current_account_id(state, jar)? else {
+        return Ok(None);
+    };
+    let conn = state.db.get()?;
+    let Some(account) = db::find_user_by_id(&conn, user_id)? else {
+        return Ok(None);
+    };
+    if !account.effective_status(Utc::now().timestamp()).may_post() {
+        return Err(AppError::Forbidden(
+            "Hesabın geçici olarak askıya alındığı için yazamazsın.".into(),
+        ));
+    }
+    Ok(Some(user_id))
+}
+
 /// Whether a request already carries a valid account session.
 pub(crate) fn has_valid_session(state: &AppState, jar: &CookieJar) -> bool {
     matches!(current_user(state, jar), Ok(Some(_)))
@@ -726,6 +752,30 @@ pub(crate) async fn login_submit(
     };
 
     clear_login_fails(&fail_keys);
+    // A ban is the account's own state, not a failed password: it is reported
+    // plainly so the visitor knows an operator ended the account rather than
+    // that they mistyped again.
+    let banned = tokio::task::spawn_blocking({
+        let pool = state.db.clone();
+        move || -> Result<bool> {
+            let conn = pool.get()?;
+            let Some(account) = db::find_user_by_id(&conn, user_id)? else {
+                return Ok(false);
+            };
+            Ok(!account.effective_status(Utc::now().timestamp()).may_sign_in())
+        }
+    })
+    .await
+    .map_err(|e| AppError::Internal(anyhow::anyhow!(e))??;
+    if banned {
+        return Ok(render_login_failure(
+            jar,
+            secure,
+            &form.username,
+            "Bu hesap banlandı.",
+        ));
+    }
+
     issue_session(state, jar, user_id, secure, &return_to).await
 }
 

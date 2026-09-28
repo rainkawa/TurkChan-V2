@@ -45,6 +45,8 @@ pub mod middleware;
 pub mod models;
 /// Durable filesystem-operation journal and recovery.
 pub mod pending_fs;
+/// Account roles, permissions, and badges.
+pub mod roles;
 /// HTTP runtime, terminal console, and administration CLI.
 pub mod server;
 /// Server-rendered HTML templates.

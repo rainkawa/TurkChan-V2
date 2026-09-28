@@ -98,6 +98,7 @@ const fn render_admin_section_index() -> &'static str {
   <a href="#site-health">site sağlığı</a>
   <a href="#boards">boardlar</a>
   <a href="#moderation">moderasyon</a>
+  <a href="/admin/users">kullanıcılar</a>
   <a href="#appearance">görünüm</a>
   <a href="#backups">yedekler</a>
   <a href="#maintenance">bakım</a>

@@ -7734,3 +7734,101 @@ html:not([data-theme]) .thread-nav-btn.active { text-shadow: 0 0 8px rgba(0,255,
   vertical-align: middle;
   pointer-events: none;
 }
+
+/* Account roles -----------------------------------------------------------------
+   The colour lives in an inline custom property set by the role badge renderer,
+   so adding a role is one entry in the role table and no stylesheet change.
+   The two light colours (a plain member and a verified one) are the only ones
+   whose label is drawn dark, and the rule below reads that from the badge's
+   own modifier class. */
+
+.role-badge {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--role-color) 70%, transparent);
+  background: color-mix(in srgb, var(--role-color) 22%, var(--bg-op));
+  color: var(--role-color);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.role-badge-verified,
+.role-badge-user {
+  color: #f2f5f7;
+}
+
+.role-badge-banned {
+  color: #d6d9de;
+  background: #14161a;
+  border-color: #2a2f36;
+}
+
+.profile-name .role-badge {
+  margin-left: 0.4rem;
+  font-size: 0.66rem;
+  transform: translateY(-0.15rem);
+}
+
+/* Administration panel: accounts ------------------------------------------------ */
+
+.admin-users-search {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.admin-users-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.admin-users-empty {
+  color: var(--text-dim);
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+.admin-user-handle {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+
+.admin-user-controls {
+  margin-top: 0.4rem;
+}
+
+.admin-user-controls > summary {
+  cursor: pointer;
+  color: var(--green);
+  font-size: 0.82rem;
+}
+
+.admin-user-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.6rem 0;
+  padding: 0.6rem;
+  border: 1px solid var(--green-dim);
+  border-radius: 4px;
+  background: var(--bg-op);
+}
+
+.admin-user-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+.admin-users-hint {
+  margin-top: 1rem;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}

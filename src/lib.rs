@@ -42,6 +42,8 @@ pub mod middleware;
 pub mod models;
 /// Durable filesystem-operation journal and recovery.
 pub mod pending_fs;
+/// Account roles, permissions, and badges.
+pub mod roles;
 #[cfg(test)]
 /// HTTP runtime and administration CLI used by crate-level tests.
 pub mod server;

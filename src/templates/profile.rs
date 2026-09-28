@@ -178,7 +178,7 @@ fn render_header(account: &User, stats: &ProfileStats) -> String {
         r#"<header class="profile-header">
 {avatar}
 <div class="profile-identity">
-<h1 class="profile-name">{display_name}</h1>
+<h1 class="profile-name">{display_name} {badge}</h1>
 <p class="profile-handle">@{username}</p>
 {bio}
 </div>
@@ -195,6 +195,7 @@ fn render_header(account: &User, stats: &ProfileStats) -> String {
 </header>"#,
         avatar = render_avatar(account),
         display_name = escape_html(&account.display_name),
+        badge = crate::templates::admin::role_badge_html(account.badge(chrono::Utc::now().timestamp())),
         username = escape_html(&account.username),
         bio = bio,
         account_age = escape_html(&fmt_account_age(account.created_at)),
@@ -367,6 +368,9 @@ mod tests {
             avatar_file: None,
             bio: "selam".to_owned(),
             karma: 3,
+            role: crate::roles::UserRole::User,
+            status: crate::roles::AccountStatus::Active,
+            suspended_until: None,
             created_at: 1_700_000_000,
         }
     }
@@ -434,6 +438,46 @@ mod tests {
         // A reference with no matching post stays plain text instead of
         // becoming a link that leads nowhere.
         assert!(html.contains("&gt;&gt;1 selam"));
+    }
+
+    /// Render the page for one account, with everything else held constant.
+    fn page_for(subject: &User) -> String {
+        profile_page(
+            subject,
+            &stats(),
+            ProfileTab::Posts,
+            &posts(),
+            &threads(),
+            &HashMap::new(),
+            &Pagination::new(1, 10, 2),
+            &[],
+            None,
+            UserPreferences::default(),
+            "csrf",
+            "",
+        )
+    }
+
+    #[test]
+    /// The header shows the badge the account has earned or been given, next to
+    /// the name it belongs to, and the state in force outranks both.
+    fn profile_header_shows_the_account_badge() {
+        let mut trusted = account();
+        trusted.karma = 500;
+        let html = page_for(&trusted);
+        assert!(html.contains("role-badge-god"), "got {html}");
+        assert!(html.contains(">God</span>"), "got {html}");
+
+        let mut owner = account();
+        owner.role = crate::roles::UserRole::Owner;
+        assert!(page_for(&owner).contains("role-badge-owner"));
+
+        let mut banned = account();
+        banned.status = crate::roles::AccountStatus::Banned;
+        assert!(
+            page_for(&banned).contains("role-badge-banned"),
+            "a banned account reads as banned, whatever its karma says"
+        );
     }
 
     #[test]

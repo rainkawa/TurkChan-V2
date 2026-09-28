@@ -118,14 +118,17 @@ const BASE_SCHEMA_SQL: &str = "
     );
 
     CREATE TABLE IF NOT EXISTS users (
-        id            INTEGER PRIMARY KEY AUTOINCREMENT,
-        username      TEXT NOT NULL UNIQUE,
-        display_name  TEXT NOT NULL,
-        password_hash TEXT NOT NULL,
-        avatar_file   TEXT,
-        bio           TEXT NOT NULL DEFAULT '',
-        karma         INTEGER NOT NULL DEFAULT 0,
-        created_at    INTEGER NOT NULL DEFAULT (unixepoch())
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        username        TEXT NOT NULL UNIQUE,
+        display_name    TEXT NOT NULL,
+        password_hash   TEXT NOT NULL,
+        avatar_file     TEXT,
+        bio             TEXT NOT NULL DEFAULT '',
+        karma           INTEGER NOT NULL DEFAULT 0,
+        role            TEXT NOT NULL DEFAULT 'user',
+        status          TEXT NOT NULL DEFAULT 'active',
+        suspended_until INTEGER,
+        created_at      INTEGER NOT NULL DEFAULT (unixepoch())
     );
 
     CREATE TABLE IF NOT EXISTS user_sessions (
@@ -1143,14 +1146,17 @@ fn apply_additive_schema_repairs_in_transaction(conn: &rusqlite::Connection) -> 
 /// database gets the same shape through `install_baseline_schema_in_transaction`.
 const ADDITIVE_USER_TABLES_SQL: &str = "
     CREATE TABLE IF NOT EXISTS users (
-        id            INTEGER PRIMARY KEY AUTOINCREMENT,
-        username      TEXT NOT NULL UNIQUE,
-        display_name  TEXT NOT NULL,
-        password_hash TEXT NOT NULL,
-        avatar_file   TEXT,
-        bio           TEXT NOT NULL DEFAULT '',
-        karma         INTEGER NOT NULL DEFAULT 0,
-        created_at    INTEGER NOT NULL DEFAULT (unixepoch())
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        username        TEXT NOT NULL UNIQUE,
+        display_name    TEXT NOT NULL,
+        password_hash   TEXT NOT NULL,
+        avatar_file     TEXT,
+        bio             TEXT NOT NULL DEFAULT '',
+        karma           INTEGER NOT NULL DEFAULT 0,
+        role            TEXT NOT NULL DEFAULT 'user',
+        status          TEXT NOT NULL DEFAULT 'active',
+        suspended_until INTEGER,
+        created_at      INTEGER NOT NULL DEFAULT (unixepoch())
     );
 
     CREATE TABLE IF NOT EXISTS user_sessions (
@@ -1179,7 +1185,7 @@ fn is_additive_user_table(name: &str) -> bool {
 /// column, so the additive repair path adds them in place. Each entry is
 /// `(table, column, ALTER statement)`, and the statement must produce a column
 /// definition identical to the baseline one so the shape comparison passes.
-const ADDITIVE_BASELINE_COLUMNS: [(&str, &str, &str); 3] = [
+const ADDITIVE_BASELINE_COLUMNS: [(&str, &str, &str); 6] = [
     (
         "users",
         "bio",
@@ -1194,6 +1200,21 @@ const ADDITIVE_BASELINE_COLUMNS: [(&str, &str, &str); 3] = [
         "posts",
         "user_id",
         "ALTER TABLE posts ADD COLUMN user_id INTEGER",
+    ),
+    (
+        "users",
+        "role",
+        "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'",
+    ),
+    (
+        "users",
+        "status",
+        "ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active'",
+    ),
+    (
+        "users",
+        "suspended_until",
+        "ALTER TABLE users ADD COLUMN suspended_until INTEGER",
     ),
 ];
 

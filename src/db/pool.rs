@@ -46,6 +46,11 @@ pub fn init_pool() -> Result<DbPool> {
     let conn = pool.get().context("Failed to get DB connection")?;
     install_or_migrate_schema(&conn)?;
     super::upsert_builtin_themes(&conn)?;
+    // The site owner is whoever set the site up, which is the first operator.
+    // Granting the role on the board profile they already have means ownership
+    // is visible on the site and survives a restart, and a site that already
+    // appointed an owner keeps them.
+    super::ensure_owner_profile(&conn).context("Failed to grant the site owner role")?;
 
     tracing::info!(target: "db", path = db_path, "Database initialised");
     Ok(pool)

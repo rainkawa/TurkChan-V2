@@ -81,6 +81,9 @@ mod maintenance;
 mod moderation;
 /// Site-health rendering.
 mod site_health;
+/// Account-management section rendering.
+mod users;
+pub use users::{admin_users_page, role_badge_html, AdminUserRow, AdminUsersView};
 
 /// Complete input model for the administrator control panel.
 #[derive(Debug)]
@@ -2767,6 +2770,10 @@ mod tests {
         ] {
             assert!(html.contains(&format!(r#"href="{target}""#)));
         }
+        assert!(
+            html.contains(r#"href="/admin/users""#),
+            "the section index should reach the account-management page"
+        );
     }
 
     #[test]

@@ -17,12 +17,15 @@ use rusqlite::OptionalExtension as _;
 use std::collections::HashMap;
 
 use crate::models::{ProfilePost, ProfilePostScope, ProfileStats, ProfileThread, User, UserSession};
+use crate::roles::{AccountStatus, UserRole};
 
 /// Columns selected for every account lookup, in a fixed order.
-const USER_COLUMNS: &str =
-    "id, username, display_name, password_hash, avatar_file, bio, karma, created_at";
+const USER_COLUMNS: &str = "id, username, display_name, password_hash, avatar_file, bio, karma, \
+                            role, status, suspended_until, created_at";
 
 fn map_user(row: &rusqlite::Row<'_>) -> rusqlite::Result<User> {
+    let role: String = row.get(7)?;
+    let status: String = row.get(8)?;
     Ok(User {
         id: row.get(0)?,
         username: row.get(1)?,
@@ -31,7 +34,13 @@ fn map_user(row: &rusqlite::Row<'_>) -> rusqlite::Result<User> {
         avatar_file: row.get(4)?,
         bio: row.get(5)?,
         karma: row.get(6)?,
-        created_at: row.get(7)?,
+        // Both columns are read through their own parser rather than
+        // deserialized, so a row this build does not understand resolves to the
+        // least authority instead of failing the whole lookup.
+        role: UserRole::from_stored(&role),
+        status: AccountStatus::from_stored(&status),
+        suspended_until: row.get(9)?,
+        created_at: row.get(10)?,
     })
 }
 
@@ -180,6 +189,171 @@ pub fn set_user_avatar(
         params![avatar_file, user_id],
     )
     .context("Failed to store user avatar")?;
+    Ok(())
+}
+
+/// Set the staff role of an account.
+///
+/// The role is the only stored grant of administration access, so this one
+/// column decides who may open the panel. Everything else an operator can do
+/// to an account is a separate, narrower write.
+///
+/// # Errors
+/// Returns an error if the database operation fails.
+pub fn set_user_role(
+    conn: &rusqlite::Connection,
+    user_id: i64,
+    role: UserRole,
+) -> Result<()> {
+    conn.execute(
+        "UPDATE users SET role = ?1 WHERE id = ?2",
+        params![role.as_str(), user_id],
+    )
+    .context("Failed to set user role")?;
+    Ok(())
+}
+
+/// Set the moderation state of an account.
+///
+/// A ban is stored as the state itself so it survives any later change of role
+/// or karma, and a suspension carries the second it ends so it lifts without
+/// anyone having to clear it.
+///
+/// # Errors
+/// Returns an error if the database operation fails.
+pub fn set_user_status(
+    conn: &rusqlite::Connection,
+    user_id: i64,
+    status: AccountStatus,
+    suspended_until: Option<i64>,
+) -> Result<()> {
+    conn.execute(
+        "UPDATE users SET status = ?1, suspended_until = ?2 WHERE id = ?3",
+        params![status.as_str(), suspended_until, user_id],
+    )
+    .context("Failed to set user status")?;
+    Ok(())
+}
+
+/// List accounts for the administration panel, newest identifiers last.
+///
+/// Only the columns the panel shows are read back: the password hash is not
+/// among them, so a rendered page cannot leak one even by accident.
+///
+/// # Errors
+/// Returns an error if the database query fails.
+pub fn list_users(
+    conn: &rusqlite::Connection,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<User>> {
+    let sql = format!(
+        "SELECT {USER_COLUMNS} FROM users ORDER BY id LIMIT ?1 OFFSET ?2"
+    );
+    let mut stmt = conn.prepare_cached(&sql)?;
+    let rows = stmt
+        .query_map(params![limit, offset], map_user)
+        .context("Failed to list user accounts")?;
+    let mut users = Vec::new();
+    for row in rows {
+        users.push(row?);
+    }
+    Ok(users)
+}
+
+/// Count the accounts a filtered listing would show.
+///
+/// # Errors
+/// Returns an error if the database query fails.
+pub fn count_users_matching(
+    conn: &rusqlite::Connection,
+    search: Option<&str>,
+) -> Result<i64> {
+    let count = match search {
+        Some(term) => {
+            let like = format!("%{term}%");
+            conn.query_row(
+                "SELECT COUNT(*) FROM users WHERE username LIKE ?1 OR display_name LIKE ?1",
+                params![like],
+                |row| row.get(0),
+            )
+        }
+        None => conn.query_row("SELECT COUNT(*) FROM users", [], |row| row.get(0)),
+    };
+    count.context("Failed to count matching user accounts")
+}
+
+/// List the accounts a search term matches, newest identifiers last.
+///
+/// # Errors
+/// Returns an error if the database query fails.
+pub fn search_users(conn: &rusqlite::Connection, search: &str, limit: i64) -> Result<Vec<User>> {
+    let like = format!("%{search}%");
+    let sql = format!(
+        "SELECT {USER_COLUMNS} FROM users
+         WHERE username LIKE ?1 OR display_name LIKE ?1
+         ORDER BY id LIMIT ?2"
+    );
+    let mut stmt = conn.prepare_cached(&sql)?;
+    let rows = stmt
+        .query_map(params![like, limit], map_user)
+        .context("Failed to search user accounts")?;
+    let mut users = Vec::new();
+    for row in rows {
+        users.push(row?);
+    }
+    Ok(users)
+}
+
+/// Count the accounts holding a staff role, used to refuse removing the last one.
+///
+/// # Errors
+/// Returns an error if the database query fails.
+pub fn count_users_with_role(conn: &rusqlite::Connection, role: UserRole) -> Result<i64> {
+    let count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM users WHERE role = ?1",
+            params![role.as_str()],
+            |row| row.get(0),
+        )
+        .context("Failed to count accounts holding a role")?;
+    Ok(count)
+}
+
+/// Give the site owner role to the board profile of the first administrator.
+///
+/// Ownership belongs to whoever set the site up, and the first row in
+/// `admin_users` is that person. The grant is written onto the board profile
+/// the administrator already has, so it is visible on the site and survives a
+/// restart, and it is a no-op once any account already holds ownership.
+///
+/// # Errors
+/// Returns an error if the database query fails.
+pub fn ensure_owner_profile(conn: &rusqlite::Connection) -> Result<()> {
+    if count_users_with_role(conn, UserRole::Owner)? > 0 {
+        return Ok(());
+    }
+    let first_admin: Option<String> = conn
+        .query_row(
+            "SELECT username FROM admin_users ORDER BY id LIMIT 1",
+            [],
+            |row| row.get(0),
+        )
+        .optional()
+        .context("Failed to read the first administrator")?;
+    let Some(admin_name) = first_admin else {
+        return Ok(());
+    };
+    ensure_admin_profile(conn, &admin_name)?;
+    let username = admin_name.trim().to_lowercase();
+    if username.is_empty() {
+        return Ok(());
+    }
+    conn.execute(
+        "UPDATE users SET role = ?1 WHERE username = ?2 AND role = 'user'",
+        params![UserRole::Owner.as_str(), username],
+    )
+    .context("Failed to grant the site owner role")?;
     Ok(())
 }
 
@@ -578,10 +752,12 @@ pub fn purge_expired_user_sessions(conn: &rusqlite::Connection) -> Result<usize>
 mod tests {
     use super::{
         count_users, create_user, create_user_session, delete_user_sessions_for_user,
-        ensure_admin_profile, find_user_by_id, find_user_by_username, get_user_session,
-        set_user_avatar, update_bio, update_display_name, update_password_hash, update_username,
+        ensure_admin_profile, ensure_owner_profile, find_user_by_id, find_user_by_username,
+        get_user_session, list_users, search_users, set_user_avatar, set_user_role,
+        set_user_status, update_bio, update_display_name, update_password_hash, update_username,
         username_exists,
     };
+    use crate::roles::{AccountStatus, UserRole};
     use crate::models::ProfilePostScope;
     use crate::db::schema::{install_or_migrate_schema, normalize_database_schema_version};
     use anyhow::{Context as _, Result};
@@ -961,6 +1137,114 @@ mod tests {
             get_user_session(&conn, "theirs")?.is_some(),
             "another account's session is none of this one's business"
         );
+        Ok(())
+    }
+
+    #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "test assertions intentionally panic on failure"
+    )]
+    /// A role and a state are read back exactly as written, and an account
+    /// without them reads back as the least authority rather than as a hole.
+    fn roles_and_states_round_trip() -> Result<()> {
+        let conn = pre_account_database()?;
+        let hash = crate::utils::crypto::hash_password("Hunter2Hunter2")?;
+        let user_id = create_user(&conn, "anon", "Anonim", &hash, None, "")?;
+
+        let fresh = find_user_by_id(&conn, user_id)?.context("the account should exist")?;
+        assert_eq!(fresh.role, UserRole::User, "a new account is a member");
+        assert_eq!(fresh.status, AccountStatus::Active);
+        assert!(fresh.can(crate::roles::Permission::Post));
+        assert!(!fresh.can(crate::roles::Permission::AccessAdminPanel));
+
+        set_user_role(&conn, user_id, UserRole::Moderator)?;
+        let until = chrono::Utc::now().timestamp() + 600;
+        set_user_status(&conn, user_id, AccountStatus::Suspended, Some(until))?;
+        let staff = find_user_by_id(&conn, user_id)?.context("the account should exist")?;
+        assert_eq!(staff.role, UserRole::Moderator);
+        assert!(staff.effective_status(chrono::Utc::now().timestamp()) == AccountStatus::Suspended);
+        assert!(
+            staff.effective_status(until + 1) == AccountStatus::Active,
+            "the suspension lifts on its own once its moment passes"
+        );
+        assert!(staff.can(crate::roles::Permission::AccessAdminPanel));
+        assert!(!staff.can(crate::roles::Permission::AssignRoles));
+
+        set_user_role(&conn, user_id, UserRole::Owner)?;
+        set_user_status(&conn, user_id, AccountStatus::Banned, None)?;
+        let banned = find_user_by_id(&conn, user_id)?.context("the account should exist")?;
+        assert_eq!(banned.role, UserRole::Owner);
+        assert!(!banned.effective_status(0).may_sign_in());
+        assert_eq!(banned.badge(0), crate::roles::RoleBadge::Banned);
+        Ok(())
+    }
+
+    #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "test assertions intentionally panic on failure"
+    )]
+    /// A name this build does not recognise resolves to the least authority, so
+    /// a damaged row cannot promote itself into the administration panel.
+    fn an_unreadable_role_column_is_not_authority() -> Result<()> {
+        let conn = pre_account_database()?;
+        let hash = crate::utils::crypto::hash_password("Hunter2Hunter2")?;
+        let user_id = create_user(&conn, "anon", "Anonim", &hash, None, "")?;
+        conn.execute("UPDATE users SET role = 'root' WHERE id = ?1", [user_id])?;
+
+        let account = find_user_by_id(&conn, user_id)?.context("the account should exist")?;
+        assert_eq!(account.role, UserRole::User);
+        assert!(
+            !account.role.reaches_admin_panel(),
+            "an unknown stored role must not reach the administration panel"
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "test assertions intentionally panic on failure"
+    )]
+    /// The listing and the search both read accounts back, and the search finds
+    /// an account by either of its two names.
+    fn the_listing_and_search_find_accounts() -> Result<()> {
+        let conn = pre_account_database()?;
+        let hash = crate::utils::crypto::hash_password("Hunter2Hunter2")?;
+        let first = create_user(&conn, "anon", "Anonim", &hash, None, "")?;
+        create_user(&conn, "komsu", "Komsu", &hash, None, "")?;
+
+        assert_eq!(list_users(&conn, 25, 0)?.len(), 2);
+        assert_eq!(list_users(&conn, 25, 2)?.len(), 0, "an offset past the end lists nothing");
+        assert_eq!(search_users(&conn, "kom", 25)?.len(), 1);
+        assert_eq!(
+            search_users(&conn, "anon", 25)?[0].id,
+            first,
+            "a search matches the username as well as the display name"
+        );
+        assert!(search_users(&conn, "yok-boyle-bir-hesap", 25)?.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "test assertions intentionally panic on failure"
+    )]
+    /// The board profile of the first operator is given ownership once, and a
+    /// site that already appointed an owner keeps them.
+    fn the_first_operator_becomes_the_site_owner() -> Result<()> {
+        let conn = pre_account_database()?;
+        ensure_owner_profile(&conn)?;
+
+        let owner = find_user_by_username(&conn, "admin")?.context("the operator should have a profile")?;
+        assert_eq!(owner.role, UserRole::Owner);
+        assert_eq!(super::count_users_with_role(&conn, UserRole::Owner)?, 1);
+
+        // A second call is a no-op rather than a second promotion.
+        ensure_owner_profile(&conn)?;
+        assert_eq!(super::count_users_with_role(&conn, UserRole::Owner)?, 1);
         Ok(())
     }
 }

@@ -364,7 +364,7 @@ pub(in crate::server) async fn post_reply(
     let identity_key_err = identity_key.clone();
     // Resolved before the blocking hand-off so the reply is linked to the
     // signed-in account and shows up on that account's profile.
-    let account_id = crate::handlers::auth::current_account_id(&state, &jar)?;
+    let account_id = crate::handlers::auth::posting_account_id(&state, &jar)?;
     let PostFormData {
         media_upload_guard,
         csrf_verified: _,

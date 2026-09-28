@@ -28,6 +28,9 @@ pub(in crate::server) use moderation::*;
 pub(in crate::server) mod settings;
 pub(in crate::server) use settings::*;
 
+pub(in crate::server) mod users;
+pub(in crate::server) use users::*;
+
 use crate::{
     config::CONFIG,
     db,

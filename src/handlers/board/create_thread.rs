@@ -36,7 +36,7 @@ pub(in crate::server) async fn create_thread(
         .map(|cookie| cookie.value().to_owned());
     // Resolved before the blocking hand-off so the new thread is linked to the
     // signed-in account and shows up on that account's profile.
-    let account_id = crate::handlers::auth::current_account_id(&state, &jar)?;
+    let account_id = crate::handlers::auth::posting_account_id(&state, &jar)?;
     let access_cookie = board_access_cookie_from_jar(&jar, &board_short);
     let access_context = match board_access_preflight(
         &state,
