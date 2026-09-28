@@ -54,9 +54,17 @@ pub(in crate::server) async fn cast_vote(
 
     let pool = state.db.clone();
     let post_id = form.post_id;
-    let value = form.value;
+    let press = form.value;
     tokio::task::spawn_blocking(move || -> Result<()> {
         let conn = pool.get()?;
+        // A press says which way the reader pushed, not what they meant by it.
+        // Pushing an arrow that is already pressed is how a vote is taken
+        // back, and only the row already stored can tell the two apart.
+        let value = if db::current_vote(&conn, post_id, voter)? == press {
+            0
+        } else {
+            press
+        };
         db::cast_vote(&conn, post_id, voter, value)?;
         Ok(())
     })

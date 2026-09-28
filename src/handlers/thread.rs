@@ -357,6 +357,7 @@ pub(in crate::server) async fn post_reply(
         subject: String::new(),
         body: form.body.clone(),
         sage: form.sage,
+        anonymous: form.anonymous,
     };
     // Extract csrf_token before spawn_blocking so the ban page appeal form works.
     let ban_csrf_token = csrf_cookie.clone().unwrap_or_default();
@@ -386,6 +387,7 @@ pub(in crate::server) async fn post_reply(
         poll_options: _,
         poll_duration_secs: _,
         sage,
+        anonymous,
         captcha_id,
         captcha_answer,
     } = form;
@@ -411,6 +413,7 @@ pub(in crate::server) async fn post_reply(
                     cookie_secret: CONFIG.cookie_secret.clone(),
                     admin_session_id,
                     account_id,
+                    anonymous,
                     ban_csrf_token,
                     submission_token,
                     name,

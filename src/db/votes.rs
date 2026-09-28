@@ -139,6 +139,28 @@ pub fn refresh_account_score(conn: &rusqlite::Connection, user_id: i64) -> Resul
     Ok(total)
 }
 
+/// The vote one account already holds on a post, or zero when it holds none.
+///
+/// A press arrives as a direction, not as an intent, so this is what tells
+/// apart the first press of an arrow from the second: the same direction twice
+/// means the reader is taking the vote back, and only the stored row can say
+/// which of the two this one is.
+///
+/// # Errors
+/// Returns an error if the database query fails.
+pub fn current_vote(conn: &rusqlite::Connection, post_id: i64, user_id: i64) -> Result<i64> {
+    match conn.query_row(
+        "SELECT value FROM post_votes WHERE post_id = ?1 AND user_id = ?2",
+        params![post_id, user_id],
+        |row| row.get::<_, i64>(0),
+    ) {
+        Ok(value) => Ok(value),
+        // Holding no vote is the ordinary answer, not a failure to look.
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(0),
+        Err(error) => Err(error).context("Failed to read a post's standing vote"),
+    }
+}
+
 /// The net score of one post.
 ///
 /// # Errors
@@ -235,7 +257,10 @@ pub fn karma_breakdown(conn: &rusqlite::Connection, user_id: i64) -> Result<Karm
 /// The schema is what makes "one vote per person" true, so the tests are about
 /// what a second press does rather than about the happy path.
 mod tests {
-    use super::{cast_vote, karma_breakdown, post_score, post_vote_views, KarmaBreakdown};
+    use super::{
+        cast_vote, current_vote, karma_breakdown, post_score, post_vote_views,
+        KarmaBreakdown,
+    };
     use crate::db;
     use crate::db::schema::install_or_migrate_schema;
     use anyhow::Result;
@@ -455,6 +480,39 @@ mod tests {
             karma_breakdown(&conn, author)?.total(),
             0,
             "a deleted account takes its votes with it"
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "test assertions intentionally panic on failure"
+    )]
+    /// A press arrives as a direction, and only the stored row can say whether
+    /// this is the first press of that arrow or the second one taking it back.
+    fn the_standing_vote_is_what_tells_a_first_press_from_a_second() -> Result<()> {
+        let (conn, _) = database()?;
+
+        assert_eq!(
+            current_vote(&conn, 10, 2)?,
+            0,
+            "an account that has not voted has no standing vote"
+        );
+        cast_vote(&conn, 10, 2, 1)?;
+        assert_eq!(current_vote(&conn, 10, 2)?, 1);
+        cast_vote(&conn, 10, 2, -1)?;
+        assert_eq!(
+            current_vote(&conn, 10, 2)?,
+            -1,
+            "moving a vote replaces it rather than adding a second one"
+        );
+        cast_vote(&conn, 10, 2, 0)?;
+        assert_eq!(current_vote(&conn, 10, 2)?, 0, "a taken-back vote leaves nothing");
+        assert_eq!(
+            current_vote(&conn, 11, 2)?,
+            0,
+            "one account's vote on one post says nothing about another post"
         );
         Ok(())
     }

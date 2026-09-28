@@ -718,6 +718,9 @@ pub(crate) struct PostFormData {
     pub poll_duration_secs: Option<i64>,
     /// Sage — when true the reply must not bump the thread.
     pub sage: bool,
+    /// Whether the submission is published under a chosen name rather than the
+    /// signed-in account's own.
+    pub anonymous: bool,
     /// Server-side CAPTCHA challenge id submitted by posting forms when enabled.
     pub captcha_id: String,
     /// Human-entered CAPTCHA answer submitted by posting forms when enabled.
@@ -765,6 +768,7 @@ pub(crate) async fn parse_post_multipart(
     let mut poll_duration_value: Option<i64> = None;
     let mut poll_duration_unit = String::from("hours");
     let mut sage = false;
+    let mut anonymous = false;
     let mut captcha_id = String::new();
     let mut captcha_answer = String::new();
     let mut budget = PublicMultipartBudget::default();
@@ -797,6 +801,10 @@ pub(crate) async fn parse_post_multipart(
             Some("sage") => {
                 let v = read_text_field(field, &mut budget).await?;
                 sage = v == "1" || v.eq_ignore_ascii_case("on") || v.eq_ignore_ascii_case("true");
+            }
+            Some("anonymous") => {
+                let v = read_text_field(field, &mut budget).await?;
+                anonymous = v == "1" || v.eq_ignore_ascii_case("on") || v.eq_ignore_ascii_case("true");
             }
             Some("captcha_id") => captcha_id = read_text_field(field, &mut budget).await?,
             Some("captcha_answer") => {
@@ -933,6 +941,7 @@ pub(crate) async fn parse_post_multipart(
         poll_options,
         poll_duration_secs,
         sage,
+        anonymous,
         captcha_id,
         captcha_answer,
     })

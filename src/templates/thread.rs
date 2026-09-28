@@ -503,6 +503,7 @@ pub fn thread_page(
             csrf_token,
             board,
             reply_prefill,
+            account.map_or("", |menu| menu.display_name.as_str()),
         );
         let show_post_form = error.is_some() || reply_prefill.is_some();
         let _ = write!(
@@ -742,10 +743,21 @@ fn render_tripcode(stored: &str) -> String {
 
 /// Render the score and the two press buttons for one post.
 ///
-/// Pressing the arrow that is already pressed takes the vote back, so the
-/// pressed button is a way out as well as a way in. The buttons are real forms
-/// and the page is re-rendered after the press, so a reader with scripting off
-/// gets the same result.
+/// The score is public to every reader; the two presses are drawn only for a
+/// reader who has an account, because a vote with nobody behind it cannot be
+/// cast, taken back, or counted against anybody.
+///
+/// Each press carries its own value, and that value is the only thing that
+/// tells the server which arrow was pressed. A submit button with no `name`
+/// sends no field at all, so the form arrives missing the one value it cannot
+/// be answered without and every press is rejected before it is read.
+///
+/// Pressing the arrow that is already pressed takes the vote back, so the same
+/// value has to mean the opposite of what it means the first time. The button
+/// therefore sends the press, not the intent: the server reads the vote already
+/// cast and decides, rather than the markup pretending to know what the reader
+/// meant. A reader with scripting off votes the same way; the page is simply
+/// re-rendered rather than updated in place.
 fn render_vote_controls(
     vote: &crate::db::PostVoteView,
     post_id: i64,
@@ -759,9 +771,9 @@ fn render_vote_controls(
 <input type="hidden" name="_csrf" value="{csrf}">
 <input type="hidden" name="post_id" value="{post_id}">
 <input type="hidden" name="return_to" value="{return_to}">
-<button type="submit" class="vote-btn vote-up{up_active}" title="Beğen" aria-label="Beğen">&#9650;</button>
+<button type="submit" name="value" value="1" class="vote-btn vote-up{up_active}" title="Beğen" aria-label="Beğen">&#9650;</button>
 <output class="vote-score" title="Beğeni puanı">{score}</output>
-<button type="submit" class="vote-btn vote-down{down_active}" title="Beğenme" aria-label="Beğenme">&#9660;</button>
+<button type="submit" name="value" value="-1" class="vote-btn vote-down{down_active}" title="Beğenme" aria-label="Beğenme">&#9660;</button>
 </form>"#,
         csrf = csrf,
         post_id = post_id,
@@ -1600,8 +1612,8 @@ fn render_edit_overlay(
 #[cfg(test)]
 mod tests {
     use super::{
-        delete_post_page, display_file_name, edit_post_page, render_post, thread_page,
-        EditOverlayState, OwnedPostControls, RenderPostOpts,
+        delete_post_page, display_file_name, edit_post_page, render_post, render_vote_controls,
+        thread_page, EditOverlayState, OwnedPostControls, RenderPostOpts,
     };
     use crate::models::{BoardAccessMode, MediaType, Post, Thread};
 
@@ -2287,6 +2299,50 @@ mod tests {
         assert!(html.contains("PDF’yi aç"));
         assert!(!html.contains(">PDF</div>"));
         assert!(!html.contains("post-edited\">PDF’yi aç"));
+    }
+
+    #[test]
+    fn a_vote_press_carries_the_direction_it_stands_for() {
+        let html = render_vote_controls(
+            &crate::db::PostVoteView {
+                score: 3,
+                my_vote: 1,
+            },
+            42,
+            "csrf-token",
+            "/b/thread/7#p42",
+        );
+
+        // A submit button with no `name` sends nothing, and the form arrives
+        // without the one field that says which arrow was pressed.
+        assert!(
+            html.contains(r#"<button type="submit" name="value" value="1""#),
+            "the upvote must say which direction it stands for"
+        );
+        assert!(
+            html.contains(r#"<button type="submit" name="value" value="-1""#),
+            "the downvote must say which direction it stands for"
+        );
+        assert!(
+            html.contains(r#"name="post_id" value="42""#),
+            "the press must name the post it is about"
+        );
+        assert!(html.contains(">3</output>"), "the score must be shown");
+    }
+
+    #[test]
+    fn the_pressed_arrow_is_marked_so_the_press_can_be_repeated_to_undo_it() {
+        let up = render_vote_controls(
+            &crate::db::PostVoteView {
+                score: 1,
+                my_vote: 1,
+            },
+            1,
+            "csrf",
+            "/b/thread/1#p1",
+        );
+        assert!(up.contains(r#"class="vote-btn vote-up is-active""#));
+        assert!(up.contains(r#"class="vote-btn vote-down""#));
     }
 
     #[test]

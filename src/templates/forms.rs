@@ -18,12 +18,29 @@ pub struct PostFormState {
     pub body: String,
     /// Whether the reply should avoid bumping its thread.
     pub sage: bool,
+    /// Whether the submission is published under a chosen name instead of the
+    /// account's own.
+    pub anonymous: bool,
 }
 
 /// Upload capabilities needed to choose the form's media controls.
 struct UploadFormPolicy {
     /// Whether the board accepts at least one upload type.
     uploads_enabled: bool,
+}
+
+/// Choose the name a posting form starts with.
+///
+/// A re-render after a rejected submission keeps whatever the account typed,
+/// because that text is the one thing the server must not silently replace. A
+/// fresh form starts from the signed-in account's own name, so a post is not
+/// published as "Anonymous" merely because the name box was left empty, and a
+/// visitor without an account still gets an empty box to fill in.
+fn prefill_name(prefill: Option<&PostFormState>, poster_name: &str) -> String {
+    match prefill {
+        Some(state) => state.name.clone(),
+        None => poster_name.to_owned(),
+    }
 }
 
 /// Creates the opaque token used to reject duplicate form submissions.
@@ -267,6 +284,7 @@ pub(super) fn new_thread_form(
     csrf_token: &str,
     board: &Board,
     prefill: Option<&PostFormState>,
+    poster_name: &str,
     refresh_href: &str,
 ) -> String {
     let submission_token = new_submission_token();
@@ -293,7 +311,12 @@ pub(super) fn new_thread_form(
     let extra_poll_option_rows: String = (3..=POLL_OPTION_MAX_COUNT)
         .map(render_poll_option_row)
         .collect();
-    let name_value = prefill.map_or("", |state| state.name.as_str());
+    let name_value = prefill_name(prefill, poster_name);
+    let anon_checked = if prefill.is_some_and(|state| state.anonymous) {
+        " checked"
+    } else {
+        ""
+    };
     let subject_value = prefill.map_or("", |state| state.subject.as_str());
     let body_value = prefill.map_or("", |state| state.body.as_str());
 
@@ -306,7 +329,8 @@ pub(super) fn new_thread_form(
   <table>
     <tr><td><label for="thread-name">ad</label></td>
         <td><label class="post-form-mobile-label" for="thread-name">Ad</label><input type="text" id="thread-name" name="name" value="{name_value}" placeholder="Anonim" maxlength="64">
-            <span class="tripcode-hint" title="Adın sonuna #gizli yazarsan görünen bir tripcode oluşur, ##gizli yazarsan parolan gösterilmez.">#gizli &#183; ##gizli</span></td></tr>
+            <span class="tripcode-hint" title="Adın sonuna #gizli yazarsan görünen bir tripcode oluşur, ##gizli yazarsan parolan gösterilmez.">#gizli &#183; ##gizli</span>
+            <label class="anon-label" title="&#304;aretlenirse g&#246;nderi hesab&#305;na ba&#287;lanmaz ve ad alan&#305;nda yaz&#305;lan isimle payla&#351;&#305;l&#305;r."><input type="checkbox" name="anonymous" value="1"{anon_checked}> anonim payla&#351;</label></td></tr>
     <tr><td><label for="thread-subject">konu</label></td>
         <td><label class="post-form-mobile-label" for="thread-subject">Konu</label><input type="text" id="thread-subject" name="subject" value="{subject_value}" maxlength="128">
             <button type="submit">konuyu gönder</button></td></tr>
@@ -360,7 +384,8 @@ pub(super) fn new_thread_form(
         board = escape_html(board_short),
         csrf = escape_html(csrf_token),
         submission_token = escape_html(&submission_token),
-        name_value = escape_html(name_value),
+        name_value = escape_html(&name_value),
+        anon_checked = anon_checked,
         subject_value = escape_html(subject_value),
         body_value = escape_html(body_value),
         uploads_disabled_row = uploads_disabled_row,
@@ -380,6 +405,7 @@ pub(super) fn reply_form(
     csrf_token: &str,
     board: &Board,
     prefill: Option<&PostFormState>,
+    poster_name: &str,
 ) -> String {
     let submission_token = new_submission_token();
     let upload_policy = build_upload_form_policy(board);
@@ -404,7 +430,12 @@ pub(super) fn reply_form(
     } else {
         String::new()
     };
-    let name_value = prefill.map_or("", |state| state.name.as_str());
+    let name_value = prefill_name(prefill, poster_name);
+    let anon_checked = if prefill.is_some_and(|state| state.anonymous) {
+        " checked"
+    } else {
+        ""
+    };
     let body_value = prefill.map_or("", |state| state.body.as_str());
     let sage_checked = if prefill.is_some_and(|state| state.sage) {
         " checked"
@@ -421,7 +452,8 @@ pub(super) fn reply_form(
   <table>
     <tr><td><label for="reply-name">ad</label></td>
         <td><label class="post-form-mobile-label" for="reply-name">Ad</label><input type="text" id="reply-name" name="name" value="{name_value}" placeholder="Anonim" maxlength="64">
-            <span class="tripcode-hint" title="Adın sonuna #gizli yazarsan görünen bir tripcode oluşur, ##gizli yazarsan parolan gösterilmez.">#gizli &#183; ##gizli</span></td></tr>
+            <span class="tripcode-hint" title="Adın sonuna #gizli yazarsan görünen bir tripcode oluşur, ##gizli yazarsan parolan gösterilmez.">#gizli &#183; ##gizli</span>
+            <label class="anon-label" title="&#304;aretlenirse g&#246;nderi hesab&#305;na ba&#287;lanmaz ve ad alan&#305;nda yaz&#305;lan isimle payla&#351;&#305;l&#305;r."><input type="checkbox" name="anonymous" value="1"{anon_checked}> anonim payla&#351;</label></td></tr>
     <tr><td><label for="reply-body">gövde</label></td>
         <td><label class="post-form-mobile-label" for="reply-body">Gövde</label><textarea id="reply-body" name="body" rows="4" maxlength="4096">{body_value}</textarea>
             <button type="submit">yanıtı gönder</button></td></tr>
@@ -438,7 +470,8 @@ pub(super) fn reply_form(
         tid = thread_id,
         csrf = escape_html(csrf_token),
         submission_token = escape_html(&submission_token),
-        name_value = escape_html(name_value),
+        name_value = escape_html(&name_value),
+        anon_checked = anon_checked,
         body_value = escape_html(body_value),
         sage_checked = sage_checked,
         uploads_disabled_row = uploads_disabled_row,
@@ -454,6 +487,7 @@ mod tests {
         build_upload_form_policy, new_thread_form, render_captcha_row, render_poll_option_row,
         reply_form, PostFormState, AUDIO_ACCEPT, POLL_OPTION_MAX_COUNT, POLL_OPTION_MAX_LENGTH,
     };
+    use anyhow::Result;
 
     fn uploads_disabled_board() -> crate::models::Board {
         crate::models::Board {
@@ -480,7 +514,7 @@ mod tests {
 
     #[test]
     fn new_thread_form_hides_file_input_when_uploads_disabled() {
-        let html = new_thread_form("test", "csrf", &uploads_disabled_board(), None, "/test");
+        let html = new_thread_form("test", "csrf", &uploads_disabled_board(), None, "Rain", "/test");
         assert!(!html.contains("type=\"file\" name=\"file\""));
         assert!(!html.contains("name=\"image_file\""));
         assert!(!html.contains("name=\"audio_file\""));
@@ -489,7 +523,7 @@ mod tests {
 
     #[test]
     fn reply_form_hides_file_input_when_uploads_disabled() {
-        let html = reply_form("test", 42, "csrf", &uploads_disabled_board(), None);
+        let html = reply_form("test", 42, "csrf", &uploads_disabled_board(), None, "Rain");
         assert!(!html.contains("type=\"file\" name=\"file\""));
         assert!(!html.contains("name=\"image_file\""));
         assert!(!html.contains("name=\"audio_file\""));
@@ -532,6 +566,7 @@ mod tests {
                 ..uploads_disabled_board()
             },
             None,
+            "Rain",
             "/test",
         );
         assert!(html.contains("<td>yükleme</td>"));
@@ -543,8 +578,8 @@ mod tests {
     #[test]
     fn post_forms_include_submission_token() {
         let board = uploads_disabled_board();
-        let thread_html = new_thread_form("test", "csrf", &board, None, "/test");
-        let reply_html = reply_form("test", 42, "csrf", &board, None);
+        let thread_html = new_thread_form("test", "csrf", &board, None, "Rain", "/test");
+        let reply_html = reply_form("test", 42, "csrf", &board, None, "Rain");
 
         assert!(thread_html.contains("name=\"submission_token\""));
         assert!(reply_html.contains("name=\"submission_token\""));
@@ -555,7 +590,7 @@ mod tests {
         let initial_row = render_poll_option_row(1);
         assert!(initial_row.contains(&format!(r#"maxlength="{POLL_OPTION_MAX_LENGTH}""#)));
 
-        let html = new_thread_form("test", "csrf", &uploads_disabled_board(), None, "/test");
+        let html = new_thread_form("test", "csrf", &uploads_disabled_board(), None, "Rain", "/test");
         assert!(html.contains(&format!(
             r#"data-poll-option-maxlength="{POLL_OPTION_MAX_LENGTH}""#
         )));
@@ -570,7 +605,7 @@ mod tests {
 
     #[test]
     fn poll_creator_is_wrapped_in_a_valid_table_row() {
-        let html = new_thread_form("test", "csrf", &uploads_disabled_board(), None, "/test");
+        let html = new_thread_form("test", "csrf", &uploads_disabled_board(), None, "Rain", "/test");
 
         assert!(html.contains(
             r#"<tr class="poll-row">
@@ -590,9 +625,10 @@ mod tests {
             subject: "subject".into(),
             body: "draft body".into(),
             sage: true,
+            anonymous: true,
         };
-        let thread_html = new_thread_form("test", "csrf", &board, Some(&state), "/test");
-        let reply_html = reply_form("test", 42, "csrf", &board, Some(&state));
+        let thread_html = new_thread_form("test", "csrf", &board, Some(&state), "Rain", "/test");
+        let reply_html = reply_form("test", 42, "csrf", &board, Some(&state), "Rain");
 
         assert!(thread_html.contains(r#"<label for="thread-name">ad</label>"#));
         assert!(thread_html.contains(r#"id="thread-name" name="name" value="anon""#));
@@ -609,6 +645,72 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "test assertions intentionally panic on failure"
+    )]
+    fn a_posting_form_starts_from_the_signed_in_account_name() -> Result<()> {
+        let board = crate::models::Board {
+            allow_editing: true,
+            ..uploads_disabled_board()
+        };
+
+        let thread_html = new_thread_form("test", "csrf", &board, None, "Rain", "/test");
+        let reply_html = reply_form("test", 42, "csrf", &board, None, "Rain");
+        for html in [&thread_html, &reply_html] {
+            assert!(
+                html.contains(r#"name="name" value="Rain""#),
+                "a form must not start as Anonymous when the account has a name"
+            );
+            assert!(
+                html.contains(r#"<input type="checkbox" name="anonymous" value="1">"#),
+                "the tick that publishes a post under a chosen name must be offered"
+            );
+        }
+
+        // A visitor without an account has no name to start from, and the form
+        // is not invented one on their behalf.
+        let guest = new_thread_form("test", "csrf", &board, None, "", "/test");
+        assert!(
+            guest.contains(r#"name="name" value="""#),
+            "a visitor with no account must still be asked for a name"
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "test assertions intentionally panic on failure"
+    )]
+    fn the_anonymous_tick_survives_a_rejected_submission() -> Result<()> {
+        let board = crate::models::Board {
+            allow_editing: true,
+            ..uploads_disabled_board()
+        };
+        let state = PostFormState {
+            name: "seçilen isim".into(),
+            body: "gövde".into(),
+            anonymous: true,
+            ..PostFormState::default()
+        };
+
+        let thread_html = new_thread_form("test", "csrf", &board, Some(&state), "Rain", "/test");
+        let reply_html = reply_form("test", 42, "csrf", &board, Some(&state), "Rain");
+        for html in [&thread_html, &reply_html] {
+            assert!(
+                html.contains(r#"name="anonymous" value="1" checked"#),
+                "the choice made with a rejected submission must come back with it"
+            );
+            assert!(
+                html.contains("se&#231;ilen isim") || html.contains("seçilen isim"),
+                "the chosen name must come back with the rejected submission"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
     fn captcha_row_uses_server_side_image_challenge() {
         let html = new_thread_form(
             "test",
@@ -618,6 +720,7 @@ mod tests {
                 ..uploads_disabled_board()
             },
             None,
+            "Rain",
             "/test",
         );
 

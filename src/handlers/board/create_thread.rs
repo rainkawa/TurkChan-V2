@@ -80,6 +80,7 @@ pub(in crate::server) async fn create_thread(
         subject: form.subject.clone(),
         body: form.body.clone(),
         sage: form.sage,
+        anonymous: form.anonymous,
     };
 
     // Also extract csrf_token before spawn_blocking so the ban page appeal form works.
@@ -106,6 +107,7 @@ pub(in crate::server) async fn create_thread(
         poll_options,
         poll_duration_secs,
         sage: _,
+        anonymous,
         captcha_id,
         captcha_answer,
     } = form;
@@ -136,6 +138,7 @@ pub(in crate::server) async fn create_thread(
                     cookie_secret: CONFIG.cookie_secret.clone(),
                     admin_session_id,
                     account_id,
+                    anonymous,
                     ban_csrf_token,
                     submission_token,
                     name,

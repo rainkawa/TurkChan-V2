@@ -7112,6 +7112,24 @@ html:not([data-theme]) .crosslink:hover { text-shadow: 0 0 6px rgba(255,179,0,0.
   opacity: 0.7;
 }
 
+/* The tick that publishes a post under a chosen name sits in the name cell,
+   below the tripcode hint, because it is a statement about the name rather
+   than another posting option. */
+.anon-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
+}
+.anon-label input[type="checkbox"] {
+  accent-color: var(--green-bright);
+  cursor: pointer;
+}
+
 /* Post edited badge */
 .post-edited {
   font-size: 0.7rem;

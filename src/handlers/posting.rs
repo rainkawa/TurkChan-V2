@@ -38,9 +38,18 @@ pub(super) struct SubmitPostCommand {
     pub admin_session_id: Option<String>,
     /// Account that will own the post on its public profile.
     ///
-    /// `None` for a visitor who posts without an account, which is how posts
-    /// written before accounts existed are left unlinked too.
+    /// Writing belongs to accounts, so a submission without one never reaches
+    /// here. Posts written before accounts existed keep their unlinked rows.
     pub account_id: i64,
+    /// Publish the post under the chosen name instead of the account's.
+    ///
+    /// The account still has to be signed in to write at all, so a name chosen
+    /// here is a pseudonym rather than an unattributable post: moderation,
+    /// rate limiting, and the ban list all still apply to whoever wrote it.
+    /// What is given up is the public link back to the account, because an
+    /// anonymous post is not shown on the profile of the account that wrote it
+    /// and its votes are nobody's to earn.
+    pub anonymous: bool,
     pub ban_csrf_token: String,
     pub submission_token: String,
     pub name: String,
@@ -526,6 +535,7 @@ pub(super) fn submit_post(
         cookie_secret,
         admin_session_id,
         account_id,
+        anonymous,
         ban_csrf_token,
         submission_token,
         name,
@@ -789,8 +799,13 @@ pub(super) fn submit_post(
 
     // Link the post to the signed-in account so it shows up on that profile.
     // A failure here only costs the profile entry, never the post itself, so
-    // it is logged instead of failing an accepted submission.
-    if let Err(error) = db::link_post_to_account(conn, post_id, account_id) {
+    // it is logged instead of failing an accepted submission. An anonymous
+    // submission is the one case where the entry is declined rather than
+    // written: the poster asked for the post not to be theirs, and a profile
+    // that listed it anyway would answer a question the poster refused.
+    if anonymous {
+        tracing::debug!(target: "auth", post_id, "Anonymous submission left unlinked");
+    } else if let Err(error) = db::link_post_to_account(conn, post_id, account_id) {
         tracing::warn!(target: "auth", %error, post_id, "Failed to link post to account");
     }
 
@@ -935,6 +950,7 @@ mod tests {
             cookie_secret: TEST_COOKIE_SECRET.to_owned(),
             admin_session_id: None,
             account_id: 1,
+            anonymous: false,
             ban_csrf_token: "ban-csrf".to_owned(),
             submission_token: submission_token.to_owned(),
             name: "anon".to_owned(),
@@ -974,6 +990,7 @@ mod tests {
             cookie_secret: TEST_COOKIE_SECRET.to_owned(),
             admin_session_id: None,
             account_id: 1,
+            anonymous: false,
             ban_csrf_token: "ban-csrf".to_owned(),
             submission_token: submission_token.to_owned(),
             name: "anon".to_owned(),
@@ -1009,6 +1026,7 @@ mod tests {
             cookie_secret: TEST_COOKIE_SECRET.to_owned(),
             admin_session_id: None,
             account_id: 1,
+            anonymous: false,
             ban_csrf_token: "ban-csrf".to_owned(),
             submission_token: submission_token.to_owned(),
             name: "anon".to_owned(),

@@ -947,6 +947,7 @@ pub fn board_page<S: std::hash::BuildHasher>(
                 csrf_token,
                 board,
                 new_thread_prefill,
+                account.map_or("", |menu| menu.display_name.as_str()),
                 &format!("/{}", board.short_name),
             ),
             post_form_class = if show_post_form {
@@ -1374,6 +1375,7 @@ pub fn catalog_page<S: std::hash::BuildHasher>(
                 csrf_token,
                 board,
                 None,
+                account.map_or("", |menu| menu.display_name.as_str()),
                 &if hidden_view {
                     format!("/{}/hidden", board.short_name)
                 } else {
