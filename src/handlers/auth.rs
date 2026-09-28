@@ -2058,6 +2058,7 @@ pub(crate) async fn account_password_submit(
     // holding is dead, so a value an attacker planted before the change cannot
     // ride along across it.
     tracing::info!(target: "auth", user_id, "Account password changed");
+    let secure = crate::handlers::admin::should_set_secure_cookie(&headers, secure_context);
     issue_session(state, jar, user_id, secure, "/account/edit?saved=password").await
 }
 
