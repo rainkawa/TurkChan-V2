@@ -183,6 +183,67 @@ pub fn set_user_avatar(
     Ok(())
 }
 
+/// Rename the name an account is shown under.
+///
+/// The account menu, every post header, and the profile page all read this
+/// column, so changing it is the single edit that renames the account in one
+/// place instead of a copy per surface.
+///
+/// # Errors
+/// Returns an error if the database operation fails.
+pub fn update_display_name(
+    conn: &rusqlite::Connection,
+    user_id: i64,
+    display_name: &str,
+) -> Result<()> {
+    conn.execute(
+        "UPDATE users SET display_name = ?1 WHERE id = ?2",
+        params![display_name, user_id],
+    )
+    .context("Failed to update user display name")?;
+    Ok(())
+}
+
+/// Move an account to a new unique username.
+///
+/// The username is part of the account's public address, so a caller that
+/// renames an account has to know whether the new name was free: this fails
+/// with the same unique-constraint violation `create_user` raises when it is
+/// not, and callers treat that as a rejected form rather than a crash.
+///
+/// # Errors
+/// Returns an error if the database operation fails, which includes the
+/// unique-constraint violation raised when the username is already taken.
+pub fn update_username(
+    conn: &rusqlite::Connection,
+    user_id: i64,
+    username: &str,
+) -> Result<()> {
+    conn.execute(
+        "UPDATE users SET username = ?1 WHERE id = ?2",
+        params![username, user_id],
+    )
+    .context("Failed to update user username")?;
+    Ok(())
+}
+
+/// Replace the stored Argon2id hash of an account.
+///
+/// # Errors
+/// Returns an error if the database operation fails.
+pub fn update_password_hash(
+    conn: &rusqlite::Connection,
+    user_id: i64,
+    password_hash: &str,
+) -> Result<()> {
+    conn.execute(
+        "UPDATE users SET password_hash = ?1 WHERE id = ?2",
+        params![password_hash, user_id],
+    )
+    .context("Failed to update user password")?;
+    Ok(())
+}
+
 /// Create a session row for an account.
 ///
 /// # Errors
@@ -482,7 +543,8 @@ pub fn purge_expired_user_sessions(conn: &rusqlite::Connection) -> Result<usize>
 mod tests {
     use super::{
         count_users, create_user, create_user_session, ensure_admin_profile, find_user_by_id,
-        find_user_by_username, username_exists,
+        find_user_by_username, set_user_avatar, update_display_name, update_password_hash,
+        update_username, username_exists,
     };
     use crate::models::ProfilePostScope;
     use crate::db::schema::{install_or_migrate_schema, normalize_database_schema_version};
@@ -772,6 +834,60 @@ mod tests {
             super::profile_stats(&conn, user_id)?.post_count,
             0,
             "an unopenable post must not be counted either"
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "test assertions intentionally panic on failure"
+    )]
+    /// The account settings screen renames an account and replaces its
+    /// credential, and a rename onto a taken name is refused rather than
+    /// silently moving the account on top of its neighbour.
+    fn account_settings_rename_and_replace_the_credential() -> Result<()> {
+        let conn = pre_account_database()?;
+        normalize_database_schema_version(&conn)?;
+        let hash = crate::utils::crypto::hash_password("Hunter2Hunter2")?;
+        let user_id = create_user(&conn, "anon", "Anonim", &hash, None, "selam")?;
+        let neighbour = create_user(&conn, "arkadas", "Arkadaş", &hash, None, "başka")?;
+
+        update_display_name(&conn, user_id, "Yeni Ad")?;
+        update_username(&conn, user_id, "yeni-ad")?;
+        let replacement = crate::utils::crypto::hash_password("DegistirilmisParola")?;
+        update_password_hash(&conn, user_id, &replacement)?;
+        set_user_avatar(&conn, user_id, "5.png")?;
+
+        let renamed = find_user_by_id(&conn, user_id)?
+            .context("the renamed account should still resolve by row id")?;
+        assert_eq!(renamed.display_name, "Yeni Ad");
+        assert_eq!(renamed.username, "yeni-ad");
+        assert_eq!(renamed.avatar_file.as_deref(), Some("5.png"));
+        assert!(
+            crate::utils::crypto::verify_password("DegistirilmisParola", &renamed.password_hash)?,
+            "the account must sign in with the replacement password"
+        );
+        assert!(
+            !crate::utils::crypto::verify_password("Hunter2Hunter2", &renamed.password_hash)?,
+            "the old password must stop working"
+        );
+
+        // The neighbour is untouched by someone else's rename...
+        let other = find_user_by_id(&conn, neighbour)?
+            .context("the neighbouring account should still exist")?;
+        assert_eq!(other.username, "arkadas");
+        assert_eq!(other.display_name, "Arkadaş");
+
+        // ...and taking its name is a constraint failure, not a silent merge.
+        assert!(
+            update_username(&conn, user_id, "arkadas").is_err(),
+            "a rename onto a taken username must be refused"
+        );
+        assert_eq!(
+            find_user_by_id(&conn, user_id)?.map(|user| user.username),
+            Some("yeni-ad".to_owned()),
+            "a refused rename must leave the account where it was"
         );
         Ok(())
     }

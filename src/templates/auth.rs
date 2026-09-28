@@ -1,13 +1,17 @@
-//! Registration and sign-in screens.
+//! Registration, sign-in, and account settings screens.
 //!
-//! Both pages are built from the same layout and the same design tokens as the
+//! All of them are built from the same layout and the same design tokens as the
 //! rest of the site, so they read as part of the board rather than as a bolted
 //! on login box. The registration form is a single document with three
 //! `<fieldset>` steps: JavaScript reveals one step at a time, and without
 //! JavaScript every step is simply visible in order, which keeps the flow
-//! usable for a visitor with scripting disabled.
+//! usable for a visitor with scripting disabled. The account menu that the
+//! shared header carries is rendered here too, and its "Profili Düzenle" entry
+//! opens the settings screen that renames an account, replaces its picture, and
+//! changes its password.
 
-use crate::templates::{base_layout_with_preferences, static_asset_url};
+use crate::models::Board;
+use crate::templates::{base_layout_with_account, base_layout_with_preferences, static_asset_url};
 use crate::utils::sanitize::escape_html;
 
 use super::UserPreferences;
@@ -48,6 +52,9 @@ const PASSWORD_MIN_CHARS: usize = 6;
 
 /// Largest accepted avatar upload, in MiB, mirrored by the on-page hint.
 const AVATAR_MAX_MIB: u32 = 2;
+
+/// Longest accepted password, mirrored by the `maxlength` attribute.
+const PASSWORD_MAX_CHARS: usize = 256;
 
 /// Script tag for the wizard enhancement, omitted when the file is absent.
 fn auth_script_tag() -> String {
@@ -280,9 +287,10 @@ pub fn account_initial(display_name: &str, username: &str) -> String {
 
 /// Render the header account menu, or nothing when nobody is signed in.
 ///
-/// "Profili Gör" opens the account's public profile. The two entries after it
-/// stay inert: they are shown so the menu shape is settled, and only the
-/// profile, the administration panel, and the sign-out control do anything yet.
+/// "Profili Gör" opens the account's public profile and "Profili Düzenle"
+/// opens the settings screen that renames the account, replaces its picture,
+/// and changes its password. The administration panel entry and the sign-out
+/// control sit after those two.
 #[must_use]
 pub fn account_menu_html(account: Option<&AccountMenu>, csrf_token: &str) -> String {
     let Some(account) = account else {
@@ -294,8 +302,6 @@ pub fn account_menu_html(account: Option<&AccountMenu>, csrf_token: &str) -> Str
     } else {
         ""
     };
-    // The account's public profile is the only profile entry that exists so
-    // far; editing the account and its settings stay inert.
     let profile_item = format!(
         r#"<a class="account-menu-item" href="/u/{username}">Profili Gör</a>"#,
         username = escape_html(&account.username),
@@ -307,8 +313,7 @@ pub fn account_menu_html(account: Option<&AccountMenu>, csrf_token: &str) -> Str
 <div class="account-menu-panel" id="account-menu-panel">
 <p class="account-menu-identity"><span class="account-menu-name">{display_name}</span><span class="account-menu-handle">@{username}</span></p>
 {profile_item}
-<span class="account-menu-item is-disabled" aria-disabled="true">Profili Düzenle</span>
-<span class="account-menu-item is-disabled" aria-disabled="true">Ayarlar</span>
+<a class="account-menu-item" href="/account/edit">Profili Düzenle</a>
 {admin_item}
 <form class="account-menu-form" method="POST" action="/logout">
 <input type="hidden" name="_csrf" value="{csrf}">
@@ -322,5 +327,204 @@ pub fn account_menu_html(account: Option<&AccountMenu>, csrf_token: &str) -> Str
         profile_item = profile_item,
         admin_item = admin_item,
         csrf = escape_html(csrf_token),
+    )
+}
+
+/// The saved account the settings screen is built from.
+#[derive(Debug)]
+pub struct AccountSettings {
+    /// Name shown on posts, pre-filled into the form.
+    pub display_name: String,
+    /// Login name, pre-filled into the form and shown in the profile hint.
+    pub username: String,
+    /// Row id, used to preview the stored avatar.
+    pub user_id: i64,
+    /// Whether a picture has been uploaded for this account.
+    pub has_avatar: bool,
+    /// Whether the password form is offered for this identity.
+    ///
+    /// An operator browses under an administrator name whose credential lives
+    /// in `admin_users`, not in this row, so the section is replaced by a note
+    /// rather than offering a change that would not take effect.
+    pub can_change_password: bool,
+}
+
+/// The two tokens the settings screen carries.
+///
+/// The shared layout embeds the site-wide token in the header's own controls
+/// (theme, board preferences, the not-a-bug report), while the settings forms
+/// are scoped to the account CSRF cookie. The two cookies are separate on
+/// purpose, so the screen has to carry both tokens rather than reuse one.
+#[derive(Debug)]
+pub struct AccountSettingsTokens {
+    /// Token the shared layout embeds in the header controls.
+    pub layout: String,
+    /// Token the settings forms on this page carry.
+    pub form: String,
+}
+
+/// The message shown above the settings forms.
+#[derive(Debug)]
+pub struct AccountSettingsNotice {
+    /// Text shown to the visitor, empty when there is nothing to say.
+    pub message: String,
+    /// Whether the message reports a rejected submission.
+    pub is_error: bool,
+}
+
+impl AccountSettingsNotice {
+    /// A screen that says nothing.
+    #[must_use]
+    pub fn empty() -> Self {
+        Self {
+            message: String::new(),
+            is_error: false,
+        }
+    }
+
+    /// A confirmation that a change was stored.
+    #[must_use]
+    pub fn saved(message: &str) -> Self {
+        Self {
+            message: message.to_owned(),
+            is_error: false,
+        }
+    }
+
+    /// A rejection that the forms are rendered again around.
+    #[must_use]
+    pub fn failed(message: &str) -> Self {
+        Self {
+            message: message.to_owned(),
+            is_error: true,
+        }
+    }
+}
+
+/// Render the account settings screen.
+///
+/// Everything an account can change about itself lives on this one page: the
+/// profile picture, the display name, the username, and the password. The
+/// picture travels with the profile form because it is one file and one
+/// submit, while the password keeps its own form so a mistyped current
+/// password never costs the visitor the rest of the form.
+#[must_use]
+pub fn account_settings_page(
+    settings: &AccountSettings,
+    boards: &[Board],
+    current_theme: Option<&str>,
+    preferences: UserPreferences,
+    tokens: &AccountSettingsTokens,
+    account_menu_html: &str,
+    notice: &AccountSettingsNotice,
+) -> String {
+    let notice_html = if notice.message.is_empty() {
+        String::new()
+    } else if notice.is_error {
+        format!(
+            r#"<p class="account-notice is-error" role="alert">{}</p>"#,
+            escape_html(&notice.message)
+        )
+    } else {
+        format!(
+            r#"<p class="account-notice" role="status">{}</p>"#,
+            escape_html(&notice.message)
+        )
+    };
+
+    // The stored picture and the drawn initial are both rendered the way the
+    // profile page renders them, so the two never disagree about how an
+    // account without a picture looks.
+    let avatar = if settings.has_avatar {
+        format!(
+            r#"<img class="account-avatar-preview" src="/auth/avatar/{user_id}" width="96" height="96" alt="Mevcut profil resmi">"#,
+            user_id = settings.user_id,
+        )
+    } else {
+        format!(
+            r#"<span class="account-avatar-preview account-avatar-preview-letter" role="img" aria-label="Profil resmin yok">{initial}</span>"#,
+            initial = escape_html(&account_initial(
+                &settings.display_name,
+                &settings.username,
+            )),
+        )
+    };
+
+    let password_section = if settings.can_change_password {
+        format!(
+            r#"<form class="auth-form account-section" method="POST" action="/account/password">
+<input type="hidden" name="_csrf" value="{csrf}">
+<h2 class="account-section-title">Parola</h2>
+<p class="auth-hint">Mevcut parolanı doğrulamak için önce onu isteyip sonra değiştiriyoruz.</p>
+<label class="auth-label" for="account-current-password">Mevcut Parola</label>
+<input class="auth-input" type="password" id="account-current-password" name="current_password" autocomplete="current-password" required>
+<label class="auth-label" for="account-new-password">Yeni Parola</label>
+<input class="auth-input" type="password" id="account-new-password" name="password" minlength="{password_min}" maxlength="{password_max}" autocomplete="new-password" required>
+<label class="auth-label" for="account-new-password-confirm">Yeni Parola Tekrar</label>
+<input class="auth-input" type="password" id="account-new-password-confirm" name="password_confirm" minlength="{password_min}" maxlength="{password_max}" autocomplete="new-password" required>
+<button class="btn auth-submit" type="submit">Parolayı Değiştir</button>
+</form>"#,
+            csrf = escape_html(&tokens.form),
+            password_min = PASSWORD_MIN_CHARS,
+            password_max = PASSWORD_MAX_CHARS,
+        )
+    } else {
+        r#"<p class="auth-hint account-section-hint">Parola değiştirme yalnızca kayıt olmuş üyeler için açıktır; yönetici parolası komut satırından yönetilir.</p>"#.to_owned()
+    };
+
+    let body = format!(
+        r#"<div class="page-box auth-page account-page">
+<h1 class="auth-title">Profili Düzenle</h1>
+<p class="auth-lead">Profil resmin, görünen adın, kullanıcı adın ve parolan burada değişir. Gerçek adın, e-posta adresin ya da telefon numaran istenmez.</p>
+{notice_html}
+
+<form class="auth-form account-section" method="POST" action="/account/profile" enctype="multipart/form-data">
+<input type="hidden" name="_csrf" value="{csrf}">
+<h2 class="account-section-title">Profil</h2>
+<div class="account-avatar-row">
+{avatar}
+<div class="account-avatar-fields">
+<label class="auth-label" for="account-avatar">Profil Resmi</label>
+<input class="auth-input auth-file" type="file" id="account-avatar" name="avatar" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,image/tiff">
+<p class="auth-hint">Yeni resim seçmezsen mevcut resmin kalır. En fazla {avatar_max} MiB.</p>
+</div>
+</div>
+<label class="auth-label" for="account-display-name">{display_label}</label>
+<input class="auth-input" type="text" id="account-display-name" name="display_name" value="{display_name}" maxlength="{display_max}" autocomplete="nickname" required>
+<label class="auth-label" for="account-username">{username_label}</label>
+<input class="auth-input" type="text" id="account-username" name="username" value="{username}" maxlength="{username_max}" autocomplete="username" required>
+<p class="auth-hint">Profil adresin bu addan türetilir: <code>/u/{username}</code>. Yalnızca harf, rakam, <code>_</code>, <code>-</code> ve <code>.</code> kullanabilirsin.</p>
+<button class="btn auth-submit" type="submit">Kaydet</button>
+</form>
+
+{password_section}
+<p class="auth-switch"><a href="/u/{profile_path}">Profiline dön</a></p>
+</div>"#,
+        notice_html = notice_html,
+        csrf = escape_html(&tokens.form),
+        avatar = avatar,
+        password_section = password_section,
+        display_label = escape_html(DISPLAY_NAME_FIELD_LABEL),
+        username_label = escape_html(USERNAME_FIELD_LABEL),
+        display_max = DISPLAY_NAME_MAX_CHARS,
+        username_max = USERNAME_MAX_CHARS,
+        avatar_max = AVATAR_MAX_MIB,
+        display_name = escape_html(&settings.display_name),
+        username = escape_html(&settings.username),
+        profile_path = escape_html(&settings.username),
+    );
+
+    base_layout_with_account(
+        "Profili Düzenle",
+        None,
+        &body,
+        &tokens.layout,
+        boards,
+        current_theme,
+        None,
+        false,
+        "/account/edit",
+        preferences,
+        account_menu_html,
     )
 }

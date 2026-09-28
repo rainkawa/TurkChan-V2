@@ -9,6 +9,7 @@ All notable changes to TurkChan will be documented in this file.
 - Added public account profiles with tabbed posting history, a header avatar, chosen names, self-description, and score.
 - Gave administrators a board profile of their own, created on administrator creation, on sign-in, and on the first visit to their profile, so the header account menu's profile entry resolves for the default administrator. The generated row carries a hash of a value that is discarded immediately, so it identifies the operator on the board and can never be signed into.
 - Generated account avatars now show the account's first letter, and a profile whose account has no uploaded picture shows that letter as a tile drawn in the page itself rather than as an image request.
+- Added an account settings screen at `/account/edit`, reachable from the header account menu's "Profili Düzenle" entry, that replaces the inert placeholder link. One page carries everything an account can change about itself: the profile picture, the display name, the unique username, and the password. The picture and the two names share one form, the password keeps its own form so a mistyped current password costs nothing else, and an administrator's generated profile hides the password section because that credential lives in `admin_users` rather than on the board account.
 
 ### Improved
 

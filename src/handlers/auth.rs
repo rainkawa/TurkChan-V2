@@ -15,6 +15,15 @@
 //!   5. `POST /logout`    ends the session
 //!   6. `GET  /auth/username` answers whether a username is still free
 //!
+//! Once signed in, the account menu in the shared header opens the settings
+//! screen, which is the one place an account can change itself:
+//!   7. `GET  /account/edit`    renders the picture, name, username, and
+//!      password forms
+//!   8. `POST /account/profile` stores the picture, the display name, and a
+//!      new unique username
+//!   9. `POST /account/password` replaces the password after the current one
+//!      is verified
+//!
 //! The sign-in screen also accepts a command-line administrator, which has no
 //! `users` row. That identity gets an administrator session, uses the site
 //! like any other member, and reaches the panel from the account menu.
@@ -27,8 +36,12 @@ use crate::{
     db,
     error::{AppError, Result},
     middleware::AppState,
+    models::{Board, User},
     templates,
-    templates::auth::{RegisterDraft, DISPLAY_NAME_FIELD_LABEL, USERNAME_FIELD_LABEL},
+    templates::auth::{
+        AccountSettings, AccountSettingsNotice, AccountSettingsTokens, RegisterDraft,
+        DISPLAY_NAME_FIELD_LABEL, USERNAME_FIELD_LABEL,
+    },
     utils::{
         crypto::{
             hash_password, make_scoped_csrf_form_token, new_csrf_token, new_session_id,
@@ -59,6 +72,12 @@ const USER_CSRF_COOKIE: &str = "user_csrf_token";
 const LOGIN_CSRF_SCOPE: &str = "user-login";
 /// CSRF scope for the registration form.
 const REGISTER_CSRF_SCOPE: &str = "user-register";
+/// CSRF scope for the account settings forms.
+///
+/// Deliberately its own scope: the token only authorises editing the signed-in
+/// account, so a form token lifted off a sign-in or registration page cannot be
+/// replayed against the settings screen.
+const ACCOUNT_CSRF_SCOPE: &str = "user-account";
 /// `SameSite` policy for the account session cookie.
 const USER_COOKIE_SAME_SITE: SameSite = SameSite::Lax;
 
@@ -216,6 +235,34 @@ pub(crate) struct CsrfOnlyForm {
     /// Scoped CSRF token.
     #[serde(rename = "_csrf")]
     csrf: Option<String>,
+}
+
+/// Fields collected by the password change form.
+///
+/// Every password field defaults to empty so a truncated or hand-written post
+/// is answered with the visitor-facing message the form shows, rather than with
+/// a bare extractor rejection.
+#[derive(Debug, Deserialize)]
+pub(crate) struct PasswordChangeForm {
+    /// Scoped CSRF token.
+    #[serde(rename = "_csrf")]
+    csrf: Option<String>,
+    /// The password the account signs in with today.
+    #[serde(default)]
+    current_password: String,
+    /// The chosen replacement password.
+    #[serde(default)]
+    password: String,
+    /// The repeated replacement password.
+    #[serde(default)]
+    password_confirm: String,
+}
+
+/// Query parameters accepted by the account settings screen.
+#[derive(Debug, Default, Deserialize)]
+pub(crate) struct AccountEditQuery {
+    /// Which form reported a successful save.
+    saved: Option<String>,
 }
 
 /// Validate a submitted CSRF token against the account CSRF cookie.
@@ -896,7 +943,9 @@ fn is_unique_violation(error: &anyhow::Error) -> bool {
                 db_error.sqlite_error_code() == Some(rusqlite::ErrorCode::ConstraintViolation)
             })
     })
-}/// Render the wizard again with a failure message.
+}
+
+/// Render the wizard again with a failure message.
 fn render_register_failure(
     jar: CookieJar,
     secure: bool,
@@ -1217,6 +1266,577 @@ async fn read_register_multipart(mut multipart: Multipart) -> Result<SubmittedRe
                 "bio" => out.bio = value,
                 "_csrf" => out.csrf = Some(value),
                 "step" => out.step = value.parse().ok(),
+                _ => {}
+            }
+        }
+    }
+
+    Ok(out)
+}
+
+/// The account the settings screen edits, and what it may change.
+struct EditableAccount {
+    /// Row being edited.
+    account: User,
+    /// Whether the password form is offered for this identity.
+    can_change_password: bool,
+}
+
+/// Everything one pass of the settings screen renders.
+struct AccountPage {
+    /// Row being edited, read for its avatar.
+    account: User,
+    /// Whether the password form is offered.
+    can_change_password: bool,
+    /// Boards for the shared header navigation.
+    boards: Vec<Board>,
+    /// Display name pre-filled into the form, or what the visitor just typed.
+    display_name: String,
+    /// Username pre-filled into the form, or what the visitor just typed.
+    username: String,
+}
+
+/// Fields collected by the profile form.
+struct SubmittedAccount {
+    /// Display name the visitor typed.
+    display_name: String,
+    /// Username the visitor typed.
+    username: String,
+    /// Scoped CSRF token.
+    csrf: Option<String>,
+    /// Optional replacement avatar bytes.
+    avatar: Option<Vec<u8>>,
+}
+
+/// Values a validated settings form asks the database to store.
+struct ProfileChanges {
+    /// Trimmed display name.
+    display_name: String,
+    /// Normalized username, or `None` when the account keeps the one it has.
+    username: Option<String>,
+}
+
+/// Resolve the account the settings screen edits for a request.
+///
+/// A board account edits itself. An operator browses the site under their
+/// administrator name, which has no `users` row of its own until the profile
+/// route provisions one, so the same lookup hands them that profile and
+/// creates it on the spot rather than answering a dead link.
+fn editable_account(
+    conn: &rusqlite::Connection,
+    jar: &CookieJar,
+) -> Result<Option<EditableAccount>> {
+    if let Some(session_id) = jar.get(USER_SESSION_COOKIE).map(Cookie::value) {
+        if let Some(session) = db::get_user_session(conn, session_id)? {
+            if let Some(account) = db::find_user_by_id(conn, session.user_id)? {
+                return Ok(Some(EditableAccount {
+                    account,
+                    can_change_password: true,
+                }));
+            }
+        }
+    }
+
+    let Some(session_id) = jar.get(ADMIN_SESSION_COOKIE).map(Cookie::value) else {
+        return Ok(None);
+    };
+    let Some(session) = db::get_session(conn, session_id)? else {
+        return Ok(None);
+    };
+    let Some(admin_name) = db::get_admin_name_by_id(conn, session.admin_id)? else {
+        return Ok(None);
+    };
+    let username = admin_name.trim().to_lowercase();
+    if username.is_empty() {
+        return Ok(None);
+    }
+    let account = match db::find_user_by_username(conn, &username)? {
+        Some(account) => account,
+        None => {
+            db::ensure_admin_profile(conn, &admin_name)?;
+            db::find_user_by_username(conn, &username)?.ok_or_else(|| {
+                AppError::Internal(anyhow::anyhow!(
+                    "the administrator profile was created but could not be read back"
+                ))
+            })?
+        }
+    };
+    // The operator's credential lives in `admin_users`. Writing a password on
+    // this row would silently turn the operator into an ordinary member on
+    // their next sign-in, so the section is hidden instead.
+    Ok(Some(EditableAccount {
+        account,
+        can_change_password: false,
+    }))
+}
+
+/// Load the account, its edit permissions, and the header navigation.
+///
+/// `draft` carries what a rejected submission typed so the visitor does not
+/// have to type the same name a second time; without it the form opens on the
+/// values already saved.
+async fn account_page(
+    state: &AppState,
+    jar: &CookieJar,
+    draft: Option<(&str, &str)>,
+) -> Result<AccountPage> {
+    let jar = jar.clone();
+    let draft =
+        draft.map(|(display_name, username)| (display_name.to_owned(), username.to_owned()));
+    // An operator's profile is provisioned with a real Argon2id hash, so the
+    // lookup runs on the blocking pool like every other write.
+    let pool = state.db.clone();
+    tokio::task::spawn_blocking(move || -> Result<AccountPage> {
+        let conn = pool.get()?;
+        let Some(EditableAccount {
+            account,
+            can_change_password,
+        }) = editable_account(&conn, &jar)?
+        else {
+            return Err(AppError::Forbidden(
+                "Bu sayfayı görmek için önce giriş yapmalısın.".into(),
+            ));
+        };
+        let boards = db::get_all_boards(&conn)?;
+        let (display_name, username) =
+            draft.unwrap_or_else(|| (account.display_name.clone(), account.username.clone()));
+        Ok(AccountPage {
+            account,
+            can_change_password,
+            boards,
+            display_name,
+            username,
+        })
+    })
+    .await
+    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+}
+
+#[cfg(test)]
+/// Tests for the account settings screen, kept beside the validation they
+/// cover rather than at the end of the file with the other unit tests.
+mod account_settings_tests {
+    use super::{validate_profile_changes, SubmittedAccount};
+    use crate::templates::auth::{account_menu_html, AccountMenu};
+
+    /// A settings submission with the given field values.
+    fn submission(display_name: &str, username: &str) -> SubmittedAccount {
+        SubmittedAccount {
+            display_name: display_name.to_owned(),
+            username: username.to_owned(),
+            csrf: None,
+            avatar: None,
+        }
+    }
+
+    #[test]
+    #[expect(
+        clippy::expect_used,
+        reason = "the test asserts on the validated values, so a rejected form must fail the test immediately"
+    )]
+    /// The settings form stores a trimmed display name and only renames the
+    /// account when the typed username actually differs from the saved one.
+    fn profile_changes_rename_only_when_the_username_really_changed() {
+        let unchanged = validate_profile_changes(&submission("  Anonim  ", "anon"), "anon")
+            .expect("a valid unchanged form is accepted");
+        assert_eq!(unchanged.display_name, "Anonim");
+        assert_eq!(
+            unchanged.username, None,
+            "keeping the current username must not ask for a rename"
+        );
+
+        let renamed = validate_profile_changes(&submission("Anonim", "  Yeni-Ad "), "anon")
+            .expect("a valid rename is accepted");
+        assert_eq!(
+            renamed.username.as_deref(),
+            Some("yeni-ad"),
+            "a typed username is normalized the way registration normalizes it"
+        );
+    }
+
+    #[test]
+    /// An empty, overlong, or unusable value is rejected with a message, and
+    /// a form that renames to a different valid name is accepted.
+    fn profile_changes_reject_a_name_the_account_cannot_use() {
+        assert!(validate_profile_changes(&submission("   ", "anon"), "anon").is_err());
+        assert!(validate_profile_changes(&submission(&"a".repeat(41), "anon"), "anon").is_err());
+        assert!(validate_profile_changes(&submission("Anonim", "bir iki"), "anon").is_err());
+        assert!(validate_profile_changes(&submission("Anonim", ""), "anon").is_err());
+        assert!(validate_profile_changes(&submission("Anonim", "anon"), "anon").is_ok());
+    }
+
+    #[test]
+    /// The header account menu's second entry opens the settings screen, so
+    /// "Profili Düzenle" is a real link rather than the inert label it was.
+    fn account_menu_links_the_settings_screen() {
+        let menu = AccountMenu {
+            display_name: "Anonim".to_owned(),
+            username: "anon".to_owned(),
+            is_admin: false,
+        };
+        let html = account_menu_html(Some(&menu), "token");
+        assert!(
+            html.contains(r#"<a class="account-menu-item" href="/account/edit">"#),
+            "the settings entry has to be a real link, got {html}"
+        );
+        assert!(
+            !html.contains("is-disabled"),
+            "no account menu entry is inert any more, got {html}"
+        );
+    }
+}
+
+/// Render one pass of the account settings screen.
+async fn render_account_edit(
+    state: &AppState,
+    page: AccountPage,
+    jar: CookieJar,
+    headers: &HeaderMap,
+    secure_context: crate::middleware::SecureCookieContext,
+    notice: AccountSettingsNotice,
+) -> Result<Response> {
+    let secure = crate::handlers::admin::should_set_secure_cookie(headers, secure_context);
+    let theme = crate::handlers::board::current_theme_from_jar(&jar);
+    let preferences = crate::handlers::board::user_preferences_from_jar(&jar);
+    // The header's sign-out control is scoped to sign-in, and the header's own
+    // controls are scoped to the site-wide cookie, so the screen carries three
+    // tokens: one for the shared layout, one for the settings forms, and the
+    // one the account menu already asks every page for.
+    let (menu, menu_csrf, jar) = account_menu_for_request(state, jar, secure);
+    let (jar, layout_csrf) =
+        crate::handlers::board::ensure_csrf_for_request(jar, headers, secure_context);
+    let (jar, form_csrf) = ensure_user_csrf(jar, secure, ACCOUNT_CSRF_SCOPE);
+    let account_menu = templates::auth::account_menu_html(menu.as_ref(), &menu_csrf);
+
+    let settings = AccountSettings {
+        display_name: page.display_name,
+        username: page.username,
+        user_id: page.account.id,
+        has_avatar: page.account.avatar_file.is_some(),
+        can_change_password: page.can_change_password,
+    };
+    let html = templates::auth::account_settings_page(
+        &settings,
+        &page.boards,
+        theme.as_deref(),
+        preferences,
+        &AccountSettingsTokens {
+            layout: layout_csrf,
+            form: form_csrf,
+        },
+        &account_menu,
+        &notice,
+    );
+    Ok((jar, Html(html)).into_response())
+}
+
+/// Render the settings screen again with a failure message.
+async fn render_account_edit_failure(
+    state: &AppState,
+    jar: CookieJar,
+    headers: &HeaderMap,
+    secure_context: crate::middleware::SecureCookieContext,
+    draft: Option<(&str, &str)>,
+    message: &str,
+) -> Result<Response> {
+    let page = account_page(state, &jar, draft).await?;
+    render_account_edit(
+        state,
+        page,
+        jar,
+        headers,
+        secure_context,
+        AccountSettingsNotice::failed(message),
+    )
+    .await
+}
+
+// GET /account/edit
+pub(crate) async fn account_edit_page(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    headers: HeaderMap,
+    secure_context: crate::middleware::SecureCookieContext,
+    Query(query): Query<AccountEditQuery>,
+) -> Result<Response> {
+    let page = account_page(&state, &jar, None).await?;
+    let notice = match query.saved.as_deref() {
+        Some("profile") => AccountSettingsNotice::saved("Profil bilgilerin güncellendi."),
+        Some("password") => AccountSettingsNotice::saved("Parolan değiştirildi."),
+        _ => AccountSettingsNotice::empty(),
+    };
+    render_account_edit(&state, page, jar, &headers, secure_context, notice).await
+}
+
+/// Validate the settings form's fields before anything is written.
+///
+/// A rejected value is a message for the visitor rather than a failure, so the
+/// screen can be rendered again around it with the typed values intact.
+fn validate_profile_changes(
+    submitted: &SubmittedAccount,
+    current_username: &str,
+) -> std::result::Result<ProfileChanges, String> {
+    let display_name = submitted.display_name.trim();
+    if display_name.is_empty() {
+        return Err(format!("{DISPLAY_NAME_FIELD_LABEL} boş bırakılamaz."));
+    }
+    if display_name.chars().count() > DISPLAY_NAME_MAX_CHARS {
+        return Err(format!(
+            "{DISPLAY_NAME_FIELD_LABEL} en fazla {DISPLAY_NAME_MAX_CHARS} karakter olabilir."
+        ));
+    }
+
+    let username = normalize_username(&submitted.username);
+    if !username_is_well_formed(&username) {
+        return Err(format!(
+            "{USERNAME_FIELD_LABEL} yalnızca harf, rakam, `_`, `-` ve `.` içerebilir; en fazla {USERNAME_MAX_CHARS} karakter."
+        ));
+    }
+    // Renaming to the name the account already has is a no-op rather than a
+    // conflict with itself.
+    let username = (username != current_username).then_some(username);
+    Ok(ProfileChanges {
+        display_name: display_name.to_owned(),
+        username,
+    })
+}
+
+// POST /account/profile
+pub(crate) async fn account_profile_submit(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    headers: HeaderMap,
+    secure_context: crate::middleware::SecureCookieContext,
+    multipart: Multipart,
+) -> Result<Response> {
+    let submitted = read_account_multipart(multipart).await?;
+    let csrf_valid = validate_form_csrf(&jar, ACCOUNT_CSRF_SCOPE, submitted.csrf.as_deref());
+    require_same_origin(&headers, secure_context.peer, csrf_valid)?;
+    if !csrf_valid {
+        return Err(AppError::Forbidden("CSRF token mismatch.".into()));
+    }
+
+    let draft = Some((submitted.display_name.as_str(), submitted.username.as_str()));
+    let page = account_page(&state, &jar, None).await?;
+    let user_id = page.account.id;
+    let changes = match validate_profile_changes(&submitted, &page.account.username) {
+        Ok(changes) => changes,
+        Err(message) => {
+            return Ok(
+                render_account_edit_failure(&state, jar, &headers, secure_context, draft, &message)
+                    .await?,
+            );
+        }
+    };
+
+    // The picture is decoded and written before the row is touched, so a file
+    // the visitor cannot use is reported without a half-renamed account.
+    let avatar_bytes = match submitted.avatar.as_deref() {
+        Some(bytes) if !bytes.is_empty() => {
+            if bytes.len() > AVATAR_MAX_BYTES {
+                return Ok(render_account_edit_failure(
+                    &state,
+                    jar,
+                    &headers,
+                    secure_context,
+                    draft,
+                    "Profil resmi en fazla 2 MiB olabilir.",
+                )
+                .await?);
+            }
+            Some(bytes)
+        }
+        _ => None,
+    };
+    let stored_avatar = if let Some(bytes) = avatar_bytes {
+        match store_avatar(user_id, bytes) {
+            Ok(file_name) => Some(file_name),
+            Err(error) => {
+                tracing::warn!(target: "auth", user_id, "Avatar upload rejected: {error}");
+                return Ok(render_account_edit_failure(
+                    &state,
+                    jar,
+                    &headers,
+                    secure_context,
+                    draft,
+                    "Profil resmi okunamadı. PNG, JPEG, GIF, WebP, BMP ya da TIFF denemelisin.",
+                )
+                .await?);
+            }
+        }
+    } else {
+        None
+    };
+
+    // The rename, the picture, and the display name are one write: a unique
+    // index is the final authority on a taken username, so a rename that
+    // races another account is rejected rather than half-applied.
+    let pool = state.db.clone();
+    let renamed = tokio::task::spawn_blocking(move || -> Result<bool> {
+        let conn = pool.get()?;
+        if let Some(username) = changes.username.as_deref() {
+            if db::username_exists(&conn, username)? {
+                return Ok(false);
+            }
+            if let Err(error) = db::update_username(&conn, user_id, username) {
+                if is_unique_violation(&error) {
+                    tracing::debug!(target: "auth", "username taken during rename");
+                    return Ok(false);
+                }
+                return Err(AppError::from(error));
+            }
+        }
+        if let Some(file_name) = stored_avatar.as_deref() {
+            db::set_user_avatar(&conn, user_id, file_name)?;
+        }
+        db::update_display_name(&conn, user_id, &changes.display_name)?;
+        Ok(true)
+    })
+    .await
+    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
+
+    if !renamed {
+        return Ok(render_account_edit_failure(
+            &state,
+            jar,
+            &headers,
+            secure_context,
+            draft,
+            "Bu kullanıcı adı zaten alınmış.",
+        )
+        .await?);
+    }
+
+    tracing::info!(target: "auth", user_id, "Account profile updated");
+    Ok((jar, Redirect::to("/account/edit?saved=profile")).into_response())
+}
+
+// POST /account/password
+pub(crate) async fn account_password_submit(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    headers: HeaderMap,
+    secure_context: crate::middleware::SecureCookieContext,
+    Form(form): Form<PasswordChangeForm>,
+) -> Result<Response> {
+    let csrf_valid = validate_form_csrf(&jar, ACCOUNT_CSRF_SCOPE, form.csrf.as_deref());
+    require_same_origin(&headers, secure_context.peer, csrf_valid)?;
+    if !csrf_valid {
+        return Err(AppError::Forbidden("CSRF token mismatch.".into()));
+    }
+
+    let page = account_page(&state, &jar, None).await?;
+    if !page.can_change_password {
+        return Err(AppError::Forbidden(
+            "Parola değiştirme yalnızca kayıt olmuş üyeler için.".into(),
+        ));
+    }
+    let user_id = page.account.id;
+
+    if form.password.chars().count() < PASSWORD_MIN_CHARS {
+        return Ok(render_account_edit_failure(
+            &state,
+            jar,
+            &headers,
+            secure_context,
+            None,
+            &format!("Parola en az {PASSWORD_MIN_CHARS} karakter olmalı."),
+        )
+        .await?);
+    }
+    if form.password.chars().count() > PASSWORD_MAX_CHARS {
+        return Ok(render_account_edit_failure(
+            &state,
+            jar,
+            &headers,
+            secure_context,
+            None,
+            "Parola çok uzun.",
+        )
+        .await?);
+    }
+    if form.password != form.password_confirm {
+        return Ok(render_account_edit_failure(
+            &state,
+            jar,
+            &headers,
+            secure_context,
+            None,
+            "Parolalar eşleşmiyor.",
+        )
+        .await?);
+    }
+
+    // Argon2 is deliberately expensive, so both the verification of the current
+    // password and the hash of its replacement run on the blocking pool.
+    let pool = state.db.clone();
+    let current = form.current_password;
+    let chosen = form.password.clone();
+    let current_hash = page.account.password_hash;
+    let replaced = tokio::task::spawn_blocking(move || -> Result<bool> {
+        if !verify_password(&current, &current_hash)? {
+            return Ok(false);
+        }
+        let new_hash = hash_password(&chosen)?;
+        let conn = pool.get()?;
+        db::update_password_hash(&conn, user_id, &new_hash)?;
+        Ok(true)
+    })
+    .await
+    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
+
+    if !replaced {
+        return Ok(render_account_edit_failure(
+            &state,
+            jar,
+            &headers,
+            secure_context,
+            None,
+            "Mevcut parola hatalı.",
+        )
+        .await?);
+    }
+
+    tracing::info!(target: "auth", user_id, "Account password changed");
+    Ok((jar, Redirect::to("/account/edit?saved=password")).into_response())
+}
+
+/// Read the settings form's multipart body, bounding every field.
+async fn read_account_multipart(mut multipart: Multipart) -> Result<SubmittedAccount> {
+    let mut out = SubmittedAccount {
+        display_name: String::new(),
+        username: String::new(),
+        csrf: None,
+        avatar: None,
+    };
+
+    loop {
+        let next_field = multipart
+            .next_field()
+            .await
+            .map_err(|error| AppError::BadRequest(format!("Form okunamadı: {error}")))?;
+        let Some(field) = next_field else {
+            break;
+        };
+        let name = field.name().unwrap_or("").to_owned();
+        if field.file_name().is_some() {
+            let bytes = field
+                .bytes()
+                .await
+                .map_err(|error| AppError::BadRequest(format!("Dosya okunamadı: {error}")))?;
+            if bytes.len() > AVATAR_MAX_BYTES {
+                return Err(AppError::BadRequest("Profil resmi çok büyük.".into()));
+            }
+            out.avatar = Some(bytes.to_vec());
+        } else {
+            let value = field
+                .text()
+                .await
+                .map_err(|error| AppError::BadRequest(format!("Form okunamadı: {error}")))?;
+            match name.as_str() {
+                "display_name" => out.display_name = value,
+                "username" => out.username = value,
+                "_csrf" => out.csrf = Some(value),
                 _ => {}
             }
         }

@@ -97,6 +97,20 @@ pub(super) fn public_routes() -> Router<AppState> {
             "/auth/avatar/{user_id}",
             get(crate::handlers::auth::serve_avatar),
         )
+        // The account menu's "Profili Düzenle" entry. The picture travels with
+        // the profile form, so that route accepts one multipart upload, while
+        // the password form stays a small urlencoded post of its own.
+        .route(
+            "/account/edit",
+            get(crate::handlers::auth::account_edit_page)
+                .post(crate::handlers::auth::account_profile_submit)
+                .layer(DefaultBodyLimit::max(3 * 1024 * 1024)),
+        )
+        .route(
+            "/account/password",
+            post(crate::handlers::auth::account_password_submit)
+                .layer(DefaultBodyLimit::max(65_536)),
+        )
         .route("/u/{username}", get(crate::handlers::board::profile))
         .route("/setup", get(crate::handlers::setup::setup_get))
         .route("/setup/review", post(crate::handlers::setup::setup_review))
