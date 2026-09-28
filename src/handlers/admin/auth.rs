@@ -301,6 +301,10 @@ pub(in crate::server) async fn admin_login(
 
     let pool = state.db.clone();
     let password = form.password.clone();
+    // The verification closure below takes `username` itself, so the name the
+    // operator's board profile is created from is kept here for the sign-in
+    // path that runs once the password checks out.
+    let admin_name = username.clone();
 
     // Argon2 verification is CPU-intensive; always use spawn_blocking.
     let result = tokio::task::spawn_blocking(move || -> Result<Option<i64>> {
@@ -345,7 +349,6 @@ pub(in crate::server) async fn admin_login(
             let sid_clone = session_id.clone();
             tokio::task::spawn_blocking({
                 let pool = state.db.clone();
-                let admin_name = username.clone();
                 move || -> Result<()> {
                     let conn = pool.get()?;
                     db::create_session(&conn, &sid_clone, admin_id, expires_at)?;
