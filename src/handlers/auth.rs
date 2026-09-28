@@ -114,8 +114,8 @@ pub(crate) struct AuthenticatedUser {
     pub display_name: String,
 }
 
-impl From<crate::models::User> for AuthenticatedUser {
-    fn from(user: crate::models::User) -> Self {
+impl From<User> for AuthenticatedUser {
+    fn from(user: User) -> Self {
         Self {
             username: user.username,
             display_name: user.display_name,
@@ -1502,7 +1502,7 @@ async fn render_account_edit(
     // controls are scoped to the site-wide cookie, so the screen carries three
     // tokens: one for the shared layout, one for the settings forms, and the
     // one the account menu already asks every page for.
-    let (menu, menu_csrf, jar) = account_menu_for_request(state, jar, secure);
+    let (menu, menu_csrf, jar) = account_menu_for_request(state, jar, secure)?;
     let (jar, layout_csrf) =
         crate::handlers::board::ensure_csrf_for_request(jar, headers, secure_context);
     let (jar, form_csrf) = ensure_user_csrf(jar, secure, ACCOUNT_CSRF_SCOPE);
@@ -1601,6 +1601,32 @@ fn validate_profile_changes(
     })
 }
 
+/// Decode and store the replacement avatar a settings form carries.
+///
+/// An absent file is not a change: the account keeps the picture it already
+/// has, so renaming an account never asks for a file. A file that is present
+/// still has to be a real image within the size bound, and one that fails
+/// either test is a message for the visitor rather than a half-applied change.
+fn store_replacement_avatar(
+    user_id: i64,
+    submitted: &SubmittedAccount,
+) -> std::result::Result<Option<String>, String> {
+    let Some(bytes) = submitted.avatar.as_deref().filter(|bytes| !bytes.is_empty()) else {
+        return Ok(None);
+    };
+    if bytes.len() > AVATAR_MAX_BYTES {
+        return Err("Profil resmi en fazla 2 MiB olabilir.".to_owned());
+    }
+    match store_avatar(user_id, bytes) {
+        Ok(file_name) => Ok(Some(file_name)),
+        Err(error) => {
+            tracing::warn!(target: "auth", user_id, "Avatar upload rejected: {error}");
+            Err("Profil resmi okunamadı. PNG, JPEG, GIF, WebP, BMP ya da TIFF denemelisin."
+                .to_owned())
+        }
+    }
+}
+
 // POST /account/profile
 pub(crate) async fn account_profile_submit(
     State(state): State<AppState>,
@@ -1631,41 +1657,19 @@ pub(crate) async fn account_profile_submit(
 
     // The picture is decoded and written before the row is touched, so a file
     // the visitor cannot use is reported without a half-renamed account.
-    let avatar_bytes = match submitted.avatar.as_deref() {
-        Some(bytes) if !bytes.is_empty() => {
-            if bytes.len() > AVATAR_MAX_BYTES {
-                return Ok(render_account_edit_failure(
-                    &state,
-                    jar,
-                    &headers,
-                    secure_context,
-                    draft,
-                    "Profil resmi en fazla 2 MiB olabilir.",
-                )
-                .await?);
-            }
-            Some(bytes)
+    let stored_avatar = match store_replacement_avatar(user_id, &submitted) {
+        Ok(stored) => stored,
+        Err(message) => {
+            return Ok(render_account_edit_failure(
+                &state,
+                jar,
+                &headers,
+                secure_context,
+                draft,
+                &message,
+            )
+            .await?);
         }
-        _ => None,
-    };
-    let stored_avatar = if let Some(bytes) = avatar_bytes {
-        match store_avatar(user_id, bytes) {
-            Ok(file_name) => Some(file_name),
-            Err(error) => {
-                tracing::warn!(target: "auth", user_id, "Avatar upload rejected: {error}");
-                return Ok(render_account_edit_failure(
-                    &state,
-                    jar,
-                    &headers,
-                    secure_context,
-                    draft,
-                    "Profil resmi okunamadı. PNG, JPEG, GIF, WebP, BMP ya da TIFF denemelisin.",
-                )
-                .await?);
-            }
-        }
-    } else {
-        None
     };
 
     // The rename, the picture, and the display name are one write: a unique
