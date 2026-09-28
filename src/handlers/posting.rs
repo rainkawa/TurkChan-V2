@@ -803,10 +803,20 @@ pub(super) fn submit_post(
     // submission is the one case where the entry is declined rather than
     // written: the poster asked for the post not to be theirs, and a profile
     // that listed it anyway would answer a question the poster refused.
+    //
+    // The declined case is a branch rather than a second `if let` arm because
+    // an `if let ... else if let` chain drops the first scrutinee's error
+    // earlier than it would in the next edition, and this workspace denies the
+    // lint that points that out rather than reading a migration note later.
     if anonymous {
         tracing::debug!(target: "auth", post_id, "Anonymous submission left unlinked");
-    } else if let Err(error) = db::link_post_to_account(conn, post_id, account_id) {
-        tracing::warn!(target: "auth", %error, post_id, "Failed to link post to account");
+    } else {
+        match db::link_post_to_account(conn, post_id, account_id) {
+            Ok(()) => {}
+            Err(error) => {
+                tracing::warn!(target: "auth", %error, post_id, "Failed to link post to account");
+            }
+        }
     }
 
     finalize_pending_uploads(conn, &upload_dir, &uploads);
