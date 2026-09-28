@@ -227,6 +227,22 @@ pub fn update_username(
     Ok(())
 }
 
+/// Replace the short description an account publishes on its profile.
+///
+/// The description is optional, so an empty string is a real value here and not
+/// a missing one: it is what clears the line on the profile page.
+///
+/// # Errors
+/// Returns an error if the database operation fails.
+pub fn update_bio(conn: &rusqlite::Connection, user_id: i64, bio: &str) -> Result<()> {
+    conn.execute(
+        "UPDATE users SET bio = ?1 WHERE id = ?2",
+        params![bio, user_id],
+    )
+    .context("Failed to update user bio")?;
+    Ok(())
+}
+
 /// Replace the stored Argon2id hash of an account.
 ///
 /// # Errors
@@ -543,8 +559,8 @@ pub fn purge_expired_user_sessions(conn: &rusqlite::Connection) -> Result<usize>
 mod tests {
     use super::{
         count_users, create_user, create_user_session, ensure_admin_profile, find_user_by_id,
-        find_user_by_username, set_user_avatar, update_display_name, update_password_hash,
-        update_username, username_exists,
+        find_user_by_username, set_user_avatar, update_bio, update_display_name,
+        update_password_hash, update_username, username_exists,
     };
     use crate::models::ProfilePostScope;
     use crate::db::schema::{install_or_migrate_schema, normalize_database_schema_version};
@@ -855,6 +871,7 @@ mod tests {
 
         update_display_name(&conn, user_id, "Yeni Ad")?;
         update_username(&conn, user_id, "yeni-ad")?;
+        update_bio(&conn, user_id, "yeni tanitim")?;
         let replacement = crate::utils::crypto::hash_password("DegistirilmisParola")?;
         update_password_hash(&conn, user_id, &replacement)?;
         set_user_avatar(&conn, user_id, "5.png")?;
@@ -863,6 +880,7 @@ mod tests {
             .context("the renamed account should still resolve by row id")?;
         assert_eq!(renamed.display_name, "Yeni Ad");
         assert_eq!(renamed.username, "yeni-ad");
+        assert_eq!(renamed.bio, "yeni tanitim");
         assert_eq!(renamed.avatar_file.as_deref(), Some("5.png"));
         assert!(
             crate::utils::crypto::verify_password("DegistirilmisParola", &renamed.password_hash)?,

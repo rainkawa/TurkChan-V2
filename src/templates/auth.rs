@@ -337,6 +337,8 @@ pub struct AccountSettings {
     pub display_name: String,
     /// Login name, pre-filled into the form and shown in the profile hint.
     pub username: String,
+    /// Short description the account publishes on its profile.
+    pub bio: String,
     /// Row id, used to preview the stored avatar.
     pub user_id: i64,
     /// Whether a picture has been uploaded for this account.
@@ -404,10 +406,11 @@ impl AccountSettingsNotice {
 /// Render the account settings screen.
 ///
 /// Everything an account can change about itself lives on this one page: the
-/// profile picture, the display name, the username, and the password. The
-/// picture travels with the profile form because it is one file and one
-/// submit, while the password keeps its own form so a mistyped current
-/// password never costs the visitor the rest of the form.
+/// profile picture, the display name, the username, the short description the
+/// profile shows, and the password. The picture travels with the profile form
+/// because it is one file and one submit, while the password keeps its own
+/// form so a mistyped current password never costs the visitor the rest of the
+/// form.
 #[must_use]
 pub fn account_settings_page(
     settings: &AccountSettings,
@@ -475,7 +478,7 @@ pub fn account_settings_page(
     let body = format!(
         r#"<div class="page-box auth-page account-page">
 <h1 class="auth-title">Profili Düzenle</h1>
-<p class="auth-lead">Profil resmin, görünen adın, kullanıcı adın ve parolan burada değişir. Gerçek adın, e-posta adresin ya da telefon numaran istenmez.</p>
+<p class="auth-lead">Profil resmin, görünen adın, kullanıcı adın, biyografin ve parolan burada değişir. Gerçek adın, e-posta adresin ya da telefon numaran istenmez.</p>
 {notice_html}
 
 <form class="auth-form account-section" method="POST" action="/account/profile" enctype="multipart/form-data">
@@ -494,6 +497,9 @@ pub fn account_settings_page(
 <label class="auth-label" for="account-username">{username_label}</label>
 <input class="auth-input" type="text" id="account-username" name="username" value="{username}" maxlength="{username_max}" autocomplete="username" required>
 <p class="auth-hint">Profil adresin bu addan türetilir: <code>/u/{username}</code>. Yalnızca harf, rakam, <code>_</code>, <code>-</code> ve <code>.</code> kullanabilirsin.</p>
+<label class="auth-label" for="account-bio">Biyografi <span class="auth-optional">(isteğe bağlı)</span></label>
+<textarea class="auth-input auth-textarea" id="account-bio" name="bio" rows="4" maxlength="{bio_max}">{bio}</textarea>
+<p class="auth-hint">Profilinde görünecek kısa bir açıklama. Gerçek ad, e-posta adresi ya da telefon numarası yazma.</p>
 <button class="btn auth-submit" type="submit">Kaydet</button>
 </form>
 
@@ -509,8 +515,10 @@ pub fn account_settings_page(
         display_max = DISPLAY_NAME_MAX_CHARS,
         username_max = USERNAME_MAX_CHARS,
         avatar_max = AVATAR_MAX_MIB,
+        bio_max = BIO_MAX_CHARS,
         display_name = escape_html(&settings.display_name),
         username = escape_html(&settings.username),
+        bio = escape_html(&settings.bio),
         profile_path = escape_html(&settings.username),
     );
 

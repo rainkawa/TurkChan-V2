@@ -512,4 +512,46 @@ mod tests {
             "the account age carries no time of day: {expected}"
         );
     }
+
+    /// Render the page for an account carrying the given description.
+    fn profile_html_for_bio(bio: &str) -> String {
+        let mut account = account();
+        account.bio = bio.to_owned();
+        profile_page(
+            &account,
+            &stats(),
+            ProfileTab::Posts,
+            &posts(),
+            &threads(),
+            &HashMap::new(),
+            &Pagination::new(1, 10, 2),
+            &[],
+            None,
+            UserPreferences::default(),
+            "csrf",
+            "",
+        )
+    }
+
+    #[test]
+    /// A description an account writes in its settings is the line the profile
+    /// shows, escaped, in the header next to the names.
+    fn profile_shows_the_description_the_account_wrote() {
+        let html = profile_html_for_bio("  bosluk & <b>etiket</b>  ");
+        assert!(
+            html.contains(r#"<p class="profile-bio">bosluk &amp; &lt;b&gt;etiket&lt;/b&gt;</p>"#),
+            "the description is trimmed and escaped before it is rendered"
+        );
+    }
+
+    #[test]
+    /// Clearing the description is allowed, and the profile says so instead of
+    /// leaving a gap where the line used to be.
+    fn profile_says_when_an_account_has_no_description() {
+        let html = profile_html_for_bio("   ");
+        assert!(
+            html.contains(r#"<p class="profile-bio is-empty">"#),
+            "an account with no description gets the empty-state line"
+        );
+    }
 }

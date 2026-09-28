@@ -17,10 +17,10 @@
 //!
 //! Once signed in, the account menu in the shared header opens the settings
 //! screen, which is the one place an account can change itself:
-//!   7. `GET  /account/edit`    renders the picture, name, username, and
-//!      password forms
-//!   8. `POST /account/profile` stores the picture, the display name, and a
-//!      new unique username
+//!   7. `GET  /account/edit`    renders the picture, name, username,
+//!      description, and password forms
+//!   8. `POST /account/profile` stores the picture, the display name, a new
+//!      unique username, and the description the profile shows
 //!   9. `POST /account/password` replaces the password after the current one
 //!      is verified
 //!
@@ -1294,6 +1294,8 @@ struct AccountPage {
     display_name: String,
     /// Username pre-filled into the form, or what the visitor just typed.
     username: String,
+    /// Description pre-filled into the form, or what the visitor just typed.
+    bio: String,
 }
 
 /// Fields collected by the profile form.
@@ -1302,6 +1304,8 @@ struct SubmittedAccount {
     display_name: String,
     /// Username the visitor typed.
     username: String,
+    /// Short description the visitor typed for their profile.
+    bio: String,
     /// Scoped CSRF token.
     csrf: Option<String>,
     /// Optional replacement avatar bytes.
@@ -1314,6 +1318,8 @@ struct ProfileChanges {
     display_name: String,
     /// Normalized username, or `None` when the account keeps the one it has.
     username: Option<String>,
+    /// Trimmed description, empty when the account cleared it.
+    bio: String,
 }
 
 /// Resolve the account the settings screen edits for a request.
@@ -1373,16 +1379,17 @@ fn editable_account(
 /// Load the account, its edit permissions, and the header navigation.
 ///
 /// `draft` carries what a rejected submission typed so the visitor does not
-/// have to type the same name a second time; without it the form opens on the
-/// values already saved.
+/// have to type the same values a second time; without it the form opens on
+/// the values already saved.
 async fn account_page(
     state: &AppState,
     jar: &CookieJar,
-    draft: Option<(&str, &str)>,
+    draft: Option<(&str, &str, &str)>,
 ) -> Result<AccountPage> {
     let jar = jar.clone();
-    let draft =
-        draft.map(|(display_name, username)| (display_name.to_owned(), username.to_owned()));
+    let draft = draft.map(|(display_name, username, bio)| {
+        (display_name.to_owned(), username.to_owned(), bio.to_owned())
+    });
     // An operator's profile is provisioned with a real Argon2id hash, so the
     // lookup runs on the blocking pool like every other write.
     let pool = state.db.clone();
@@ -1398,14 +1405,20 @@ async fn account_page(
             ));
         };
         let boards = db::get_all_boards(&conn)?;
-        let (display_name, username) =
-            draft.unwrap_or_else(|| (account.display_name.clone(), account.username.clone()));
+        let (display_name, username, bio) = draft.unwrap_or_else(|| {
+            (
+                account.display_name.clone(),
+                account.username.clone(),
+                account.bio.clone(),
+            )
+        });
         Ok(AccountPage {
             account,
             can_change_password,
             boards,
             display_name,
             username,
+            bio,
         })
     })
     .await
@@ -1420,10 +1433,11 @@ mod account_settings_tests {
     use crate::templates::auth::{account_menu_html, AccountMenu};
 
     /// A settings submission with the given field values.
-    fn submission(display_name: &str, username: &str) -> SubmittedAccount {
+    fn submission(display_name: &str, username: &str, bio: &str) -> SubmittedAccount {
         SubmittedAccount {
             display_name: display_name.to_owned(),
             username: username.to_owned(),
+            bio: bio.to_owned(),
             csrf: None,
             avatar: None,
         }
@@ -1437,16 +1451,18 @@ mod account_settings_tests {
     /// The settings form stores a trimmed display name and only renames the
     /// account when the typed username actually differs from the saved one.
     fn profile_changes_rename_only_when_the_username_really_changed() {
-        let unchanged = validate_profile_changes(&submission("  Anonim  ", "anon"), "anon")
-            .expect("a valid unchanged form is accepted");
+        let unchanged =
+            validate_profile_changes(&submission("  Anonim  ", "anon", "selam"), "anon")
+                .expect("a valid unchanged form is accepted");
         assert_eq!(unchanged.display_name, "Anonim");
         assert_eq!(
             unchanged.username, None,
             "keeping the current username must not ask for a rename"
         );
 
-        let renamed = validate_profile_changes(&submission("Anonim", "  Yeni-Ad "), "anon")
-            .expect("a valid rename is accepted");
+        let renamed =
+            validate_profile_changes(&submission("Anonim", "  Yeni-Ad ", "selam"), "anon")
+                .expect("a valid rename is accepted");
         assert_eq!(
             renamed.username.as_deref(),
             Some("yeni-ad"),
@@ -1458,11 +1474,33 @@ mod account_settings_tests {
     /// An empty, overlong, or unusable value is rejected with a message, and
     /// a form that renames to a different valid name is accepted.
     fn profile_changes_reject_a_name_the_account_cannot_use() {
-        assert!(validate_profile_changes(&submission("   ", "anon"), "anon").is_err());
-        assert!(validate_profile_changes(&submission(&"a".repeat(41), "anon"), "anon").is_err());
-        assert!(validate_profile_changes(&submission("Anonim", "bir iki"), "anon").is_err());
-        assert!(validate_profile_changes(&submission("Anonim", ""), "anon").is_err());
-        assert!(validate_profile_changes(&submission("Anonim", "anon"), "anon").is_ok());
+        assert!(validate_profile_changes(&submission("   ", "anon", "selam"), "anon").is_err());
+        assert!(
+            validate_profile_changes(&submission(&"a".repeat(41), "anon", "selam"), "anon").is_err()
+        );
+        assert!(validate_profile_changes(&submission("Anonim", "bir iki", "selam"), "anon").is_err());
+        assert!(validate_profile_changes(&submission("Anonim", "", "selam"), "anon").is_err());
+        assert!(validate_profile_changes(&submission("Anonim", "anon", "selam"), "anon").is_ok());
+    }
+
+    #[test]
+    /// The description is trimmed and may be cleared, because an account is
+    /// allowed to have no line on its profile; only an overlong one is refused.
+    fn profile_changes_allow_the_description_to_be_written_and_cleared() {
+        let written =
+            validate_profile_changes(&submission("Anonim", "anon", "  merhaba dunya  "), "anon")
+                .expect("a description within the bound is accepted");
+        assert_eq!(written.bio, "merhaba dunya");
+
+        let cleared = validate_profile_changes(&submission("Anonim", "anon", "   "), "anon")
+            .expect("an empty description clears the line rather than failing");
+        assert_eq!(cleared.bio, "");
+
+        assert!(
+            validate_profile_changes(&submission("Anonim", "anon", &"a".repeat(281)), "anon")
+                .is_err(),
+            "an overlong description is a rejected form, not a silent cut"
+        );
     }
 
     #[test]
@@ -1511,6 +1549,7 @@ async fn render_account_edit(
     let settings = AccountSettings {
         display_name: page.display_name,
         username: page.username,
+        bio: page.bio,
         user_id: page.account.id,
         has_avatar: page.account.avatar_file.is_some(),
         can_change_password: page.can_change_password,
@@ -1536,7 +1575,7 @@ async fn render_account_edit_failure(
     jar: CookieJar,
     headers: &HeaderMap,
     secure_context: crate::middleware::SecureCookieContext,
-    draft: Option<(&str, &str)>,
+    draft: Option<(&str, &str, &str)>,
     message: &str,
 ) -> Result<Response> {
     let page = account_page(state, &jar, draft).await?;
@@ -1595,9 +1634,17 @@ fn validate_profile_changes(
     // Renaming to the name the account already has is a no-op rather than a
     // conflict with itself.
     let username = (username != current_username).then_some(username);
+
+    // The description is optional, so an empty one clears the line rather than
+    // failing, but an overlong one is a rejected form and not a silent cut.
+    let bio = submitted.bio.trim();
+    if bio.chars().count() > BIO_MAX_CHARS {
+        return Err(format!("Biyografi en fazla {BIO_MAX_CHARS} karakter olabilir."));
+    }
     Ok(ProfileChanges {
         display_name: display_name.to_owned(),
         username,
+        bio: bio.to_owned(),
     })
 }
 
@@ -1642,7 +1689,11 @@ pub(crate) async fn account_profile_submit(
         return Err(AppError::Forbidden("CSRF token mismatch.".into()));
     }
 
-    let draft = Some((submitted.display_name.as_str(), submitted.username.as_str()));
+    let draft = Some((
+        submitted.display_name.as_str(),
+        submitted.username.as_str(),
+        submitted.bio.as_str(),
+    ));
     let page = account_page(&state, &jar, None).await?;
     let user_id = page.account.id;
     let changes = match validate_profile_changes(&submitted, &page.account.username) {
@@ -1672,9 +1723,9 @@ pub(crate) async fn account_profile_submit(
         }
     };
 
-    // The rename, the picture, and the display name are one write: a unique
-    // index is the final authority on a taken username, so a rename that
-    // races another account is rejected rather than half-applied.
+    // The rename, the picture, the display name, and the description are one
+    // write: a unique index is the final authority on a taken username, so a
+    // rename that races another account is rejected rather than half-applied.
     let pool = state.db.clone();
     let renamed = tokio::task::spawn_blocking(move || -> Result<bool> {
         let conn = pool.get()?;
@@ -1694,6 +1745,7 @@ pub(crate) async fn account_profile_submit(
             db::set_user_avatar(&conn, user_id, file_name)?;
         }
         db::update_display_name(&conn, user_id, &changes.display_name)?;
+        db::update_bio(&conn, user_id, &changes.bio)?;
         Ok(true)
     })
     .await
@@ -1810,6 +1862,7 @@ async fn read_account_multipart(mut multipart: Multipart) -> Result<SubmittedAcc
     let mut out = SubmittedAccount {
         display_name: String::new(),
         username: String::new(),
+        bio: String::new(),
         csrf: None,
         avatar: None,
     };
@@ -1840,6 +1893,7 @@ async fn read_account_multipart(mut multipart: Multipart) -> Result<SubmittedAcc
             match name.as_str() {
                 "display_name" => out.display_name = value,
                 "username" => out.username = value,
+                "bio" => out.bio = value,
                 "_csrf" => out.csrf = Some(value),
                 _ => {}
             }
