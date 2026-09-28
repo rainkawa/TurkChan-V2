@@ -179,6 +179,16 @@ pub(in crate::server) async fn create_thread(
             let board_short_render = board_short_err.clone();
             let pool = state.db.clone();
             let current_theme = current_theme.clone();
+            // The re-rendered board page still carries the header account menu,
+            // so an error shown in context looks like the page it came from.
+            let (account, account_menu_csrf) = {
+                let (menu, token, _jar) = crate::handlers::auth::account_menu_for_request(
+                    &state,
+                    jar,
+                    should_set_public_secure_cookie(&req_headers, secure_context),
+                )?;
+                (menu, token)
+            };
             let html = tokio::task::spawn_blocking(move || -> Result<String> {
                 let conn = pool.get()?;
                 let page_data = render::load_board_page_data(
@@ -223,6 +233,8 @@ pub(in crate::server) async fn create_thread(
                     current_theme.as_deref(),
                     true,
                     user_preferences,
+                    account.as_ref(),
+                    &account_menu_csrf,
                 ))
             })
             .await

@@ -134,6 +134,27 @@ pub fn create_admin(conn: &rusqlite::Connection, username: &str, hash: &str) -> 
     Ok(id)
 }
 
+/// Return an administrator's stored name, matched without regard to case.
+///
+/// The public profile route lower-cases the name it is asked for before it
+/// looks anything up, while `admin_users.username` keeps the spelling the
+/// operator created the account with, so an exact match would never find it.
+///
+/// # Errors
+/// Returns an error if the database query fails.
+pub fn find_admin_name_ignoring_case(
+    conn: &rusqlite::Connection,
+    name: &str,
+) -> Result<Option<String>> {
+    Ok(conn
+        .query_row(
+            "SELECT username FROM admin_users WHERE lower(username) = lower(?1)",
+            params![name],
+            |r| r.get(0),
+        )
+        .optional()?)
+}
+
 /// Update an administrator password, failing if the username does not exist.
 ///
 /// # Errors

@@ -6,9 +6,9 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Write as _;
 
 use super::{
-    base_layout, base_layout_with_account, base_layout_with_preferences, compress_modal_script,
-    embed_thumb_from_body, fmt_ts, fmt_ts_short, live_site_name, live_site_subtitle,
-    render_pagination, report_modal_script, urlencoding_simple,
+    base_layout, base_layout_with_account, compress_modal_script, embed_thumb_from_body, fmt_ts,
+    fmt_ts_short, live_site_name, live_site_subtitle, render_pagination, report_modal_script,
+    urlencoding_simple,
 };
 
 // Site index (board list)
@@ -884,6 +884,8 @@ pub fn board_page<S: std::hash::BuildHasher>(
     collapse_greentext: bool,
     can_post: bool,
     user_preferences: crate::templates::UserPreferences,
+    account: Option<&crate::templates::auth::AccountMenu>,
+    account_menu_csrf: &str,
 ) -> String {
     let mut body = String::new();
     let admin_form_csrf = admin_csrf_token.unwrap_or(csrf_token);
@@ -996,7 +998,7 @@ pub fn board_page<S: std::hash::BuildHasher>(
         board.max_video_size_bytes(),
     ));
 
-    base_layout_with_preferences(
+    base_layout_with_account(
         &format!("/{}/ — {} - Liste", board.short_name, board.name),
         Some(&board.short_name),
         &body,
@@ -1007,6 +1009,7 @@ pub fn board_page<S: std::hash::BuildHasher>(
         collapse_greentext,
         &format!("/{}", board.short_name),
         user_preferences,
+        &crate::templates::auth::account_menu_html(account, account_menu_csrf),
     )
 }
 
@@ -1266,6 +1269,8 @@ pub fn catalog_page<S: std::hash::BuildHasher>(
     collapse_greentext: bool,
     can_post: bool,
     user_preferences: crate::templates::UserPreferences,
+    account: Option<&crate::templates::auth::AccountMenu>,
+    account_menu_csrf: &str,
 ) -> String {
     let bs = escape_html(&board.short_name);
     let bn = escape_html(&board.name);
@@ -1437,7 +1442,7 @@ pub fn catalog_page<S: std::hash::BuildHasher>(
         board.max_image_size_bytes(),
         board.max_video_size_bytes(),
     ));
-    base_layout_with_preferences(
+    base_layout_with_account(
         &format!(
             "/{}/ — {} - {}",
             board.short_name,
@@ -1461,6 +1466,7 @@ pub fn catalog_page<S: std::hash::BuildHasher>(
             format!("/{}/catalog", board.short_name)
         },
         user_preferences,
+        &crate::templates::auth::account_menu_html(account, account_menu_csrf),
     )
 }
 
@@ -1481,6 +1487,8 @@ pub fn search_page(
     current_theme: Option<&str>,
     collapse_greentext: bool,
     user_preferences: crate::templates::UserPreferences,
+    account: Option<&crate::templates::auth::AccountMenu>,
+    account_menu_csrf: &str,
 ) -> String {
     let result_label = if pagination.total == 1 {
         "1 sonuç".to_owned()
@@ -1548,7 +1556,7 @@ pub fn search_page(
     }
 
     body.push_str("</div>");
-    base_layout_with_preferences(
+    base_layout_with_account(
         &format!("arama — /{}/", board.short_name),
         Some(&board.short_name),
         &body,
@@ -1563,6 +1571,7 @@ pub fn search_page(
             urlencoding_simple(query)
         ),
         user_preferences,
+        &crate::templates::auth::account_menu_html(account, account_menu_csrf),
     )
 }
 
@@ -1577,6 +1586,8 @@ pub fn archive_page(
     boards: &[Board],
     current_theme: Option<&str>,
     user_preferences: crate::templates::UserPreferences,
+    account: Option<&crate::templates::auth::AccountMenu>,
+    account_menu_csrf: &str,
 ) -> String {
     let bs = escape_html(&board.short_name);
     let bn = escape_html(&board.name);
@@ -1613,7 +1624,7 @@ pub fn archive_page(
         ));
     }
 
-    base_layout_with_preferences(
+    base_layout_with_account(
         &format!("/{}/  arşiv", board.short_name),
         Some(&board.short_name),
         &body,
@@ -1624,6 +1635,7 @@ pub fn archive_page(
         board.collapse_greentext,
         &format!("/{}/archive", board.short_name),
         user_preferences,
+        &crate::templates::auth::account_menu_html(account, account_menu_csrf),
     )
 }
 
@@ -1934,7 +1946,7 @@ mod tests {
         let mut pinned_ids = HashSet::new();
         pinned_ids.insert(thread.id);
 
-        let html = catalog_page(
+        let html = catalog_page((
             &board,
             &[thread],
             &pinned_ids,
@@ -1951,7 +1963,9 @@ mod tests {
             false,
             true,
             crate::templates::UserPreferences::default(),
-        );
+            None,
+            "",
+        ));
 
         assert!(html.contains("catalog-card-link"));
         assert!(html.contains(r#"data-activity-page="catalog""#));
@@ -2232,7 +2246,7 @@ mod tests {
         let board = sample_board();
         let thread = sample_thread();
 
-        let html = archive_page(
+        let html = archive_page((
             &board,
             &[thread],
             &crate::models::Pagination::new(1, 10, 1),
@@ -2240,7 +2254,9 @@ mod tests {
             std::slice::from_ref(&board),
             None,
             crate::templates::UserPreferences::default(),
-        );
+            None,
+            "",
+        ));
 
         assert!(html.contains("archive-row-media"));
         assert!(html.contains("thread-state-badge-pin"));
@@ -2257,7 +2273,7 @@ mod tests {
             ..PostFormState::default()
         };
 
-        let html = board_page(
+        let html = board_page((
             &board,
             &[],
             &crate::models::Pagination::new(1, 10, 0),
@@ -2274,7 +2290,9 @@ mod tests {
             false,
             true,
             crate::templates::UserPreferences::default(),
-        );
+            None,
+            "",
+        ));
 
         assert!(html.contains(r#"class="post-form-wrap is-open""#));
         assert!(html.contains(r#"data-activity-page="board-index""#));

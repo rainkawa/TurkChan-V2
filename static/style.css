@@ -185,17 +185,26 @@ hr { border: none; border-top: 1px solid var(--border); margin: 0.6rem 0; }
 /* Header / nav */
 
 .site-header {
-  background: var(--bg-panel);
-  border-bottom: 1px solid var(--border-glow);
-  padding: 8px 14px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 9px 12px;
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 2px 12px rgba(0,200,64,0.12);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  /* A layered, slightly translucent surface: the bar reads as its own plane
+     instead of a flat strip of the same colour as the page. */
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--bg-panel) 94%, var(--green) 6%) 0%,
+      var(--bg-panel) 62%);
+  backdrop-filter: blur(10px) saturate(1.15);
+  -webkit-backdrop-filter: blur(10px) saturate(1.15);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--green) 22%, transparent),
+    0 10px 30px -18px rgba(0, 0, 0, 0.9);
 }
 
 /* The account button is pinned to the header's top-right corner instead of
@@ -208,26 +217,33 @@ hr { border: none; border-top: 1px solid var(--border); margin: 0.6rem 0; }
   padding-right: 58px;
 }
 
+/* The old blinking ">" prompt competed with the brand for attention and
+   shifted every control to its right on every tick. The brand mark replaces it. */
 .site-header::before {
-  content: '>';
-  color: var(--green-bright);
-  font-weight: bold;
-  margin-right: 4px;
-  animation: blink 1.2s step-end infinite;
+  content: '';
+  flex: 0 0 auto;
+  width: 6px;
+  height: 26px;
+  border-radius: 999px;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--green) 85%, transparent),
+    color-mix(in srgb, var(--green) 25%, transparent));
 }
 
 html:not([data-theme]) .site-header::before,
 html[data-theme="dorfic"] .site-header::before {
-  content: none;
-  animation: none;
-  margin-right: 0;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--green) 85%, transparent),
+    color-mix(in srgb, var(--green) 25%, transparent));
 }
 
 @keyframes blink { 50% { opacity: 0; } }
 
 .board-list {
-  display: block;
-  flex: 1;
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
   min-width: 0;
   color: var(--text-dim);
   font-size: 0.9rem;
@@ -336,27 +352,64 @@ html[data-theme="dorfic"] .site-header::before {
 }
 
 .board-list a {
-  color: var(--green-pale);
-  padding: 2px 4px;
+  display: inline-block;
+  color: var(--text-dim);
+  padding: 5px 11px;
+  margin: 2px 3px;
   font-family: var(--font);
-  border-radius: var(--radius-sm);
+  font-size: 0.86rem;
+  letter-spacing: 0.03em;
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
 }
 
-.board-list a:hover {
+.board-list a:hover,
+.board-list a:focus-visible {
   color: var(--green-bright);
-  background: rgba(0,255,65,0.08);
+  background: color-mix(in srgb, var(--green) 12%, transparent);
+  border-color: color-mix(in srgb, var(--green) 40%, transparent);
 }
 
 /* Forum name displayed in header */
+.site-brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.site-tagline {
+  color: var(--text-dim);
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+}
+
 .site-name {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
   font-family: var(--font-display);
-  font-size: 2rem;
-  line-height: 1;
-  color: var(--green-bright);
-  letter-spacing: 0.1em;
+  font-size: 1.45rem;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
   white-space: nowrap;
   flex-shrink: 0;
   text-decoration: none;
+  background: linear-gradient(180deg,
+    var(--green-bright) 0%,
+    var(--green) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 html:not([data-theme]) .site-name { text-shadow: 0 0 14px var(--green-bright); }
 [data-theme="aero"] .site-name,
@@ -545,19 +598,20 @@ html:not([data-theme]) .site-name { text-shadow: 0 0 14px var(--green-bright); }
 .home-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  color: var(--green-bright) !important;
-  font-size: 1rem;
+  gap: 6px;
+  color: var(--green-pale) !important;
+  font-size: 0.86rem;
   font-weight: bold;
   font-family: var(--font);
-  letter-spacing: 0.06em;
-  padding: 3px 10px;
-  border: 1px solid var(--green-dim);
-  border-radius: var(--radius-sm);
-  min-height: 36px;
+  letter-spacing: 0.04em;
+  padding: 6px 14px;
+  border: 1px solid color-mix(in srgb, var(--green) 35%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--green) 8%, transparent);
+  min-height: 34px;
   white-space: nowrap;
   text-decoration: none;
-  transition: all 0.15s;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
   flex-shrink: 0;
 }
 
@@ -618,6 +672,15 @@ html:not([data-theme]) .board-nav-link:hover { text-shadow: 0 0 6px var(--green-
 
 .search-form,
 .header-search { display: flex; gap: 6px; align-items: center; }
+
+.header-search input {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-input) 88%, transparent);
+}
+
+.header-search button {
+  border-radius: 999px;
+}
 
 .search-form input,
 .header-search input {
@@ -1038,16 +1101,28 @@ html:not([data-theme]) .auth-step-marker.is-current { box-shadow: 0 0 10px rgba(
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  border: 1px solid var(--green-dim);
-  background: var(--bg-op);
-  color: var(--green);
+  border: 1px solid color-mix(in srgb, var(--green) 45%, transparent);
+  background:
+    radial-gradient(120% 120% at 30% 20%,
+      color-mix(in srgb, var(--green) 26%, transparent) 0%,
+      var(--bg-op) 70%);
+  color: var(--green-bright);
   font-family: var(--font);
-  font-size: 0.95rem;
+  font-size: 1rem;
+  font-weight: bold;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   user-select: none;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--green) 25%, transparent);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.account-menu[open] .account-avatar {
+  transform: scale(1.06);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 22%, transparent);
 }
 
 .account-menu-panel {
@@ -1158,6 +1233,29 @@ a.account-menu-item:hover {
   border: 1px solid var(--green-dim);
   background: var(--bg-op);
   flex: 0 0 auto;
+}
+
+/* An account with no uploaded picture is drawn as a letter tile. It is real
+   markup rather than an image request, so the header never shows an empty
+   circle while an avatar loads or fails. */
+.profile-avatar-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border-color: color-mix(in srgb, var(--green) 45%, transparent);
+  background:
+    radial-gradient(120% 120% at 30% 20%,
+      color-mix(in srgb, var(--green) 24%, transparent) 0%,
+      var(--bg-op) 72%);
+  color: var(--green-bright);
+  font-family: var(--font);
+  font-size: 2.4rem;
+  font-weight: bold;
+  line-height: 1;
+  text-transform: uppercase;
+  user-select: none;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--green) 22%, transparent);
 }
 
 .profile-identity {

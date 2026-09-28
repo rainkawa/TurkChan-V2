@@ -7,17 +7,20 @@ All notable changes to TurkChan will be documented in this file.
 ### Added
 
 - Added public account profiles with tabbed posting history, a header avatar, chosen names, self-description, and score.
-- Gave administrators a board profile of their own, created on administrator creation and on sign-in, so the header account menu's profile entry resolves for the default administrator. The generated row carries a hash of a value that is discarded immediately, so it identifies the operator on the board and can never be signed into.
-- Generated account avatars now show the account's first letter, so an account with no uploaded picture is recognizable instead of a bare pattern.
+- Gave administrators a board profile of their own, created on administrator creation, on sign-in, and on the first visit to their profile, so the header account menu's profile entry resolves for the default administrator. The generated row carries a hash of a value that is discarded immediately, so it identifies the operator on the board and can never be signed into.
+- Generated account avatars now show the account's first letter, and a profile whose account has no uploaded picture shows that letter as a tile drawn in the page itself rather than as an image request.
 
 ### Improved
 
 - Replaced the profile's join date with a "Hesap Yaşı" tile showing only the day, month, and year the account was created, and placed it beside the score in one centered row.
+- Showed the header account menu on every public page: board index, thread, catalog, hidden threads, archive, and search all carry it now, not just the home page and the profile.
+- Rebuilt the site header as a layered, blurred sticky bar with a brand mark, the configured subtitle, pill-shaped board chips, and a raised account button, and retired the blinking prompt that shifted every control beside it.
 - Pinned the header account button to the header's top-right corner so it keeps the same position instead of sliding with header content that changes between boards and pages.
 
 ### Fixed
 
 - Fixed deleted posts remaining visible in a profile's post history; the listing and its tab totals now skip any post whose thread no longer exists.
+- Fixed the header account button disappearing when entering a board, and stopped a cached signed-out page from being revalidated as a signed-in one by adding the account identity to the board, catalog, and thread `ETag`s.
 
 ## TurkChan 1.4.1
 

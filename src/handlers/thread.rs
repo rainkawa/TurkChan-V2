@@ -170,6 +170,19 @@ pub(in crate::server) async fn view_thread(
     } else {
         "-cg0"
     };
+    // The header account menu makes this page visitor-specific, so the signed-in
+    // identity has to take part in the ETag. Without it a browser that signs in
+    // after caching the signed-out page would be answered 304 and keep showing
+    // the old body with no account menu.
+    let (account, account_menu_csrf, jar) = crate::handlers::auth::account_menu_for_request(
+        &state,
+        jar,
+        crate::handlers::board::should_set_public_secure_cookie(
+            &req_headers,
+            crate::handlers::board::optional_connect_info_peer(peer),
+        ),
+    );
+    let account_tag = crate::handlers::auth::account_etag_tag(account.as_ref());
     let theme_tag = crate::templates::page_theme_etag_fragment(
         current_theme.as_deref(),
         Some(&page_data.board.default_theme),
@@ -184,7 +197,7 @@ pub(in crate::server) async fn view_thread(
         crate::utils::crypto::sha256_hex(owned.join("|").as_bytes())
     };
     let etag = format!(
-        "\"{thread_sig}-b{boards_ver}{admin_tag}{post_tag}{greentext_tag}-t{theme_tag}-o{ownership_sig}-{}\"",
+        "\"{thread_sig}-b{boards_ver}{admin_tag}{post_tag}{greentext_tag}{account_tag}-t{theme_tag}-o{ownership_sig}-{}\"",
         user_preferences.etag_fragment()
     );
     let (latest_created_at, latest_thread_id) =
@@ -253,6 +266,8 @@ pub(in crate::server) async fn view_thread(
         current_theme.as_deref(),
         can_post,
         user_preferences,
+        account.as_ref(),
+        &account_menu_csrf,
     );
     let mut resp = Html(html).into_response();
     if let Ok(v) = HeaderValue::from_str(&etag) {
@@ -432,6 +447,19 @@ pub(in crate::server) async fn post_reply(
             }
             let db_pool = state.db.clone();
             let current_theme = crate::handlers::board::current_theme_from_jar(&jar);
+            // The re-rendered thread still carries the header account menu, so
+            // an error shown in context looks like the page it came from.
+            let (account, account_menu_csrf) = {
+                let (menu, token, _jar) = crate::handlers::auth::account_menu_for_request(
+                    &state,
+                    jar,
+                    crate::handlers::board::should_set_public_secure_cookie(
+                        &req_headers,
+                        secure_context,
+                    ),
+                )?;
+                (menu, token)
+            };
             let html = tokio::task::spawn_blocking(move || -> Result<String> {
                 let conn = db_pool.get()?;
                 let page_data = render::load_thread_page_data(
@@ -464,6 +492,8 @@ pub(in crate::server) async fn post_reply(
                     current_theme.as_deref(),
                     true,
                     user_preferences,
+                    account.as_ref(),
+                    &account_menu_csrf,
                 ))
             })
             .await

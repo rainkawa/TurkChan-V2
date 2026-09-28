@@ -349,6 +349,58 @@ pub(crate) fn has_valid_session(state: &AppState, jar: &CookieJar) -> bool {
     matches!(current_user(state, jar), Ok(Some(_)))
 }
 
+/// Resolve the header account menu for a request and its sign-out token.
+///
+/// Every public page that shows the site header needs the same three values:
+/// the menu itself, the sign-in-scoped CSRF token its sign-out form carries, and
+/// the jar holding the cookie that token was issued under. Resolving them in
+/// one place keeps the menu from appearing on the home page alone and going
+/// missing on every board and thread.
+///
+/// A visitor with no session gets no menu, no token, and an untouched jar, so
+/// signed-out browsing never issues an account cookie.
+///
+/// # Errors
+/// Returns an error if the session lookup fails.
+pub(crate) fn account_menu_for_request(
+    state: &AppState,
+    jar: CookieJar,
+    secure: bool,
+) -> Result<(Option<crate::templates::auth::AccountMenu>, String, CookieJar)> {
+    let Some(identity) = account_identity(state, &jar)? else {
+        return Ok((None, String::new(), jar));
+    };
+    let (jar, token) = account_menu_csrf(jar, secure);
+    Ok((
+        Some(crate::templates::auth::AccountMenu {
+            display_name: identity.display_name,
+            username: identity.username,
+            is_admin: identity.is_admin,
+        }),
+        token,
+        jar,
+    ))
+}
+
+/// Build the `ETag` fragment that tells signed-in visitors apart.
+///
+/// The header account menu makes a page visitor-specific, so the `ETag` has to
+/// change with the identity. Without it a browser that signs in after caching
+/// the signed-out page is answered `304 Not Modified` and keeps the old body,
+/// which has no account menu at all.
+#[must_use]
+pub(crate) fn account_etag_tag(account: Option<&crate::templates::auth::AccountMenu>) -> String {
+    account.map_or_else(String::new, |menu| {
+        format!(
+            "-am{}",
+            crate::utils::crypto::sha256_hex(menu.username.as_bytes())
+                .chars()
+                .take(12)
+                .collect::<String>()
+        )
+    })
+}
+
 /// The identity shown in the header account menu.
 pub(crate) struct AccountIdentity {
     /// Name shown to other visitors.

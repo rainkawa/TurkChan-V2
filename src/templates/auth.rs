@@ -263,6 +263,21 @@ pub struct AccountMenu {
     pub is_admin: bool,
 }
 
+/// Return the single letter an account is shown as when it has no picture.
+///
+/// The chosen display name leads, because that is what a visitor reads
+/// elsewhere on the site; the unique username is the fallback when the display
+/// name has no letter in it at all.
+#[must_use]
+pub fn account_initial(display_name: &str, username: &str) -> String {
+    display_name
+        .chars()
+        .find(|c| c.is_alphanumeric())
+        .or_else(|| username.chars().find(|c| c.is_ascii_alphanumeric()))
+        .map(|c| c.to_uppercase().to_string())
+        .unwrap_or_else(|| "?".to_owned())
+}
+
 /// Render the header account menu, or nothing when nobody is signed in.
 ///
 /// "Profili Gör" opens the account's public profile. The two entries after it
@@ -273,13 +288,7 @@ pub fn account_menu_html(account: Option<&AccountMenu>, csrf_token: &str) -> Str
     let Some(account) = account else {
         return String::new();
     };
-    let initial = account
-        .display_name
-        .chars()
-        .find(|c| c.is_alphanumeric())
-        .or_else(|| account.username.chars().find(|c| c.is_ascii_alphanumeric()))
-        .map(|c| c.to_uppercase().to_string())
-        .unwrap_or_else(|| "?".to_owned());
+    let initial = account_initial(&account.display_name, &account.username);
     let admin_item = if account.is_admin {
         r#"<a class="account-menu-item" href="/admin/panel">Admin Panel</a>"#
     } else {

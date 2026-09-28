@@ -947,7 +947,7 @@ pub fn base_layout_with_account(
 </head>
 <body{collapse_attr}>
 <header class="site-header">
-  <span class="site-name">{forum_name}</span>
+  <span class="site-brand"><span class="site-name">{forum_name}</span>{site_tagline}</span>
   <a class="home-btn" href="/">&#8962; Ana Sayfa</a>
   {board_menu}
   <nav class="board-list">
@@ -1057,6 +1057,19 @@ pub fn base_layout_with_account(
         board_menu = board_menu,
         account_menu_html = account_menu_html,
         forum_name = escape_html(&live_site_name()),
+        site_tagline = {
+            // An empty configured subtitle would leave a stray line of space in
+            // the header, so the brand keeps just its name in that case.
+            let subtitle = live_site_subtitle();
+            if subtitle.trim().is_empty() {
+                String::new()
+            } else {
+                format!(
+                    r#"<span class="site-tagline">{}</span>"#,
+                    escape_html(subtitle.trim())
+                )
+            }
+        },
         body = body,
         confirmation_modal = confirmation_modal_script(),
         csrf_token = escape_html(csrf_token),

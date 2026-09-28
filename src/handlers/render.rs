@@ -152,6 +152,8 @@ pub(super) fn render_board_page(
     current_theme: Option<&str>,
     can_post: bool,
     user_preferences: templates::UserPreferences,
+    account: Option<&templates::auth::AccountMenu>,
+    account_menu_csrf: &str,
 ) -> String {
     let boards = templates::live_boards();
     templates::board_page(
@@ -171,6 +173,8 @@ pub(super) fn render_board_page(
         data.board.collapse_greentext,
         can_post,
         user_preferences,
+        account,
+        account_menu_csrf,
     )
 }
 
@@ -218,6 +222,8 @@ pub(super) fn render_thread_page(
     current_theme: Option<&str>,
     can_post: bool,
     user_preferences: templates::UserPreferences,
+    account: Option<&templates::auth::AccountMenu>,
+    account_menu_csrf: &str,
 ) -> String {
     let boards = templates::live_boards();
     templates::thread_page(
@@ -238,6 +244,8 @@ pub(super) fn render_thread_page(
         data.board.collapse_greentext,
         can_post,
         user_preferences,
+        account,
+        account_menu_csrf,
     )
 }
 

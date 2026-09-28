@@ -124,8 +124,25 @@ pub(in crate::server) async fn profile(
             .map(|cookie| cookie.value().to_owned());
         move || -> Result<Option<ProfileLoad>> {
             let conn = pool.get()?;
-            let Some(account) = db::find_user_by_username(&conn, &username)? else {
-                return Ok(None);
+            let account = match db::find_user_by_username(&conn, &username)? {
+                Some(account) => account,
+                // An operator browses the site under their administrator name,
+                // so `/u/{name}` has to resolve for that name too. Provisioning
+                // the profile on the first visit keeps the account menu's
+                // "Profili Gör" entry working on a site whose operator account
+                // predates board profiles, instead of answering 404.
+                None => {
+                    let Some(admin_name) = db::find_admin_name_ignoring_case(&conn, &username)?
+                    else {
+                        return Ok(None);
+                    };
+                    db::ensure_admin_profile(&conn, &admin_name)?;
+                    db::find_user_by_username(&conn, &username)?.ok_or_else(|| {
+                        AppError::Internal(anyhow::anyhow!(
+                            "the administrator profile was created but could not be read back"
+                        ))
+                    })?
+                }
             };
             let stats = db::profile_stats(&conn, account.id)?;
             let boards = db::get_all_boards(&conn)?;

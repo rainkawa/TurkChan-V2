@@ -3,7 +3,8 @@ use super::{
     board_access_denied_response, board_access_preflight, current_theme_from_jar, db,
     ensure_csrf_for_request, header, latest_visible_thread_marker_tuple,
     optional_connect_info_peer, remember_board_activity, remember_visible_thread_activity,
-    sha256_hex, split_catalog_threads, templates, thread_activity_markers_from_jar,
+    sha256_hex, should_set_public_secure_cookie, split_catalog_threads, templates,
+    thread_activity_markers_from_jar,
     thread_unread_counts, user_preferences_from_jar, viewer_preference_key, AppError, AppState,
     BoardAccessDecision, BoardAccessRequirement, CatalogRenderData, CookieJar, HashMap, HeaderMap,
     HeaderValue, Html, OptionalConnectInfoPeer, Pagination, Path, Query, Response, Result,
@@ -165,6 +166,14 @@ pub(in crate::server) async fn catalog(
     } else {
         "-cg0"
     };
+    // The header account menu makes this page visitor-specific, so the
+    // signed-in identity joins the ETag and the jar carrying its sign-out token.
+    let (account, account_menu_csrf, jar) = crate::handlers::auth::account_menu_for_request(
+        &state,
+        jar,
+        should_set_public_secure_cookie(&req_headers, optional_connect_info_peer(peer)),
+    );
+    let account_tag = crate::handlers::auth::account_etag_tag(account.as_ref());
     let theme_tag =
         templates::page_theme_etag_fragment(current_theme.as_deref(), Some(&board.default_theme));
     let activity_tag = if thread_badges_enabled {
@@ -178,7 +187,7 @@ pub(in crate::server) async fn catalog(
         "-na0".to_owned()
     };
     let etag = format!(
-        "\"{etag_signature}-catalog{admin_tag}{post_tag}{greentext_tag}-t{theme_tag}-b{}{activity_tag}-{}\"",
+        "\"{etag_signature}-catalog{admin_tag}{post_tag}{greentext_tag}{account_tag}-t{theme_tag}-b{}{activity_tag}-{}\"",
         banner_selection.etag_fragment,
         user_preferences.etag_fragment()
     );
@@ -253,6 +262,8 @@ pub(in crate::server) async fn catalog(
         board.collapse_greentext,
         can_post,
         user_preferences,
+        account.as_ref(),
+        &account_menu_csrf,
     );
     let mut resp = Html(html).into_response();
     if let Ok(v) = HeaderValue::from_str(&etag) {
@@ -305,6 +316,11 @@ pub(in crate::server) async fn hidden_threads(
 
     let admin_csrf =
         admin_scoped_csrf_token(&jar, admin_session_id.as_deref(), access_context.is_admin);
+    let (account, account_menu_csrf, jar) = crate::handlers::auth::account_menu_for_request(
+        &state,
+        jar,
+        should_set_public_secure_cookie(&req_headers, optional_connect_info_peer(peer)),
+    );
     let html = tokio::task::spawn_blocking({
         let pool = state.db.clone();
         let board_short = board_short.clone();
@@ -335,6 +351,8 @@ pub(in crate::server) async fn hidden_threads(
                 board.collapse_greentext,
                 access_context.can_post,
                 user_preferences,
+                account.as_ref(),
+                &account_menu_csrf,
             ))
         }
     })
@@ -390,6 +408,11 @@ pub(in crate::server) async fn board_archive(
         ));
     }
 
+    let (account, account_menu_csrf, jar) = crate::handlers::auth::account_menu_for_request(
+        &state,
+        jar,
+        should_set_public_secure_cookie(&req_headers, optional_connect_info_peer(peer)),
+    );
     let html = tokio::task::spawn_blocking({
         let pool = state.db.clone();
         let csrf_clone = csrf.clone();
@@ -422,6 +445,8 @@ pub(in crate::server) async fn board_archive(
                 all_boards.as_ref(),
                 current_theme.as_deref(),
                 user_preferences,
+                account.as_ref(),
+                &account_menu_csrf,
             ))
         }
     })
@@ -481,6 +506,11 @@ pub(in crate::server) async fn search(
         ));
     }
 
+    let (account, account_menu_csrf, jar) = crate::handlers::auth::account_menu_for_request(
+        &state,
+        jar,
+        should_set_public_secure_cookie(&req_headers, optional_connect_info_peer(peer)),
+    );
     let html = tokio::task::spawn_blocking({
         let pool = state.db.clone();
         let csrf_clone = csrf.clone();
@@ -510,6 +540,8 @@ pub(in crate::server) async fn search(
                 current_theme.as_deref(),
                 board.collapse_greentext,
                 user_preferences,
+                account.as_ref(),
+                &account_menu_csrf,
             ))
         }
     })

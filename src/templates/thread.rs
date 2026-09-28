@@ -9,8 +9,8 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
 use super::{
-    admin_ban_delete_modal_script, base_layout, base_layout_with_preferences,
-    compress_modal_script, fmt_ts, fmt_ts_short, report_modal_script, thread_autoupdate_script,
+    admin_ban_delete_modal_script, base_layout, base_layout_with_account, compress_modal_script,
+    fmt_ts, fmt_ts_short, report_modal_script, thread_autoupdate_script,
 };
 
 /// Number of seconds during which a poster may edit or delete a new post.
@@ -311,6 +311,8 @@ pub fn thread_page(
     collapse_greentext: bool,
     can_post: bool,
     user_preferences: crate::templates::UserPreferences,
+    account: Option<&crate::templates::auth::AccountMenu>,
+    account_menu_csrf: &str,
 ) -> String {
     let mut body = String::new();
     let admin_form_csrf = admin_csrf_token.unwrap_or(csrf_token);
@@ -542,7 +544,7 @@ pub fn thread_page(
         draft_key = escape_html(&draft_key)
     );
 
-    base_layout_with_preferences(
+    base_layout_with_account(
         &format!(
             "/{}/ - {}",
             board.short_name,
@@ -557,6 +559,7 @@ pub fn thread_page(
         collapse_greentext,
         &format!("/{}/thread/{}", board.short_name, thread.id),
         user_preferences,
+        &crate::templates::auth::account_menu_html(account, account_menu_csrf),
     )
 }
 
@@ -1546,7 +1549,7 @@ mod tests {
             ..sample_post()
         }];
 
-        let html = thread_page(
+        let html = thread_page((
             &board,
             &thread,
             &posts,
@@ -1564,7 +1567,9 @@ mod tests {
             false,
             true,
             crate::templates::UserPreferences::default(),
-        );
+            None,
+            "",
+        ));
 
         assert!(html.contains(r#"href="/test">[ Geri ]</a>"#));
         assert!(html.contains(r#"href="/test/catalog">[ Katalog ]</a>"#));
@@ -1587,7 +1592,7 @@ mod tests {
             ..sample_post()
         }];
 
-        let html = thread_page(
+        let html = thread_page((
             &board,
             &thread,
             &posts,
@@ -1605,7 +1610,9 @@ mod tests {
             false,
             false,
             crate::templates::UserPreferences::default(),
-        );
+            None,
+            "",
+        ));
 
         assert!(html.contains(r#"href="/test">[ Geri ]</a>"#));
         assert!(html.contains(r#"href="/test/catalog">[ Katalog ]</a>"#));
@@ -1625,7 +1632,7 @@ mod tests {
             ..sample_post()
         }];
 
-        let html = thread_page(
+        let html = thread_page((
             &board,
             &thread,
             &posts,
@@ -1643,7 +1650,9 @@ mod tests {
             false,
             true,
             crate::templates::UserPreferences::default(),
-        );
+            None,
+            "",
+        ));
 
         assert!(html.contains(r#"action="/admin/thread/delete""#));
         assert!(html.contains(r#"action="/admin/post/delete""#));
@@ -2147,7 +2156,7 @@ mod tests {
             ..crate::templates::forms::PostFormState::default()
         };
 
-        let html = thread_page(
+        let html = thread_page((
             &board,
             &thread,
             &posts,
@@ -2165,7 +2174,9 @@ mod tests {
             false,
             true,
             crate::templates::UserPreferences::default(),
-        );
+            None,
+            "",
+        ));
 
         assert!(html.contains(r#"class="post-form-wrap is-open""#));
         assert!(html.contains(">retry reply</textarea>"));
@@ -2184,7 +2195,7 @@ mod tests {
             },
         );
 
-        let html = thread_page(
+        let html = thread_page((
             &board,
             &sample_thread(),
             std::slice::from_ref(&post),
@@ -2206,7 +2217,9 @@ mod tests {
             false,
             true,
             crate::templates::UserPreferences::default(),
-        );
+            None,
+            "",
+        ));
 
         assert!(html.contains(r#"id="edit-modal""#));
         assert!(html.contains(r#"class="edit-modal is-open""#));
@@ -2219,7 +2232,7 @@ mod tests {
         let board = crate::test_fixtures::sample_board();
         let post = sample_post();
 
-        let admin_html = thread_page(
+        let admin_html = thread_page((
             &board,
             &sample_thread(),
             std::slice::from_ref(&post),
@@ -2237,13 +2250,15 @@ mod tests {
             false,
             true,
             crate::templates::UserPreferences::default(),
-        );
+            None,
+            "",
+        ));
 
         assert!(admin_html.contains(r#"id="ban-delete-modal""#));
         assert!(admin_html.contains(r#"for="ban-delete-reason""#));
         assert!(admin_html.contains(r#"for="ban-delete-duration""#));
 
-        let public_html = thread_page(
+        let public_html = thread_page((
             &board,
             &sample_thread(),
             std::slice::from_ref(&post),
@@ -2261,7 +2276,9 @@ mod tests {
             false,
             true,
             crate::templates::UserPreferences::default(),
-        );
+            None,
+            "",
+        ));
 
         assert!(!public_html.contains(r#"id="ban-delete-modal""#));
     }
@@ -2274,7 +2291,7 @@ mod tests {
         let mut post = sample_post();
         post.created_at = chrono::Utc::now().timestamp();
 
-        let html = thread_page(
+        let html = thread_page((
             &board,
             &sample_thread(),
             std::slice::from_ref(&post),
@@ -2297,7 +2314,9 @@ mod tests {
             false,
             true,
             crate::templates::UserPreferences::default(),
-        );
+            None,
+            "",
+        ));
 
         assert!(html.contains(r#"href="/test/post/1/edit""#));
         assert!(html.contains(r#"class="self-action-controls""#));
@@ -2354,7 +2373,7 @@ mod tests {
                 reply_count: replies,
                 ..sample_thread()
             };
-            let html = thread_page(
+            let html = thread_page((
                 &board,
                 &thread,
                 std::slice::from_ref(&post),
@@ -2372,7 +2391,9 @@ mod tests {
                 false,
                 true,
                 crate::templates::UserPreferences::default(),
-            );
+            None,
+            "",
+        ));
             assert_eq!(html.contains(r#"data-action="open-edit-modal""#), can_edit);
             assert_eq!(html.contains(r#"class="del-btn""#), can_delete);
             assert!(html.contains(&format!(r#"data-locked="{locked}""#)));
@@ -2436,7 +2457,7 @@ mod tests {
         post.created_at = chrono::Utc::now().timestamp();
         post.edited_at = Some(post.created_at + 5);
 
-        let html = thread_page(
+        let html = thread_page((
             &board,
             &sample_thread(),
             std::slice::from_ref(&post),
@@ -2459,7 +2480,9 @@ mod tests {
             false,
             true,
             crate::templates::UserPreferences::default(),
-        );
+            None,
+            "",
+        ));
 
         assert!(!html.contains("(edited"));
     }

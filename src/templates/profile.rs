@@ -133,6 +133,30 @@ fn fmt_account_age(ts: i64) -> String {
     }
 }
 
+/// Render the account's avatar, or its initial when no picture was uploaded.
+///
+/// An account that never chose a picture is drawn as a letter tile rather than
+/// an `<img>`: the letter is part of the page, so the header never shows an
+/// empty box while an image request is in flight, fails, or returns a pattern
+/// the visitor reads as a broken image.
+fn render_avatar(account: &User) -> String {
+    if account.avatar_file.is_some() {
+        return format!(
+            r#"<img class="profile-avatar" src="/auth/avatar/{user_id}" width="96" height="96" alt="{alt}">"#,
+            user_id = account.id,
+            alt = escape_html(&account.display_name),
+        );
+    }
+    format!(
+        r#"<span class="profile-avatar profile-avatar-letter" role="img" aria-label="{alt}">{initial}</span>"#,
+        alt = escape_html(&account.display_name),
+        initial = escape_html(&crate::templates::auth::account_initial(
+            &account.display_name,
+            &account.username,
+        )),
+    )
+}
+
 /// Render the header with the avatar, names, description, and the two summary
 /// tiles.
 ///
@@ -149,7 +173,7 @@ fn render_header(account: &User, stats: &ProfileStats) -> String {
     };
     format!(
         r#"<header class="profile-header">
-<img class="profile-avatar" src="/auth/avatar/{user_id}" width="96" height="96" alt="{alt}">
+{avatar}
 <div class="profile-identity">
 <h1 class="profile-name">{display_name}</h1>
 <p class="profile-handle">@{username}</p>
@@ -166,8 +190,7 @@ fn render_header(account: &User, stats: &ProfileStats) -> String {
 </div>
 </div>
 </header>"#,
-        user_id = account.id,
-        alt = escape_html(&account.display_name),
+        avatar = render_avatar(account),
         display_name = escape_html(&account.display_name),
         username = escape_html(&account.username),
         bio = bio,

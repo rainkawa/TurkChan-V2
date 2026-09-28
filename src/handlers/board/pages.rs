@@ -380,6 +380,16 @@ pub(in crate::server) async fn board_index(
     } else {
         "-cg0"
     };
+    // The header account menu makes this page visitor-specific, so the signed-in
+    // identity has to take part in the ETag. Without it a browser that signs in
+    // after caching the signed-out page would be answered 304 and keep showing
+    // the old body with no account menu.
+    let (account, account_menu_csrf, jar) = crate::handlers::auth::account_menu_for_request(
+        &state,
+        jar,
+        should_set_public_secure_cookie(&req_headers, optional_connect_info_peer(peer)),
+    );
+    let account_tag = crate::handlers::auth::account_etag_tag(account.as_ref());
     let theme_tag = templates::page_theme_etag_fragment(
         current_theme.as_deref(),
         Some(&page_data.board.default_theme),
@@ -396,7 +406,7 @@ pub(in crate::server) async fn board_index(
         "-na0".to_owned()
     };
     let etag = format!(
-        "\"{}-{}-{page}{admin_tag}{post_tag}{greentext_tag}-t{theme_tag}{banner_tag}{activity_tag}-{}\"",
+        "\"{}-{}-{page}{admin_tag}{post_tag}{greentext_tag}{account_tag}-t{theme_tag}{banner_tag}{activity_tag}-{}\"",
         page_data.pagination.total,
         page_sig,
         user_preferences.etag_fragment()
@@ -464,6 +474,8 @@ pub(in crate::server) async fn board_index(
         current_theme.as_deref(),
         can_post,
         user_preferences,
+        account.as_ref(),
+        &account_menu_csrf,
     );
     let mut resp = Html(html).into_response();
     if let Ok(v) = HeaderValue::from_str(&etag) {
