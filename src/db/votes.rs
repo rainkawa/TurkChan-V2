@@ -245,6 +245,9 @@ mod tests {
     /// can vote, over one thread with an opening post and two replies.
     fn database() -> Result<(rusqlite::Connection, i64)> {
         let conn = rusqlite::Connection::open_in_memory()?;
+        // Both references cascade, and a cascade is what one of these tests is
+        // about, so the connection has to enforce them the way the pool does.
+        conn.execute_batch("PRAGMA foreign_keys = ON")?;
         install_or_migrate_schema(&conn)?;
         conn.execute("INSERT INTO boards (id, short_name, name) VALUES (1, 'g', 'Genel')", [])?;
         let hash = crate::utils::crypto::hash_password("Hunter2Hunter2")?;
@@ -402,21 +405,19 @@ mod tests {
         clippy::panic_in_result_fn,
         reason = "test assertions intentionally panic on failure"
     )]
-    /// Three ups and two downs is one above zero, and taking a vote back moves
-    /// the account down by exactly what it had gained rather than leaving a
-    /// residue behind.
+    /// Two ups and a down is one above zero, and taking a vote back moves the
+    /// account down by exactly what it had gained rather than leaving a residue
+    /// behind.
     fn the_score_is_ups_minus_downs_and_never_drifts() -> Result<()> {
         let (conn, author) = database()?;
-        for voter in 2..=4 {
+        for voter in 2..=3 {
             cast_vote(&conn, 10, voter, 1)?;
         }
-        for voter in 4..=5 {
-            cast_vote(&conn, 10, voter, -1)?;
-        }
+        cast_vote(&conn, 10, 4, -1)?;
         assert_eq!(
             db::find_user_by_id(&conn, author)?.map(|u| u.karma),
             Some(1),
-            "four ups and two downs leave the account one above zero"
+            "two ups and a down leave the account one above zero"
         );
 
         cast_vote(&conn, 10, 2, 0)?;

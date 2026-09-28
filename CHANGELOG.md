@@ -51,13 +51,19 @@ All notable changes to TurkChan will be documented in this file.
   produced three hundred false positives against one true one. The check stays
   quiet about everything it cannot judge with certainty, because a checker that
   cries wolf teaches its reader to ignore it.
-  of error without a Rust toolchain and is now the first line of the documented
-  validation sequence. It reports a struct literal that does not name every
-  field of its struct, and two modules re-exporting the same name through a
-  glob, and it stays quiet about anything it cannot judge: a struct whose name
-  is declared with two shapes, a literal that fills its remaining fields from a
-  base with `..`, a type from outside the tree, and a function body, `impl`
-  block, type definition, or named enum variant that share a literal's syntax.
+- Fixed two errors that would have stopped every existing database from opening
+  at all once per-post votes shipped. The vote index was added to the baseline
+  but not to the set of indexes the additive repair path is allowed to install,
+  so the repair was refused as unrecognized drift and schema verification failed
+  on startup; the index now belongs to that set, and the documented drift test
+  drops it along with the others and proves it comes back. A database written by
+  the build that keyed a vote to a hashed client address is repaired instead of
+  refused: that shape is not convertible, since a hash names no account, so the
+  table and its index are dropped, the empty account-keyed table is created in
+  their place, and the account scores that were counted from those rows are reset
+  rather than left describing votes that no longer exist. A votes table that is
+  not exactly the recognized legacy shape is left alone and reported, so nothing
+  is ever dropped on a guess.
 - Fixed deleted posts remaining visible in a profile's post history; the listing and its tab totals now skip any post whose thread no longer exists.
 - Fixed the header account button disappearing when entering a board, and stopped a cached signed-out page from being revalidated as a signed-in one by adding the account identity to the board, catalog, and thread `ETag`s.
 - Fixed an uploaded profile picture never appearing. The picture was served with a one-year `immutable` cache lifetime under a URL that never changed, so the first response the browser ever saw — usually the drawn placeholder — was reused for a year and no upload was ever fetched again. Uploads are now stored under a name that carries the upload rather than only the account, the page and the settings preview link to that version, the picture route serves the file the database row actually names, and a replaced picture is deleted once the new row is committed. The drawn placeholder is derived state rather than content-addressed, so it now revalidates instead of being pinned in a cache, the stored name is checked before it is turned into a path, and the profile picture is cropped to its circle with `object-fit` instead of being squeezed into it.

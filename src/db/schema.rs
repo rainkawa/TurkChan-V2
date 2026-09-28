@@ -370,7 +370,7 @@ const INDEX_SCHEMA_SQL: &str = "
 /// Obsolete theme index accepted only during the known legacy repair path.
 const LEGACY_THEME_SORT_INDEX: &str = "idx_themes_enabled_sort";
 /// Additive indexes introduced after the first package-version baseline.
-const ADDITIVE_BASELINE_INDEXES: [&str; 12] = [
+const ADDITIVE_BASELINE_INDEXES: [&str; 13] = [
     "idx_user_sessions_expires",
     "idx_user_sessions_user",
     "idx_posts_user",
@@ -383,9 +383,12 @@ const ADDITIVE_BASELINE_INDEXES: [&str; 12] = [
     "idx_poll_votes_option_poll",
     "idx_ban_appeals_status_created",
     "idx_ban_appeals_ip_created",
+    "idx_post_votes_user",
 ];
 /// Redundant indexes removed when the additive index set is installed.
 const REDUNDANT_LEGACY_INDEXES: [&str; 2] = ["idx_file_hashes", "idx_posts_thread_id"];
+/// Columns of the votes table that keyed a vote to a hashed client identity.
+const LEGACY_POST_VOTES_COLUMNS: [&str; 4] = ["post_id", "voter_key", "value", "created_at"];
 /// Board columns whose historical default was zero instead of the baseline value.
 const LEGACY_BOARD_ZERO_DEFAULT_COLUMNS: [&str; 4] = [
     "allow_editing",
@@ -912,6 +915,11 @@ fn repair_known_legacy_baseline_drift(conn: &rusqlite::Connection) -> Result<()>
     }
 
     let expected = expected_schema_shape()?;
+    // Runs before the shapes are compared on purpose. A votes table that
+    // recorded a hashed client identity is drift no comparison accepts, and
+    // comparing first would reject the database outright and leave the site
+    // unable to start.
+    rebuild_legacy_post_votes(conn, &expected)?;
     let actual = schema_shape(conn)?;
     if actual == expected {
         return Ok(());
@@ -925,6 +933,113 @@ fn repair_known_legacy_baseline_drift(conn: &rusqlite::Connection) -> Result<()>
     } else {
         apply_additive_schema_repairs(conn)
     }
+}
+
+/// Rebuild a votes table that recorded an anonymous voter key.
+///
+/// The first build of per-post votes let a reader without an account vote, and
+/// recorded that vote against a hashed client identity. Votes now belong to an
+/// account, and a hash cannot be resolved back to one, so those rows cannot be
+/// carried across. Dropping the table and letting the additive path recreate
+/// it is the only conversion available, and leaving it in place would keep
+/// every later schema comparison failing.
+///
+/// A table that is not exactly the recognized legacy shape is left untouched
+/// and reported by the ordinary schema verification, so an unrecognized table
+/// is never dropped on a guess.
+fn rebuild_legacy_post_votes(conn: &rusqlite::Connection, expected: &SchemaShape) -> Result<()> {
+    let Some(expected_votes) = expected.tables.get("post_votes") else {
+        return Ok(());
+    };
+    if !table_exists(conn, "post_votes")? {
+        return Ok(());
+    }
+    if !is_legacy_post_votes_table(expected_votes, &table_shape(conn, "post_votes")?) {
+        return Ok(());
+    }
+
+    conn.execute_batch("BEGIN IMMEDIATE")
+        .context("Begin legacy post votes rebuild failed")?;
+    let result = (|| {
+        // The account score is recomputed from these rows, so once the rows are
+        // gone every stored score describes votes that no longer exist.
+        if table_exists(conn, "users")? {
+            conn.execute("UPDATE users SET karma = 0", [])
+                .context("Reset account scores after dropping legacy votes failed")?;
+        }
+        conn.execute_batch(
+            "DROP INDEX IF EXISTS idx_post_votes_voter;
+             DROP TABLE post_votes;",
+        )
+        .context("Drop legacy post votes table failed")?;
+        create_additive_user_tables(conn).context("Recreate the account votes table failed")
+    })();
+
+    match result {
+        Ok(()) => match conn.execute_batch("COMMIT") {
+            Ok(()) => Ok(()),
+            Err(error) => {
+                drop(conn.execute_batch("ROLLBACK"));
+                Err(error).context("Commit legacy post votes rebuild failed")
+            }
+        },
+        Err(error) => {
+            drop(conn.execute_batch("ROLLBACK"));
+            Err(error)
+        }
+    }
+}
+
+/// Return whether a votes table is exactly the one the anonymous build wrote.
+fn is_legacy_post_votes_table(expected: &TableShape, actual: &TableShape) -> bool {
+    let legacy_columns: BTreeSet<&str> = LEGACY_POST_VOTES_COLUMNS.into_iter().collect();
+    let actual_columns: BTreeSet<&str> = actual.columns.keys().map(String::as_str).collect();
+    if actual_columns != legacy_columns
+        || actual.autoincrement
+        || actual.without_rowid
+        || actual.strict
+        || actual.check_constraints != expected.check_constraints
+    {
+        return false;
+    }
+
+    // Every column the two shapes share must be identical, so a table that
+    // merely carries the same name is not mistaken for the legacy one.
+    let legacy_voter_key = ColumnShape {
+        decl_type: "TEXT".to_owned(),
+        not_null: true,
+        default_value: None,
+        primary_key_position: 2,
+        hidden: 0,
+    };
+    if actual.columns.get("voter_key") != Some(&legacy_voter_key) {
+        return false;
+    }
+    for name in ["post_id", "value", "created_at"] {
+        if actual.columns.get(name) != expected.columns.get(name) {
+            return false;
+        }
+    }
+
+    // The legacy table declared one key, to the post it voted on, and none to
+    // an account.
+    match (actual.foreign_keys.len(), actual.foreign_keys.iter().next()) {
+        (1, Some(actual_key)) => expected.foreign_keys.contains(actual_key),
+        _ => false,
+    }
+}
+
+/// Return whether a table exists in the database.
+fn table_exists(conn: &rusqlite::Connection, table: &str) -> Result<bool> {
+    conn.query_row(
+        "SELECT EXISTS (
+            SELECT 1 FROM sqlite_master
+            WHERE type = 'table' AND name = ?1
+        )",
+        rusqlite::params![table],
+        |row| row.get(0),
+    )
+    .with_context(|| format!("Failed to detect whether table {table} exists"))
 }
 
 /// Return whether a recorded version belongs to a recognized repairable baseline.
@@ -2656,6 +2771,141 @@ mod tests {
             );
         }
         verify_database_schema(&conn)?;
+        Ok(())
+    }
+
+    #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "test assertions intentionally panic on failure"
+    )]
+    fn database_without_a_votes_table_gains_the_table_and_its_index() -> Result<()> {
+        let conn = rusqlite::Connection::open_in_memory()?;
+        create_baseline_schema_objects(&conn)?;
+        conn.execute_batch(
+            "DROP TABLE post_votes;
+             CREATE TABLE schema_version (version TEXT NOT NULL PRIMARY KEY);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version) VALUES (?1)",
+            [baseline_schema_version()],
+        )?;
+        conn.execute(
+            "INSERT INTO boards (id, short_name, name) VALUES (1, 'b', 'Random')",
+            [],
+        )?;
+
+        normalize_database_schema_version(&conn)?;
+
+        assert!(
+            object_exists(&conn, "table", "post_votes")?,
+            "a database created before per-post votes must gain the votes table"
+        );
+        assert!(
+            object_exists(&conn, "index", "idx_post_votes_user")?,
+            "a database created before per-post votes must gain the account vote index"
+        );
+        verify_database_schema(&conn)?;
+        Ok(())
+    }
+
+    #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "test assertions intentionally panic on failure"
+    )]
+    fn votes_keyed_to_an_anonymous_identity_are_replaced_by_account_votes() -> Result<()> {
+        let conn = rusqlite::Connection::open_in_memory()?;
+        create_baseline_schema_objects(&conn)?;
+        conn.execute_batch(
+            "DROP TABLE post_votes;
+             CREATE TABLE post_votes (
+                 post_id    INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+                 voter_key  TEXT NOT NULL,
+                 value      INTEGER NOT NULL,
+                 created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+                 PRIMARY KEY (post_id, voter_key)
+             );
+             CREATE INDEX idx_post_votes_voter
+                 ON post_votes(voter_key, created_at DESC);
+             CREATE TABLE schema_version (version TEXT NOT NULL PRIMARY KEY);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version) VALUES (?1)",
+            [baseline_schema_version()],
+        )?;
+        conn.execute(
+            "INSERT INTO boards (id, short_name, name) VALUES (1, 'b', 'Random')",
+            [],
+        )?;
+        conn.execute(
+            "INSERT INTO users (id, username, display_name, password_hash, karma)
+             VALUES (1, 'anon', 'Anon', 'hash', 110)",
+            [],
+        )?;
+        conn.execute(
+            "INSERT INTO post_votes (post_id, voter_key, value) VALUES (1, 'i:abc', 1)",
+            [],
+        )?;
+
+        normalize_database_schema_version(&conn)?;
+
+        assert!(
+            !object_exists(&conn, "index", "idx_post_votes_voter")?,
+            "the index over the anonymous voter key must not outlive the rebuild"
+        );
+        assert!(
+            object_exists(&conn, "index", "idx_post_votes_user")?,
+            "the account vote index must replace it"
+        );
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM post_votes", [], |row| row.get::<_, i64>(
+                0
+            ))?,
+            0,
+            "a vote that named no account cannot be carried across"
+        );
+        assert_eq!(
+            conn.query_row("SELECT karma FROM users WHERE id = 1", [], |row| row.get::<_, i64>(
+                0
+            ))?,
+            0,
+            "a score counted from the dropped votes must not survive them"
+        );
+        verify_database_schema(&conn)?;
+        Ok(())
+    }
+
+    #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "test assertions intentionally panic on failure"
+    )]
+    fn an_unrecognized_votes_table_is_reported_rather_than_dropped() -> Result<()> {
+        let conn = rusqlite::Connection::open_in_memory()?;
+        create_baseline_schema_objects(&conn)?;
+        conn.execute_batch(
+            "DROP TABLE post_votes;
+             CREATE TABLE post_votes (
+                 post_id   INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+                 voter_key TEXT,
+                 note      TEXT NOT NULL
+             );
+             CREATE TABLE schema_version (version TEXT NOT NULL PRIMARY KEY);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version) VALUES (?1)",
+            [baseline_schema_version()],
+        )?;
+
+        assert!(
+            verify_database_schema(&conn).is_err(),
+            "a votes table this build does not recognize must fail verification"
+        );
+        assert!(
+            object_exists(&conn, "table", "post_votes")?,
+            "an unrecognized votes table must be left for the operator to inspect"
+        );
         Ok(())
     }
 
