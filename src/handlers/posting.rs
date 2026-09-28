@@ -40,7 +40,7 @@ pub(super) struct SubmitPostCommand {
     ///
     /// `None` for a visitor who posts without an account, which is how posts
     /// written before accounts existed are left unlinked too.
-    pub account_id: Option<i64>,
+    pub account_id: i64,
     pub ban_csrf_token: String,
     pub submission_token: String,
     pub name: String,
@@ -790,10 +790,8 @@ pub(super) fn submit_post(
     // Link the post to the signed-in account so it shows up on that profile.
     // A failure here only costs the profile entry, never the post itself, so
     // it is logged instead of failing an accepted submission.
-    if let Some(account_id) = account_id {
-        if let Err(error) = db::link_post_to_account(conn, post_id, account_id) {
-            tracing::warn!(target: "auth", %error, post_id, "Failed to link post to account");
-        }
+    if let Err(error) = db::link_post_to_account(conn, post_id, account_id) {
+        tracing::warn!(target: "auth", %error, post_id, "Failed to link post to account");
     }
 
     finalize_pending_uploads(conn, &upload_dir, &uploads);
@@ -936,7 +934,7 @@ mod tests {
             identity_key: TEST_IDENTITY_KEY.to_owned(),
             cookie_secret: TEST_COOKIE_SECRET.to_owned(),
             admin_session_id: None,
-            account_id: None,
+            account_id: 1,
             ban_csrf_token: "ban-csrf".to_owned(),
             submission_token: submission_token.to_owned(),
             name: "anon".to_owned(),
@@ -975,7 +973,7 @@ mod tests {
             identity_key: TEST_IDENTITY_KEY.to_owned(),
             cookie_secret: TEST_COOKIE_SECRET.to_owned(),
             admin_session_id: None,
-            account_id: None,
+            account_id: 1,
             ban_csrf_token: "ban-csrf".to_owned(),
             submission_token: submission_token.to_owned(),
             name: "anon".to_owned(),
@@ -1010,7 +1008,7 @@ mod tests {
             identity_key: TEST_IDENTITY_KEY.to_owned(),
             cookie_secret: TEST_COOKIE_SECRET.to_owned(),
             admin_session_id: None,
-            account_id: None,
+            account_id: 1,
             ban_csrf_token: "ban-csrf".to_owned(),
             submission_token: submission_token.to_owned(),
             name: "anon".to_owned(),

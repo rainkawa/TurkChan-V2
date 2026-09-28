@@ -59,16 +59,9 @@ pub fn create_user(
 ) -> Result<i64> {
     let id: i64 = conn
         .query_row(
-            "INSERT INTO users (username, display_name, password_hash, avatar_file, bio, karma)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6) RETURNING id",
-            params![
-                username,
-                display_name,
-                password_hash,
-                avatar_file,
-                bio,
-                crate::roles::KARMASEED
-            ],
+            "INSERT INTO users (username, display_name, password_hash, avatar_file, bio)
+             VALUES (?1, ?2, ?3, ?4, ?5) RETURNING id",
+            params![username, display_name, password_hash, avatar_file, bio],
             |row| row.get(0),
         )
         .context("Failed to create user account")?;
@@ -105,15 +98,9 @@ pub fn ensure_admin_profile(conn: &rusqlite::Connection, admin_name: &str) -> Re
     }
     let unusable_hash = admin_profile_password_hash()?;
     conn.execute(
-        "INSERT INTO users (username, display_name, password_hash, avatar_file, bio, karma)
-         VALUES (?1, ?2, ?3, NULL, ?4, ?5)",
-        params![
-            username,
-            admin_name.trim(),
-            unusable_hash,
-            ADMIN_PROFILE_BIO,
-            crate::roles::KARMASEED
-        ],
+        "INSERT INTO users (username, display_name, password_hash, avatar_file, bio)
+         VALUES (?1, ?2, ?3, NULL, ?4)",
+        params![username, admin_name.trim(), unusable_hash, ADMIN_PROFILE_BIO],
     )
     .context("Failed to create the administrator's profile")?;
     tracing::info!(target: "db", %username, "Created the administrator's board profile");
@@ -608,7 +595,6 @@ pub fn profile_stats(conn: &rusqlite::Connection, user_id: i64) -> Result<Profil
         reply_count,
         thread_likes: breakdown.thread_likes,
         comment_likes: breakdown.comment_likes,
-        karma_base: breakdown.base(),
         karma: breakdown.total(),
     })
 }

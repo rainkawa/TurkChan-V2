@@ -300,7 +300,7 @@ pub fn thread_page(
     thread: &Thread,
     posts: &[Post],
     owned_post_controls: &BTreeMap<i64, OwnedPostControls>,
-    votes: &BTreeMap<i64, crate::db::PostVoteView>,
+    post_votes: &BTreeMap<i64, crate::db::PostVoteView>,
     csrf_token: &str,
     boards: &[Board],
     is_admin: bool,
@@ -319,10 +319,16 @@ pub fn thread_page(
 ) -> String {
     let mut body = String::new();
     let admin_form_csrf = admin_csrf_token.unwrap_or(csrf_token);
-    // A share is attributed to the account that made it. An anonymous reader
-    // has no name to be attributed, so the control says so rather than
-    // borrowing one.
+    // A share is attributed to the account that made it, and voting needs one
+    // too. With neither there is nothing to draw under a post header, so the
+    // scores are not even read for this page.
     let share_by = account.map(|menu| menu.username.clone());
+    let no_votes = BTreeMap::new();
+    let votes = if share_by.is_some() {
+        post_votes
+    } else {
+        &no_votes
+    };
     let admin_toolbar = if is_admin {
         let sticky_action = if thread.sticky {
             ("unsticky", "&#128204; Sabitlemeyi Kaldır")
@@ -766,21 +772,22 @@ fn render_vote_controls(
     )
 }
 
-/// Render the share control for one post.
+/// Render the share control for one post, for the account that is sharing it.
 ///
 /// The permalink is shown as text rather than hidden behind a button: a board
-/// is shared by copying a line, and the name beside it is who shared it. A
-/// signed-in reader is named; an anonymous one is told the share is anonymous,
-/// because attributing it to the last account that happened to be signed in
-/// would be a lie.
+/// is shared by copying a line, and the name beside it is who shared it.
+/// `None` means the visitor is not signed in, and there is no control at all
+/// for them: a share is a claim that somebody passed this on, and there is no
+/// somebody to name behind a visitor who has not said who they are.
+///
+/// An opening post is what a thread is shared by, so it is stated as a share
+/// rather than as a link: the reader is told who passed it on before being
+/// handed the address. A reply keeps the same control in one quiet line.
 fn render_share_control(share_by: Option<&str>, permalink: &str, is_op: bool) -> String {
-    let attribution = share_by.map_or_else(
-        || "anonim paylaşım".to_owned(),
-        |name| format!("<strong>@{name}</strong> paylaştı", name = escape_html(name)),
-    );
-    // An opening post is what a thread is shared by, so it is stated as a share
-    // rather than as a link: the reader is told who passed it on before being
-    // handed the address. A reply keeps the same control in one quiet line.
+    let Some(name) = share_by else {
+        return String::new();
+    };
+    let attribution = format!("<strong>@{name}</strong> paylaştı", name = escape_html(name));
     if is_op {
         return format!(
             r#"<div class="post-share post-share-op"><span class="post-share-label">konu paylaşımı</span><span class="post-share-by">{attribution}</span><a class="post-share-link" href="{permalink}">{permalink}</a><button type="button" class="post-share-copy" data-action="copy-share-link" data-share-link="{permalink}" data-default-label="kopyala" title="Bağlantıyı kopyala">kopyala</button></div>"#,
@@ -1087,7 +1094,9 @@ pub fn render_post(
 
     // Score, press buttons, and the share line sit together under the header:
     // they are what a reader does with a post, and they belong in the same
-    // place on every post whether or not it carries other controls.
+    // place on every post whether or not it carries other controls. Both need
+    // an account, so a visitor without one is shown neither — and the strip
+    // itself is left out rather than left behind empty.
     let permalink = format!("/{board_short}/thread/{tid}#p{pid}",
         board_short = board_short,
         tid = post.thread_id,
@@ -1097,14 +1106,13 @@ pub fn render_post(
     let vote_html = vote.map_or_else(String::new, |view| {
         render_vote_controls(&view, post.id, csrf_token, &permalink)
     });
-    // The score, the press buttons, and the share line sit together under the
-    // header: they are what a reader does with a post, and they belong in the
-    // same place on every post whether or not it carries other controls.
-    html.push_str(&format!(
-        r#"<div class="post-social">{vote_html}{share_html}</div>"#,
-        vote_html = vote_html,
-        share_html = share_html,
-    ));
+    if !vote_html.is_empty() || !share_html.is_empty() {
+        html.push_str(&format!(
+            r#"<div class="post-social">{vote_html}{share_html}</div>"#,
+            vote_html = vote_html,
+            share_html = share_html,
+        ));
+    }
 
     let primary_media_type = effective_media_type(post);
     let thumb_loading = if post.is_op { "eager" } else { "lazy" };
@@ -2644,6 +2652,11 @@ mod tests {
         let mut post = sample_post();
         post.thread_id = 87;
         let posts = vec![post.clone()];
+        let account = crate::templates::auth::AccountMenu {
+            display_name: "Rain".to_owned(),
+            username: "rainkawa".to_owned(),
+            is_admin: false,
+        };
         let votes = std::collections::BTreeMap::from([(
             post.id,
             crate::db::PostVoteView {
@@ -2671,7 +2684,7 @@ mod tests {
             false,
             true,
             crate::templates::UserPreferences::default(),
-            None,
+            Some(&account),
             "",
         ));
 
@@ -2691,14 +2704,45 @@ mod tests {
             html.contains(r#"class="vote-btn vote-up""#),
             "an unpressed arrow must not look pressed: {html}"
         );
+
+        let anonymous = thread_page((
+            &board,
+            &sample_thread(),
+            &posts,
+            &std::collections::BTreeMap::new(),
+            &votes,
+            "csrf",
+            std::slice::from_ref(&board),
+            false,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            false,
+            true,
+            crate::templates::UserPreferences::default(),
+            None,
+            "",
+        ));
+        assert!(
+            !anonymous.contains("post-vote"),
+            "a vote needs an account, so a reader with none is shown no arrows: {anonymous}"
+        );
+        assert!(
+            !anonymous.contains(">7<"),
+            "a score is not shown without the arrows that earned it: {anonymous}"
+        );
     }
 
     #[test]
     /// A share is attributed to the account that made it, and the link is shown
     /// as text rather than hidden behind a button, because a board is shared by
-    /// copying a line. An anonymous reader is told the share is anonymous rather
-    /// than shown a borrowed name, and the opening post carries the thread's
-    /// share while a reply keeps the same control in one quiet line.
+    /// copying a line. A reader with no account is shown no share at all: there
+    /// is nobody to attribute it to, and an "anonymous share" line would be a
+    /// claim on the page that no person on the page stands behind.
     fn a_share_names_the_account_that_made_it() {
         let board = crate::test_fixtures::sample_board();
         let mut op = sample_post();
@@ -2773,8 +2817,12 @@ mod tests {
             "",
         ));
         assert!(
-            anonymous.contains("anonim paylaşım"),
-            "an anonymous share must not be attributed to nobody in particular: {anonymous}"
+            !anonymous.contains("post-share"),
+            "a reader with no account must be shown no share control: {anonymous}"
+        );
+        assert!(
+            !anonymous.contains("anonim"),
+            "a share is never attributed to nobody in particular: {anonymous}"
         );
     }
 }

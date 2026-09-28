@@ -1,30 +1,30 @@
 //! Post votes, and the account score they add up to.
 //!
 //! One row per post per voter is the whole model: the primary key is
-//! `(post_id, voter_key)`, so "one vote per person" is a property of the
+//! `(post_id, user_id)`, so "one vote per person" is a property of the
 //! schema rather than something a handler has to remember to check. Casting a
 //! vote is therefore an upsert, pressing the same arrow twice deletes the row,
 //! and pressing the other one overwrites it — which is exactly the behaviour an
 //! imageboard reader expects, and none of it needs a read-modify-write.
 //!
-//! The voter is identified by a *key* rather than by a foreign key alone, so
-//! the same table serves both a signed-in account and an anonymous visitor. An
-//! account is keyed by its row id and can therefore always remove its own
-//! vote; an anonymous visitor is keyed by the hashed address already used for
-//! bans, so nobody's raw address is stored and one person behind one address
-//! still gets one vote.
+//! The voter is a foreign key, so a vote belongs to an account and can always
+//! be taken back by the account that cast it. Both references cascade: a
+//! deleted account takes its votes with it, and so does a deleted post.
 //!
-//! The score is never stored. It is the sum of a post's rows, and an account's
-//! total is the base it started with plus the sum of the votes its posts
-//! received — so a deleted post takes its votes with it and a score cannot
-//! drift away from the votes that produced it.
+//! The score is never stored on a post. It is the sum of that post's rows, so a
+//! deleted post takes its votes with it and a score cannot drift away from the
+//! votes that produced it.
+//!
+//! Voting belongs to accounts alone. A visitor without one is not counted, and
+//! a vote therefore always has a name behind it and always has an author who
+//! can be shown what their post was worth. An account's score is the sum of the
+//! votes its own posts received, with no starting number added: a single upvote
+//! is worth exactly one point, and a profile that cannot show a single upvote
+//! is not showing the score at all.
 
 use anyhow::{Context as _, Result};
 use rusqlite::params;
-use rusqlite::OptionalExtension as _;
 use std::collections::HashMap;
-
-use crate::roles::KARMASEED;
 
 /// A vote as one post's score needs it.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -65,30 +65,10 @@ impl KarmaBreakdown {
         self.thread_likes + self.comment_likes
     }
 
-    /// The base the account started from.
-    #[must_use]
-    pub const fn base(&self) -> i64 {
-        KARMASEED
-    }
-
     /// The number the profile leads with.
     #[must_use]
     pub const fn total(&self) -> i64 {
-        self.base() + self.received()
-    }
-}
-
-/// Build the in-memory key for one voter.
-///
-/// The prefix keeps an account and an address from ever colliding, so an
-/// account's votes cannot be removed by a visitor who happens to share the same
-/// raw value.
-#[must_use]
-pub fn voter_key(user_id: Option<i64>, ip_hash: Option<&str>) -> Option<String> {
-    match (user_id, ip_hash) {
-        (Some(id), _) => Some(format!("u:{id}")),
-        (None, Some(hash)) if !hash.is_empty() => Some(format!("i:{hash}")),
-        _ => None,
+        self.received()
     }
 }
 
@@ -107,21 +87,21 @@ pub fn voter_key(user_id: Option<i64>, ip_hash: Option<&str>) -> Option<String> 
 pub fn cast_vote(
     conn: &rusqlite::Connection,
     post_id: i64,
-    voter: &str,
+    voter_id: i64,
     value: i64,
 ) -> Result<i64> {
     let value = value.clamp(-1, 1);
     if value == 0 {
         conn.execute(
-            "DELETE FROM post_votes WHERE post_id = ?1 AND voter_key = ?2",
-            params![post_id, voter],
+            "DELETE FROM post_votes WHERE post_id = ?1 AND user_id = ?2",
+            params![post_id, voter_id],
         )
         .context("Failed to remove a post vote")?;
     } else {
         conn.execute(
-            "INSERT INTO post_votes (post_id, voter_key, value) VALUES (?1, ?2, ?3)
-             ON CONFLICT (post_id, voter_key) DO UPDATE SET value = excluded.value",
-            params![post_id, voter, value],
+            "INSERT INTO post_votes (post_id, user_id, value) VALUES (?1, ?2, ?3)
+             ON CONFLICT (post_id, user_id) DO UPDATE SET value = excluded.value",
+            params![post_id, voter_id, value],
         )
         .context("Failed to record a post vote")?;
     }
@@ -184,7 +164,7 @@ pub fn post_score(conn: &rusqlite::Connection, post_id: i64) -> Result<i64> {
 pub fn post_vote_views(
     conn: &rusqlite::Connection,
     post_ids: &[i64],
-    voter: Option<&str>,
+    viewer_id: Option<i64>,
 ) -> Result<HashMap<i64, PostVoteView>> {
     let mut views: HashMap<i64, PostVoteView> = post_ids
         .iter()
@@ -205,13 +185,14 @@ pub fn post_vote_views(
         views.entry(post_id).or_default().score = score;
     }
 
-    if let Some(voter) = voter.filter(|key| !key.is_empty()) {
-        // The viewer's own rows are fetched by voter rather than by post list:
-        // one bound parameter instead of one per post, and the result is
-        // filtered against the page below.
-        let mut stmt =
-            conn.prepare("SELECT post_id, value FROM post_votes WHERE voter_key = ?1")?;
-        let mut rows = stmt.query(params![voter])?;
+    if let Some(viewer_id) = viewer_id {
+        // The viewer's own rows are fetched by viewer rather than by post
+        // list: one bound parameter instead of one per post, and the result is
+        // filtered against the page below. A visitor without an account gets
+        // scores but no pressed arrow, because there is no vote of theirs to
+        // report.
+        let mut stmt = conn.prepare("SELECT post_id, value FROM post_votes WHERE user_id = ?1")?;
+        let mut rows = stmt.query(params![viewer_id])?;
         while let Some(row) = rows.next()? {
             let post_id: i64 = row.get(0)?;
             let value: i64 = row.get(1)?;
@@ -250,45 +231,28 @@ pub fn karma_breakdown(conn: &rusqlite::Connection, user_id: i64) -> Result<Karm
         comment_likes,
     })
 }
-
-/// Give every account the starting score the profile is measured from.
-///
-/// An account created before voting existed sits at zero, which would read as
-/// an account nobody has ever agreed with rather than as an account nobody has
-/// voted on yet. Only zero is moved, so an account that has already been voted
-/// on keeps the score those votes decided.
-///
-/// # Errors
-/// Returns an error if the database operation fails.
-pub fn seed_karma_base(conn: &rusqlite::Connection) -> Result<usize> {
-    conn.execute(
-        "UPDATE users SET karma = ?1 WHERE karma = 0",
-        params![KARMASEED],
-    )
-    .context("Failed to seed account scores")
-}
-
 #[cfg(test)]
 /// The schema is what makes "one vote per person" true, so the tests are about
 /// what a second press does rather than about the happy path.
 mod tests {
-    use super::{
-        cast_vote, karma_breakdown, post_score, post_vote_views, seed_karma_base, voter_key,
-        KarmaBreakdown,
-    };
+    use super::{cast_vote, karma_breakdown, post_score, post_vote_views, KarmaBreakdown};
     use crate::db;
     use crate::db::schema::install_or_migrate_schema;
-    use crate::roles::KARMASEED;
     use anyhow::Result;
     use rusqlite::params;
 
-    /// A database with one board, one account, one thread, and three posts.
-    fn database() -> Result<rusqlite::Connection> {
+    /// A database with one board, one account that writes, and three others who
+    /// can vote, over one thread with an opening post and two replies.
+    fn database() -> Result<(rusqlite::Connection, i64)> {
         let conn = rusqlite::Connection::open_in_memory()?;
         install_or_migrate_schema(&conn)?;
         conn.execute("INSERT INTO boards (id, short_name, name) VALUES (1, 'g', 'Genel')", [])?;
         let hash = crate::utils::crypto::hash_password("Hunter2Hunter2")?;
-        let user_id = db::create_user(&conn, "anon", "Anonim", &hash, None, "")?;
+        let author = db::create_user(&conn, "yazar", "Yazar", &hash, None, "")?;
+        // Rows 2 through 5: the readers who vote on the posts below.
+        for username in ["okuyucu", "bir", "iki", "ucuncu"] {
+            db::create_user(&conn, username, username, &hash, None, "")?;
+        }
         conn.execute(
             "INSERT INTO threads (id, board_id, subject) VALUES (1, 1, 'Konu')",
             [],
@@ -297,25 +261,10 @@ mod tests {
             conn.execute(
                 "INSERT INTO posts (id, thread_id, board_id, is_op, user_id, body, body_html, deletion_token)
                  VALUES (?1, 1, 1, ?2, ?3, 'govde', '<p>govde</p>', 'tok')",
-                params![post_id, is_op, user_id],
+                params![post_id, is_op, author],
             )?;
         }
-        Ok(conn)
-    }
-
-    #[test]
-    #[expect(
-        clippy::panic_in_result_fn,
-        reason = "test assertions intentionally panic on failure"
-    )]
-    /// An account and an address can never land on the same voter key, so a
-    /// visitor's address can never take an account's vote back.
-    fn voter_keys_cannot_collide() {
-        assert_eq!(voter_key(Some(7), Some("abc")).as_deref(), Some("u:7"));
-        assert_eq!(voter_key(Some(7), None).as_deref(), Some("u:7"));
-        assert_eq!(voter_key(None, Some("abc")).as_deref(), Some("i:abc"));
-        assert_eq!(voter_key(None, None), None);
-        assert_eq!(voter_key(None, Some("")), None);
+        Ok((conn, author))
     }
 
     #[test]
@@ -326,16 +275,16 @@ mod tests {
     /// Pressing the same arrow twice takes the vote back, pressing the other
     /// moves it, and no account can ever hold two votes on one post.
     fn a_vote_can_be_moved_and_taken_back() -> Result<()> {
-        let conn = database()?;
+        let (conn, _) = database()?;
 
-        assert_eq!(cast_vote(&conn, 10, "u:1", 1)?, 1, "an upvote scores one");
+        assert_eq!(cast_vote(&conn, 10, 2, 1)?, 1, "an upvote scores one");
         assert_eq!(
-            cast_vote(&conn, 10, "u:1", -1)?,
+            cast_vote(&conn, 10, 2, -1)?,
             -1,
             "pressing the other arrow moves the vote rather than adding one"
         );
         assert_eq!(
-            cast_vote(&conn, 10, "u:1", 0)?,
+            cast_vote(&conn, 10, 2, 0)?,
             0,
             "pressing the pressed arrow again takes the vote back"
         );
@@ -359,15 +308,16 @@ mod tests {
         reason = "test assertions intentionally panic on failure"
     )]
     /// Two people voting the same way add up; the viewer's own vote is reported
-    /// back so the pressed arrow can be shown as pressed.
+    /// back so the pressed arrow can be shown as pressed, and a visitor with no
+    /// account still sees the score even though no arrow of theirs is pressed.
     fn scores_add_up_and_report_the_viewers_own_vote() -> Result<()> {
-        let conn = database()?;
-        cast_vote(&conn, 10, "u:1", 1)?;
-        cast_vote(&conn, 10, "u:2", 1)?;
-        cast_vote(&conn, 10, "i:abc", -1)?;
-        cast_vote(&conn, 11, "u:2", -1)?;
+        let (conn, _) = database()?;
+        cast_vote(&conn, 10, 2, 1)?;
+        cast_vote(&conn, 10, 3, 1)?;
+        cast_vote(&conn, 10, 4, -1)?;
+        cast_vote(&conn, 11, 3, -1)?;
 
-        let views = post_vote_views(&conn, &[10, 11, 12], Some("u:1"))?;
+        let views = post_vote_views(&conn, &[10, 11, 12], Some(2))?;
         assert_eq!(views[&10].score, 1);
         assert!(views[&10].upvoted());
         assert!(!views[&10].downvoted());
@@ -380,6 +330,13 @@ mod tests {
             views[&12].score, 0,
             "a post nobody voted on still appears, at zero"
         );
+
+        let anonymous = post_vote_views(&conn, &[10, 11, 12], None)?;
+        assert_eq!(anonymous[&10].score, 1, "a score is public to every reader");
+        assert_eq!(
+            anonymous[&10].my_vote, 0,
+            "a reader with no account has pressed nothing"
+        );
         Ok(())
     }
 
@@ -391,26 +348,25 @@ mod tests {
     /// The profile's numbers are the votes the account's own posts received,
     /// with its threads and its replies counted apart.
     fn the_profile_breaks_the_score_into_threads_and_replies() -> Result<()> {
-        let conn = database()?;
-        cast_vote(&conn, 10, "u:2", 1)?; // an opening post
-        cast_vote(&conn, 10, "u:3", 1)?;
-        cast_vote(&conn, 10, "u:4", -1)?;
-        cast_vote(&conn, 11, "u:2", 1)?; // a reply
-        cast_vote(&conn, 12, "u:2", 1)?; // another reply
+        let (conn, author) = database()?;
+        cast_vote(&conn, 10, 2, 1)?; // an opening post
+        cast_vote(&conn, 10, 3, 1)?;
+        cast_vote(&conn, 10, 4, -1)?;
+        cast_vote(&conn, 11, 2, 1)?; // a reply
+        cast_vote(&conn, 12, 2, 1)?; // another reply
 
-        let breakdown = karma_breakdown(&conn, 1)?;
+        let breakdown = karma_breakdown(&conn, author)?;
         assert_eq!(breakdown.thread_likes, 1, "two up and a down on the thread");
         assert_eq!(breakdown.comment_likes, 2);
         assert_eq!(breakdown.received(), 3);
-        assert_eq!(breakdown.base(), KARMASEED);
         assert_eq!(
             breakdown.total(),
-            KARMASEED + 3,
-            "the profile leads with the base plus what the votes added"
+            3,
+            "there is no starting number: three votes is a score of three"
         );
         assert_eq!(
-            db::find_user_by_id(&conn, 1)?.map(|u| u.karma),
-            Some(KARMASEED + 3),
+            db::find_user_by_id(&conn, author)?.map(|u| u.karma),
+            Some(3),
             "the stored score the badge and trust tier are decided from follows the votes"
         );
         Ok(())
@@ -421,28 +377,53 @@ mod tests {
         clippy::panic_in_result_fn,
         reason = "test assertions intentionally panic on failure"
     )]
-    /// The three-up, two-down example the score is specified by: an account
-    /// starts at the base, gains one per upvote and loses one per downvote, and
-    /// taking a vote back moves it back down by exactly as much.
-    fn the_score_is_the_base_plus_ups_minus_downs() -> Result<()> {
-        let conn = database()?;
+    /// A single upvote is worth exactly one point and shows as one. There is no
+    /// base to hide it behind, so an account that has been agreed with once
+    /// reads as one point rather than as a number that was already there.
+    fn one_upvote_is_visible_on_the_profile() -> Result<()> {
+        let (conn, author) = database()?;
+        cast_vote(&conn, 10, 2, 1)?;
+
+        assert_eq!(karma_breakdown(&conn, author)?.total(), 1);
+        assert_eq!(db::find_user_by_id(&conn, author)?.map(|u| u.karma), Some(1));
+
+        cast_vote(&conn, 10, 2, 0)?;
+        assert_eq!(
+            karma_breakdown(&conn, author)?.total(),
+            0,
+            "taking the only vote back takes the score back to nothing"
+        );
+        assert_eq!(db::find_user_by_id(&conn, author)?.map(|u| u.karma), Some(0));
+        Ok(())
+    }
+
+    #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "test assertions intentionally panic on failure"
+    )]
+    /// Three ups and two downs is one above zero, and taking a vote back moves
+    /// the account down by exactly what it had gained rather than leaving a
+    /// residue behind.
+    fn the_score_is_ups_minus_downs_and_never_drifts() -> Result<()> {
+        let (conn, author) = database()?;
         for voter in 2..=4 {
-            cast_vote(&conn, 10, &format!("u:{voter}"), 1)?;
+            cast_vote(&conn, 10, voter, 1)?;
         }
-        for voter in 5..=6 {
-            cast_vote(&conn, 10, &format!("u:{voter}"), -1)?;
+        for voter in 4..=5 {
+            cast_vote(&conn, 10, voter, -1)?;
         }
         assert_eq!(
-            db::find_user_by_id(&conn, 1)?.map(|u| u.karma),
-            Some(KARMASEED + 1),
-            "three ups and two downs leave the account one above its base"
+            db::find_user_by_id(&conn, author)?.map(|u| u.karma),
+            Some(1),
+            "four ups and two downs leave the account one above zero"
         );
 
-        cast_vote(&conn, 10, "u:2", 0)?;
+        cast_vote(&conn, 10, 2, 0)?;
         assert_eq!(
-            db::find_user_by_id(&conn, 1)?.map(|u| u.karma),
-            Some(KARMASEED),
-            "taking a vote back moves the account back down by exactly what it had gained"
+            db::find_user_by_id(&conn, author)?.map(|u| u.karma),
+            Some(0),
+            "taking a vote back moves the account back by exactly what it had gained"
         );
         Ok(())
     }
@@ -452,65 +433,35 @@ mod tests {
         clippy::panic_in_result_fn,
         reason = "test assertions intentionally panic on failure"
     )]
-    /// A new account starts on the base, and the one-off seed that moves
-    /// accounts made before voting existed onto it leaves a real score alone.
-    fn a_new_account_starts_on_the_base_and_the_seed_never_overwrites_a_score() -> Result<()> {
-        let conn = database()?;
-        let hash = crate::utils::crypto::hash_password("Hunter2Hunter2")?;
-        let fresh = db::create_user(&conn, "yeni", "Yeni", &hash, None, "")?;
-        let scored = db::create_user(&conn, "eski", "Eski", &hash, None, "")?;
-        conn.execute("UPDATE users SET karma = 7 WHERE id = ?1", [scored])?;
-        // An account made before voting existed sits at zero.
-        conn.execute("UPDATE users SET karma = 0 WHERE id = ?1", [fresh])?;
+    /// A vote cannot outlive the account that cast it, and cannot outlive the
+    /// post it was cast on, so neither a deleted account nor a deleted post
+    /// leaves a number behind that nothing on the site can explain.
+    fn a_vote_goes_away_with_its_account_or_its_post() -> Result<()> {
+        let (conn, author) = database()?;
+        cast_vote(&conn, 10, 2, 1)?;
+        cast_vote(&conn, 11, 3, 1)?;
+        assert_eq!(karma_breakdown(&conn, author)?.total(), 2);
 
-        seed_karma_base(&conn)?;
-
+        conn.execute("DELETE FROM posts WHERE id = 11", [])?;
         assert_eq!(
-            db::find_user_by_id(&conn, fresh)?.map(|u| u.karma),
-            Some(KARMASEED),
-            "an account that predates voting is moved onto the base"
-        );
-        assert_eq!(
-            db::find_user_by_id(&conn, scored)?.map(|u| u.karma),
-            Some(7),
-            "a score that has already been decided is not overwritten"
+            karma_breakdown(&conn, author)?.total(),
+            1,
+            "a deleted post takes its votes with it"
         );
 
-        // A second run is a no-op rather than a second grant.
-        seed_karma_base(&conn)?;
+        conn.execute("DELETE FROM users WHERE id = 2", [])?;
         assert_eq!(
-            db::find_user_by_id(&conn, fresh)?.map(|u| u.karma),
-            Some(KARMASEED)
+            karma_breakdown(&conn, author)?.total(),
+            0,
+            "a deleted account takes its votes with it"
         );
         Ok(())
     }
 
     #[test]
-    fn a_default_breakdown_reads_as_the_base_alone() {
+    fn a_default_breakdown_reads_as_nothing_received() {
         let breakdown = KarmaBreakdown::default();
         assert_eq!(breakdown.received(), 0);
-        assert_eq!(breakdown.base(), KARMASEED);
-        assert_eq!(breakdown.total(), KARMASEED);
-    }
-
-    #[test]
-    #[expect(
-        clippy::panic_in_result_fn,
-        reason = "test assertions intentionally panic on failure"
-    )]
-    /// A new account is created on the base, so the profile never shows a total
-    /// of zero for an account that simply has not been voted on yet.
-    fn a_new_account_is_created_on_the_base() -> Result<()> {
-        let conn = rusqlite::Connection::open_in_memory()?;
-        install_or_migrate_schema(&conn)?;
-        let hash = crate::utils::crypto::hash_password("Hunter2Hunter2")?;
-        let id = db::create_user(&conn, "anon", "Anonim", &hash, None, "")?;
-        assert_eq!(db::find_user_by_id(&conn, id)?.map(|u| u.karma), Some(KARMASEED));
-        assert_eq!(
-            karma_breakdown(&conn, id)?.total(),
-            KARMASEED,
-            "an account nobody has voted on reads as the base alone"
-        );
-        Ok(())
+        assert_eq!(breakdown.total(), 0);
     }
 }

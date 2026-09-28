@@ -397,30 +397,37 @@ pub(crate) fn current_account_id(state: &AppState, jar: &CookieJar) -> Result<Op
     Ok(Some(session.user_id))
 }
 
-/// Return the id of the account a posting should be attached to.
+/// Return the id of the account a posting must be attached to.
+///
+/// Writing belongs to accounts. A post with nobody behind it cannot be voted
+/// on, cannot be shared under a name, and cannot be found again on the profile
+/// of whoever wrote it — so an anonymous post is refused in words at the door
+/// rather than accepted and then disconnected from everything that could
+/// answer for it.
 ///
 /// A suspended account keeps its session and can still read the site, so this
-/// is the one place that turns the state into a refusal: writing is what a
-/// suspension takes away, and it has to be refused in words rather than quietly
-/// turning the post into an anonymous one.
+/// is also the one place that turns that state into a refusal: writing is what
+/// a suspension takes away.
 ///
 /// # Errors
-/// Returns an error if the account is suspended, or if the database query
-/// fails.
-pub(crate) fn posting_account_id(state: &AppState, jar: &CookieJar) -> Result<Option<i64>> {
+/// Returns an error if the visitor is not signed in, if the account is
+/// suspended, or if the database query fails.
+pub(crate) fn posting_account_id(state: &AppState, jar: &CookieJar) -> Result<i64> {
     let Some(user_id) = current_account_id(state, jar)? else {
-        return Ok(None);
+        return Err(AppError::Forbidden(
+            "Gönderi yapmak için giriş yapmalısın.".into(),
+        ));
     };
     let conn = state.db.get()?;
-    let Some(account) = db::find_user_by_id(&conn, user_id)? else {
-        return Ok(None);
-    };
+    let account = db::find_user_by_id(&conn, user_id)?.ok_or_else(|| {
+        AppError::Forbidden("Bu hesap artık yok.".into())
+    })?;
     if !account.effective_status(Utc::now().timestamp()).may_post() {
         return Err(AppError::Forbidden(
             "Hesabın geçici olarak askıya alındığı için yazamazsın.".into(),
         ));
     }
-    Ok(Some(user_id))
+    Ok(user_id)
 }
 
 /// Whether a request already carries a valid account session.

@@ -209,12 +209,11 @@ pub(super) fn load_thread_page_data(
     let posts = db::get_posts_for_thread(conn, thread_id)?;
     let ip_hash = hash_ip(client_ip, cookie_secret);
     let poll = db::get_poll_for_thread(conn, thread_id, &ip_hash)?;
-    // A signed-in reader is counted under their account and an anonymous one
-    // under the address the board already hashes, so a page of posts costs two
-    // queries whatever length it is.
-    let voter = db::voter_key(account_id, Some(&ip_hash));
+    // Scores are public to every reader; only the reader's own pressed arrow
+    // needs an account, so a page of posts costs the same two queries whatever
+    // length it is and whether anyone is signed in or not.
     let post_ids = posts.iter().map(|post| post.id).collect::<Vec<_>>();
-    let vote_map = db::post_vote_views(conn, &post_ids, voter.as_deref())?;
+    let vote_map = db::post_vote_views(conn, &post_ids, account_id)?;
     let votes = post_ids
         .into_iter()
         .map(|id| (id, vote_map.get(&id).copied().unwrap_or_default()))

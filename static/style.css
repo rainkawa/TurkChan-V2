@@ -1431,7 +1431,7 @@ html:not([data-theme]) .profile-name { text-shadow: 0 0 10px rgba(0,255,65,0.4);
   text-transform: uppercase;
 }
 
-/* The score's own breakdown. Three small numbers under one large one, so the
+/* The score's own breakdown. Two small numbers under one large one, so the
    total stays the headline while the parts stay readable. */
 .profile-score-breakdown {
   display: flex;
@@ -1527,6 +1527,9 @@ html:not([data-theme]) .profile-name { text-shadow: 0 0 10px rgba(0,255,65,0.4);
 .post-share-by {
   white-space: nowrap;
 }
+
+/* The share control is drawn only for a signed-in reader, so the strip under a
+   post header belongs to them entirely and is not competing with anything. */
 
 .post-share-by strong {
   color: var(--text);

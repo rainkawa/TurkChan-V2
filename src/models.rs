@@ -611,11 +611,12 @@ pub struct User {
     pub avatar_file: Option<String>,
     /// Short self-description shown on the public profile.
     pub bio: String,
-    /// Accumulated score from votes on this account's posts.
+    /// Net score from votes on this account's posts.
     ///
-    /// The column is the durable home for the vote totals the upvote and
-    /// downvote system will maintain; it stays at zero until that system
-    /// exists, so the profile can already show the field it will fill.
+    /// The column is a cache of the sum of those votes, rewritten from them
+    /// rather than incremented, because a stored number that is nudged up and
+    /// down by each press is a number that can drift. Zero is not a judgement:
+    /// it is an account nobody has voted on.
     pub karma: i64,
     /// Stored staff role, the only thing that grants administration access.
     pub role: crate::roles::UserRole,
@@ -704,10 +705,11 @@ pub struct ProfileThread {
 
 /// Activity totals shown in a profile header.
 ///
-/// The score is split rather than given as one number: every account starts
-/// from the same base, and only the votes its own posts received moved it, so
-/// the header shows the base, what the threads earned, and what the replies
-/// earned beside the total.
+/// The score is split rather than given as one number: a total alone hides
+/// whether a reputation was built out of threads or out of replies, and those
+/// are different kinds of recognition, so the header shows the two parts beside
+/// the total they add up to. There is no base underneath them: the number is
+/// the votes, counted.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ProfileStats {
     /// Threads opened by the account.
@@ -720,9 +722,7 @@ pub struct ProfileStats {
     pub thread_likes: i64,
     /// Net votes the account's replies received.
     pub comment_likes: i64,
-    /// The starting base every account has.
-    pub karma_base: i64,
-    /// Base plus received votes: the number the header leads with.
+    /// Net votes across the account's posts: the number the header leads with.
     pub karma: i64,
 }
 

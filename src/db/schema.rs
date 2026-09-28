@@ -140,10 +140,10 @@ const BASE_SCHEMA_SQL: &str = "
 
     CREATE TABLE IF NOT EXISTS post_votes (
         post_id    INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-        voter_key  TEXT NOT NULL,
+        user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         value      INTEGER NOT NULL,
         created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-        PRIMARY KEY (post_id, voter_key)
+        PRIMARY KEY (post_id, user_id)
     );
 
     CREATE TABLE IF NOT EXISTS bans (
@@ -317,8 +317,8 @@ const INDEX_SCHEMA_SQL: &str = "
         ON user_sessions(expires_at);
     CREATE INDEX IF NOT EXISTS idx_user_sessions_user
         ON user_sessions(user_id);
-    CREATE INDEX IF NOT EXISTS idx_post_votes_voter
-        ON post_votes(voter_key, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_post_votes_user
+        ON post_votes(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_posts_file_path
         ON posts(file_path) WHERE file_path IS NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_posts_thumb_path
@@ -1178,10 +1178,10 @@ const ADDITIVE_USER_TABLES_SQL: &str = "
 
     CREATE TABLE IF NOT EXISTS post_votes (
         post_id    INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-        voter_key  TEXT NOT NULL,
+        user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         value      INTEGER NOT NULL,
         created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-        PRIMARY KEY (post_id, voter_key)
+        PRIMARY KEY (post_id, user_id)
     );
 ";
 

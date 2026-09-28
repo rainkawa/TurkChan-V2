@@ -51,9 +51,6 @@ pub fn init_pool() -> Result<DbPool> {
     // is visible on the site and survives a restart, and a site that already
     // appointed an owner keeps them.
     super::ensure_owner_profile(&conn).context("Failed to grant the site owner role")?;
-    // Accounts made before voting existed sit at zero, which would read as an
-    // account nobody has ever agreed with rather than one nobody has voted on.
-    super::seed_karma_base(&conn).context("Failed to seed account scores")?;
 
     tracing::info!(target: "db", path = db_path, "Database initialised");
     Ok(pool)
