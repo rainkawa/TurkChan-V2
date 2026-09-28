@@ -704,9 +704,10 @@ pub struct ProfileThread {
 
 /// Activity totals shown in a profile header.
 ///
-/// `karma` is the accumulated vote score the upvote and downvote system will
-/// maintain. It reads zero until that system exists so the header already
-/// shows the field it will fill.
+/// The score is split rather than given as one number: every account starts
+/// from the same base, and only the votes its own posts received moved it, so
+/// the header shows the base, what the threads earned, and what the replies
+/// earned beside the total.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ProfileStats {
     /// Threads opened by the account.
@@ -715,7 +716,13 @@ pub struct ProfileStats {
     pub post_count: i64,
     /// Replies written by the account.
     pub reply_count: i64,
-    /// Accumulated vote score.
+    /// Net votes the account's opening posts received.
+    pub thread_likes: i64,
+    /// Net votes the account's replies received.
+    pub comment_likes: i64,
+    /// The starting base every account has.
+    pub karma_base: i64,
+    /// Base plus received votes: the number the header leads with.
     pub karma: i64,
 }
 

@@ -198,6 +198,13 @@ pub(super) fn public_routes() -> Router<AppState> {
             "/vote",
             post(crate::handlers::thread::vote_handler).layer(DefaultBodyLimit::max(65_536)),
         )
+        // A post vote is a one-press action taken where the post already is, so
+        // it posts and is answered with a redirect back to that post rather than
+        // with a page of its own. It is not `/vote`, which is a poll ballot.
+        .route(
+            "/post-vote",
+            post(crate::handlers::votes::cast_vote).layer(DefaultBodyLimit::max(65_536)),
+        )
         .route(
             "/api/post/{board}/{post_id}",
             get(crate::handlers::board::api_post_preview),

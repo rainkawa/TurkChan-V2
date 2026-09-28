@@ -62,6 +62,8 @@ fn render_post_preview(
             allow_editing: false,
             allow_self_delete: false,
             owned_post_controls: None,
+            vote: None,
+            share_by: None,
             show_poster_ids: false,
             collapse_greentext: true,
             thread_state: None,
@@ -298,6 +300,7 @@ pub fn thread_page(
     thread: &Thread,
     posts: &[Post],
     owned_post_controls: &BTreeMap<i64, OwnedPostControls>,
+    votes: &BTreeMap<i64, crate::db::PostVoteView>,
     csrf_token: &str,
     boards: &[Board],
     is_admin: bool,
@@ -316,6 +319,10 @@ pub fn thread_page(
 ) -> String {
     let mut body = String::new();
     let admin_form_csrf = admin_csrf_token.unwrap_or(csrf_token);
+    // A share is attributed to the account that made it. An anonymous reader
+    // has no name to be attributed, so the control says so rather than
+    // borrowing one.
+    let share_by = account.map(|menu| menu.username.clone());
     let admin_toolbar = if is_admin {
         let sticky_action = if thread.sticky {
             ("unsticky", "&#128204; Sabitlemeyi Kaldır")
@@ -460,6 +467,8 @@ pub fn thread_page(
                 } else {
                     owned_post_controls.get(&post.id).cloned()
                 },
+                vote: votes.get(&post.id).copied(),
+                share_by: share_by.clone(),
                 show_poster_ids: board.show_poster_ids,
                 collapse_greentext: board.collapse_greentext,
                 thread_state: Some((thread.sticky, thread.locked, thread.archived)),
@@ -704,6 +713,86 @@ pub struct RenderPostOpts {
     pub thread_op_id: Option<i64>,
     /// Whether video and audio elements start muted.
     pub video_audio_muted: bool,
+    /// The post's score and the viewer's own vote, when voting is available.
+    pub vote: Option<crate::db::PostVoteView>,
+    /// Name the page attributes a share to, when the viewer is signed in.
+    pub share_by: Option<String>,
+}
+
+/// Render one stored tripcode for display.
+///
+/// A normal tripcode is a derived code, and it is shown as it always has been.
+/// A secure tripcode is not derived from anything, so there is no code to show:
+/// it is rendered as a lock with the same prefix, which tells the reader that a
+/// password was claimed without telling them — or anybody reading the page —
+/// anything about it.
+fn render_tripcode(stored: &str) -> String {
+    if stored == crate::utils::tripcode::SECURE_MARKER {
+        return r#"<span class="tripcode tripcode-secure" title="güvenli tripcode: parola gösterilmez">&#128274;</span>"#
+            .to_owned();
+    }
+    format!(r#"<span class="tripcode">!{}</span>"#, escape_html(stored))
+}
+
+/// Render the score and the two press buttons for one post.
+///
+/// Pressing the arrow that is already pressed takes the vote back, so the
+/// pressed button is a way out as well as a way in. The buttons are real forms
+/// and the page is re-rendered after the press, so a reader with scripting off
+/// gets the same result.
+fn render_vote_controls(
+    vote: &crate::db::PostVoteView,
+    post_id: i64,
+    csrf: &str,
+    return_to: &str,
+) -> String {
+    let up_active = vote.upvoted();
+    let down_active = vote.downvoted();
+    format!(
+        r#"<form class="post-vote" method="POST" action="/post-vote">
+<input type="hidden" name="_csrf" value="{csrf}">
+<input type="hidden" name="post_id" value="{post_id}">
+<input type="hidden" name="return_to" value="{return_to}">
+<button type="submit" class="vote-btn vote-up{up_active}" title="Beğen" aria-label="Beğen">&#9650;</button>
+<output class="vote-score" title="Beğeni puanı">{score}</output>
+<button type="submit" class="vote-btn vote-down{down_active}" title="Beğenme" aria-label="Beğenme">&#9660;</button>
+</form>"#,
+        csrf = csrf,
+        post_id = post_id,
+        return_to = escape_html(return_to),
+        up_active = if up_active { " is-active" } else { "" },
+        down_active = if down_active { " is-active" } else { "" },
+        score = vote.score,
+    )
+}
+
+/// Render the share control for one post.
+///
+/// The permalink is shown as text rather than hidden behind a button: a board
+/// is shared by copying a line, and the name beside it is who shared it. A
+/// signed-in reader is named; an anonymous one is told the share is anonymous,
+/// because attributing it to the last account that happened to be signed in
+/// would be a lie.
+fn render_share_control(share_by: Option<&str>, permalink: &str, is_op: bool) -> String {
+    let attribution = share_by.map_or_else(
+        || "anonim paylaşım".to_owned(),
+        |name| format!("<strong>@{name}</strong> paylaştı", name = escape_html(name)),
+    );
+    // An opening post is what a thread is shared by, so it is stated as a share
+    // rather than as a link: the reader is told who passed it on before being
+    // handed the address. A reply keeps the same control in one quiet line.
+    if is_op {
+        return format!(
+            r#"<div class="post-share post-share-op"><span class="post-share-label">konu paylaşımı</span><span class="post-share-by">{attribution}</span><a class="post-share-link" href="{permalink}">{permalink}</a><button type="button" class="post-share-copy" data-action="copy-share-link" data-share-link="{permalink}" data-default-label="kopyala" title="Bağlantıyı kopyala">kopyala</button></div>"#,
+            attribution = attribution,
+            permalink = escape_html(permalink),
+        );
+    }
+    format!(
+        r#"<div class="post-share"><span class="post-share-by">{attribution}</span> <a class="post-share-link" href="{permalink}">{permalink}</a> <button type="button" class="post-share-copy" data-action="copy-share-link" data-share-link="{permalink}" data-default-label="kopyala" title="Bağlantıyı kopyala">kopyala</button></div>"#,
+        attribution = attribution,
+        permalink = escape_html(permalink),
+    )
 }
 
 /// Base64 alphabet used for compact poster identifiers.
@@ -911,6 +1000,8 @@ pub fn render_post(
         thread_state,
         thread_op_id,
         video_audio_muted,
+        vote,
+        share_by,
     } = opts;
     let poster_id = render_poster_id(post, show_poster_ids);
     let poster_id_html = poster_id.as_ref().map_or_else(String::new, |poster_id| {
@@ -922,11 +1013,7 @@ pub fn render_post(
             poster_id = escape_html(poster_id),
         )
     });
-    let tripcode_html = post
-        .tripcode
-        .as_ref()
-        .map(|t| format!(r#"<span class="tripcode">!{}</span>"#, escape_html(t)))
-        .unwrap_or_default();
+    let tripcode_html = post.tripcode.as_deref().map_or_else(String::new, render_tripcode);
 
     let op_class = if post.is_op { " op" } else { " reply" };
     let poster_attr = poster_id.as_ref().map_or_else(String::new, |poster_id| {
@@ -997,6 +1084,27 @@ pub fn render_post(
         post_state_badges = post_state_badges,
         media_processing_badge = media_processing_badge,
     );
+
+    // Score, press buttons, and the share line sit together under the header:
+    // they are what a reader does with a post, and they belong in the same
+    // place on every post whether or not it carries other controls.
+    let permalink = format!("/{board_short}/thread/{tid}#p{pid}",
+        board_short = board_short,
+        tid = post.thread_id,
+        pid = post.id,
+    );
+    let share_html = render_share_control(share_by.as_deref(), &permalink, post.is_op);
+    let vote_html = vote.map_or_else(String::new, |view| {
+        render_vote_controls(&view, post.id, csrf_token, &permalink)
+    });
+    // The score, the press buttons, and the share line sit together under the
+    // header: they are what a reader does with a post, and they belong in the
+    // same place on every post whether or not it carries other controls.
+    html.push_str(&format!(
+        r#"<div class="post-social">{vote_html}{share_html}</div>"#,
+        vote_html = vote_html,
+        share_html = share_html,
+    ));
 
     let primary_media_type = effective_media_type(post);
     let thumb_loading = if post.is_op { "eager" } else { "lazy" };
@@ -1550,9 +1658,10 @@ mod tests {
         }];
 
         let html = thread_page((
-            &board,
-            &thread,
-            &posts,
+        &board,
+        &thread,
+        &posts,
+            &std::collections::BTreeMap::new(),
             &std::collections::BTreeMap::new(),
             "csrf",
             std::slice::from_ref(&board),
@@ -1593,9 +1702,10 @@ mod tests {
         }];
 
         let html = thread_page((
-            &board,
-            &thread,
-            &posts,
+        &board,
+        &thread,
+        &posts,
+            &std::collections::BTreeMap::new(),
             &std::collections::BTreeMap::new(),
             "csrf",
             std::slice::from_ref(&board),
@@ -1633,9 +1743,10 @@ mod tests {
         }];
 
         let html = thread_page((
-            &board,
-            &thread,
-            &posts,
+        &board,
+        &thread,
+        &posts,
+            &std::collections::BTreeMap::new(),
             &std::collections::BTreeMap::new(),
             "public-csrf",
             std::slice::from_ref(&board),
@@ -1677,6 +1788,8 @@ mod tests {
                 allow_editing: false,
                 allow_self_delete: false,
                 owned_post_controls: None,
+                vote: None,
+                share_by: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -1719,6 +1832,8 @@ mod tests {
                 allow_editing: false,
                 allow_self_delete: false,
                 owned_post_controls: None,
+                vote: None,
+                share_by: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -1756,6 +1871,8 @@ mod tests {
                 allow_editing: false,
                 allow_self_delete: false,
                 owned_post_controls: None,
+                vote: None,
+                share_by: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -1790,6 +1907,8 @@ mod tests {
                 allow_editing: false,
                 allow_self_delete: false,
                 owned_post_controls: None,
+                vote: None,
+                share_by: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -1830,6 +1949,8 @@ mod tests {
                 allow_editing: false,
                 allow_self_delete: false,
                 owned_post_controls: None,
+                vote: None,
+                share_by: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -1876,6 +1997,8 @@ mod tests {
                 allow_editing: false,
                 allow_self_delete: false,
                 owned_post_controls: None,
+                vote: None,
+                share_by: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -1906,6 +2029,8 @@ mod tests {
                 allow_editing: false,
                 allow_self_delete: false,
                 owned_post_controls: None,
+                vote: None,
+                share_by: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: Some((true, true, true)),
@@ -1939,6 +2064,8 @@ mod tests {
                 allow_editing: false,
                 allow_self_delete: false,
                 owned_post_controls: None,
+                vote: None,
+                share_by: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -1971,6 +2098,8 @@ mod tests {
                 allow_editing: false,
                 allow_self_delete: false,
                 owned_post_controls: None,
+                vote: None,
+                share_by: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -2009,6 +2138,8 @@ mod tests {
                 allow_editing: false,
                 allow_self_delete: false,
                 owned_post_controls: None,
+                vote: None,
+                share_by: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -2038,6 +2169,8 @@ mod tests {
                 allow_editing: false,
                 allow_self_delete: false,
                 owned_post_controls: None,
+                vote: None,
+                share_by: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -2068,6 +2201,8 @@ mod tests {
                 allow_editing: false,
                 allow_self_delete: false,
                 owned_post_controls: None,
+                vote: None,
+                share_by: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -2090,6 +2225,8 @@ mod tests {
                 allow_editing: false,
                 allow_self_delete: false,
                 owned_post_controls: None,
+                vote: None,
+                share_by: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -2122,6 +2259,8 @@ mod tests {
                 allow_editing: false,
                 allow_self_delete: false,
                 owned_post_controls: None,
+                vote: None,
+                share_by: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -2157,9 +2296,10 @@ mod tests {
         };
 
         let html = thread_page((
-            &board,
-            &thread,
-            &posts,
+        &board,
+        &thread,
+        &posts,
+            &std::collections::BTreeMap::new(),
             &std::collections::BTreeMap::new(),
             "csrf",
             std::slice::from_ref(&board),
@@ -2196,10 +2336,11 @@ mod tests {
         );
 
         let html = thread_page((
-            &board,
-            &sample_thread(),
-            std::slice::from_ref(&post),
+        &board,
+        &sample_thread(),
+        std::slice::from_ref(&post),
             &owned,
+            &std::collections::BTreeMap::new(),
             "csrf",
             std::slice::from_ref(&board),
             false,
@@ -2233,9 +2374,10 @@ mod tests {
         let post = sample_post();
 
         let admin_html = thread_page((
-            &board,
-            &sample_thread(),
-            std::slice::from_ref(&post),
+        &board,
+        &sample_thread(),
+        std::slice::from_ref(&post),
+            &std::collections::BTreeMap::new(),
             &std::collections::BTreeMap::new(),
             "csrf",
             std::slice::from_ref(&board),
@@ -2259,9 +2401,10 @@ mod tests {
         assert!(admin_html.contains(r#"for="ban-delete-duration""#));
 
         let public_html = thread_page((
-            &board,
-            &sample_thread(),
-            std::slice::from_ref(&post),
+        &board,
+        &sample_thread(),
+        std::slice::from_ref(&post),
+            &std::collections::BTreeMap::new(),
             &std::collections::BTreeMap::new(),
             "csrf",
             std::slice::from_ref(&board),
@@ -2292,15 +2435,16 @@ mod tests {
         post.created_at = chrono::Utc::now().timestamp();
 
         let html = thread_page((
-            &board,
-            &sample_thread(),
-            std::slice::from_ref(&post),
+        &board,
+        &sample_thread(),
+        std::slice::from_ref(&post),
             &std::collections::BTreeMap::from([(
                 post.id,
                 OwnedPostControls {
                     expires_at: i64::MAX,
                 },
             )]),
+            &std::collections::BTreeMap::new(),
             "csrf",
             std::slice::from_ref(&board),
             false,
@@ -2374,10 +2518,11 @@ mod tests {
                 ..sample_thread()
             };
             let html = thread_page((
-                &board,
-                &thread,
-                std::slice::from_ref(&post),
+            &board,
+            &thread,
+            std::slice::from_ref(&post),
                 &controls,
+                &std::collections::BTreeMap::new(),
                 "csrf",
                 std::slice::from_ref(&board),
                 false,
@@ -2458,15 +2603,16 @@ mod tests {
         post.edited_at = Some(post.created_at + 5);
 
         let html = thread_page((
-            &board,
-            &sample_thread(),
-            std::slice::from_ref(&post),
+        &board,
+        &sample_thread(),
+        std::slice::from_ref(&post),
             &std::collections::BTreeMap::from([(
                 post.id,
                 OwnedPostControls {
                     expires_at: i64::MAX,
                 },
             )]),
+            &std::collections::BTreeMap::new(),
             "csrf",
             std::slice::from_ref(&board),
             false,
@@ -2485,5 +2631,150 @@ mod tests {
         ));
 
         assert!(!html.contains("(edited"));
+    }
+
+    #[test]
+    /// The two arrows and the score are real form controls, so a reader with
+    /// scripting off votes exactly the same way. The arrow that is already
+    /// pressed is rendered as pressed, and it is the same form that takes the
+    /// vote back: the pressed state is the only difference, and there is no
+    /// third "remove" control to find.
+    fn a_post_shows_its_score_and_which_arrow_is_pressed() {
+        let board = crate::test_fixtures::sample_board();
+        let mut post = sample_post();
+        post.thread_id = 87;
+        let posts = vec![post.clone()];
+        let votes = std::collections::BTreeMap::from([(
+            post.id,
+            crate::db::PostVoteView {
+                score: 7,
+                my_vote: -1,
+            },
+        )]);
+
+        let html = thread_page((
+            &board,
+            &sample_thread(),
+            &posts,
+            &std::collections::BTreeMap::new(),
+            &votes,
+            "csrf",
+            std::slice::from_ref(&board),
+            false,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            false,
+            true,
+            crate::templates::UserPreferences::default(),
+            None,
+            "",
+        ));
+
+        assert!(
+            html.contains(r#"class="post-vote" method="POST" action="/post-vote""#),
+            "voting must work as a form, not only through scripting: {html}"
+        );
+        assert!(
+            html.contains(r#"class="vote-score" title="Beğeni puanı">7<"#),
+            "the score must be shown: {html}"
+        );
+        assert!(
+            html.contains(r#"class="vote-btn vote-down is-active""#),
+            "the pressed arrow must look pressed: {html}"
+        );
+        assert!(
+            html.contains(r#"class="vote-btn vote-up""#),
+            "an unpressed arrow must not look pressed: {html}"
+        );
+    }
+
+    #[test]
+    /// A share is attributed to the account that made it, and the link is shown
+    /// as text rather than hidden behind a button, because a board is shared by
+    /// copying a line. An anonymous reader is told the share is anonymous rather
+    /// than shown a borrowed name, and the opening post carries the thread's
+    /// share while a reply keeps the same control in one quiet line.
+    fn a_share_names_the_account_that_made_it() {
+        let board = crate::test_fixtures::sample_board();
+        let mut op = sample_post();
+        op.is_op = true;
+        op.thread_id = 87;
+        let mut reply = sample_post();
+        reply.id = 2;
+        reply.thread_id = 87;
+        let posts = vec![op, reply];
+        let account = crate::templates::auth::AccountMenu {
+            display_name: "Rain".to_owned(),
+            username: "rainkawa".to_owned(),
+            is_admin: false,
+        };
+
+        let html = thread_page((
+            &board,
+            &sample_thread(),
+            &posts,
+            &std::collections::BTreeMap::new(),
+            &std::collections::BTreeMap::new(),
+            "csrf",
+            std::slice::from_ref(&board),
+            false,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            false,
+            true,
+            crate::templates::UserPreferences::default(),
+            Some(&account),
+            "",
+        ));
+
+        assert!(
+            html.contains("<strong>@rainkawa</strong> paylaştı"),
+            "a share must name the account that made it: {html}"
+        );
+        assert!(
+            html.contains(r#"class="post-share-link" href="/test/thread/87#p1">"#),
+            "the permalink must be shown as text: {html}"
+        );
+        assert!(
+            html.contains("post-share-op"),
+            "the opening post carries the thread's share, so it is marked apart"
+        );
+
+        let anonymous = thread_page((
+            &board,
+            &sample_thread(),
+            &posts,
+            &std::collections::BTreeMap::new(),
+            &std::collections::BTreeMap::new(),
+            "csrf",
+            std::slice::from_ref(&board),
+            false,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            false,
+            true,
+            crate::templates::UserPreferences::default(),
+            None,
+            "",
+        ));
+        assert!(
+            anonymous.contains("anonim paylaşım"),
+            "an anonymous share must not be attributed to nobody in particular: {anonymous}"
+        );
     }
 }

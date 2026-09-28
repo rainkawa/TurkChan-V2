@@ -22,6 +22,7 @@ pub(super) struct ThreadPageData {
     pub poll: Option<PollData>,
     pub is_admin: bool,
     pub owned_post_controls: std::collections::BTreeMap<i64, templates::thread::OwnedPostControls>,
+    pub votes: std::collections::BTreeMap<i64, crate::db::PostVoteView>,
 }
 
 #[must_use]
@@ -37,12 +38,22 @@ pub(super) fn board_page_etag_signature(data: &BoardPageData) -> String {
     hex::encode(hasher.finalize())
 }
 
+/// The page's cache signature.
+///
+/// The scores are part of it because a vote re-renders the page the reader is
+/// already on: a signature that ignored them would let the press be answered
+/// with the page that was already cached, score unchanged, and the button would
+/// look like it had done nothing.
 #[must_use]
 pub(super) fn thread_page_etag_signature(data: &ThreadPageData) -> String {
     let mut hasher = Sha256::new();
     update_thread_signature(&mut hasher, &data.thread);
     for post in &data.posts {
         update_post_signature(&mut hasher, post);
+    }
+    for (post_id, vote) in &data.votes {
+        update_sig_field(&mut hasher, &post_id.to_string());
+        update_sig_field(&mut hasher, &vote.score.to_string());
     }
     if let Some(poll) = &data.poll {
         update_poll_signature(&mut hasher, poll);
@@ -185,6 +196,7 @@ pub(super) fn load_thread_page_data(
     client_ip: &str,
     admin_session_id: Option<&str>,
     cookie_secret: &str,
+    account_id: Option<i64>,
 ) -> Result<ThreadPageData> {
     let is_admin = posting::is_admin_session(conn, admin_session_id);
     let board = db::get_board_by_short(conn, board_short)?
@@ -197,6 +209,16 @@ pub(super) fn load_thread_page_data(
     let posts = db::get_posts_for_thread(conn, thread_id)?;
     let ip_hash = hash_ip(client_ip, cookie_secret);
     let poll = db::get_poll_for_thread(conn, thread_id, &ip_hash)?;
+    // A signed-in reader is counted under their account and an anonymous one
+    // under the address the board already hashes, so a page of posts costs two
+    // queries whatever length it is.
+    let voter = db::voter_key(account_id, Some(&ip_hash));
+    let post_ids = posts.iter().map(|post| post.id).collect::<Vec<_>>();
+    let vote_map = db::post_vote_views(conn, &post_ids, voter.as_deref())?;
+    let votes = post_ids
+        .into_iter()
+        .map(|id| (id, vote_map.get(&id).copied().unwrap_or_default()))
+        .collect();
     Ok(ThreadPageData {
         board,
         thread,
@@ -204,6 +226,7 @@ pub(super) fn load_thread_page_data(
         poll,
         is_admin,
         owned_post_controls: std::collections::BTreeMap::new(),
+        votes,
     })
 }
 
@@ -231,6 +254,7 @@ pub(super) fn render_thread_page(
         &data.thread,
         &data.posts,
         &data.owned_post_controls,
+        &data.votes,
         csrf_token,
         boards.as_ref(),
         data.is_admin,
@@ -254,6 +278,7 @@ mod tests {
     use super::{
         board_page_etag_signature, thread_page_etag_signature, BoardPageData, ThreadPageData,
     };
+    use crate::db::PostVoteView;
     use crate::models::{
         Board, Pagination, Poll, PollData, PollOption, Post, Thread, ThreadSummary,
     };
@@ -365,6 +390,7 @@ mod tests {
             poll: None,
             is_admin: false,
             owned_post_controls: std::collections::BTreeMap::new(),
+            votes: Default::default(),
         };
         let after = ThreadPageData {
             board,
@@ -373,6 +399,7 @@ mod tests {
             poll: None,
             is_admin: false,
             owned_post_controls: std::collections::BTreeMap::new(),
+            votes: Default::default(),
         };
 
         assert_ne!(
@@ -397,6 +424,7 @@ mod tests {
             poll: None,
             is_admin: false,
             owned_post_controls: std::collections::BTreeMap::new(),
+            votes: Default::default(),
         };
 
         pending_post.file_path = Some("test/clip.webm".into());
@@ -410,6 +438,7 @@ mod tests {
             poll: None,
             is_admin: false,
             owned_post_controls: std::collections::BTreeMap::new(),
+            votes: Default::default(),
         };
 
         assert_ne!(
@@ -428,6 +457,7 @@ mod tests {
             poll: Some(sample_poll_data(None, [0, 0])),
             is_admin: false,
             owned_post_controls: std::collections::BTreeMap::new(),
+            votes: Default::default(),
         };
         let after = ThreadPageData {
             board,
@@ -436,6 +466,7 @@ mod tests {
             poll: Some(sample_poll_data(Some(11), [1, 0])),
             is_admin: false,
             owned_post_controls: std::collections::BTreeMap::new(),
+            votes: Default::default(),
         };
 
         assert_ne!(
@@ -454,6 +485,7 @@ mod tests {
             poll: Some(sample_poll_data(None, [1, 0])),
             is_admin: false,
             owned_post_controls: std::collections::BTreeMap::new(),
+            votes: Default::default(),
         };
         let after = ThreadPageData {
             board,
@@ -462,6 +494,7 @@ mod tests {
             poll: Some(sample_poll_data(Some(11), [1, 0])),
             is_admin: false,
             owned_post_controls: std::collections::BTreeMap::new(),
+            votes: Default::default(),
         };
 
         assert_ne!(
@@ -534,6 +567,45 @@ mod tests {
         assert_ne!(
             board_page_etag_signature(&before),
             board_page_etag_signature(&after)
+        );
+    }
+
+    #[test]
+    /// A vote re-renders the page the reader is standing on, so the score has
+    /// to be part of the page's signature. A signature that ignored it would let
+    /// the press be answered with the page that was already cached, and the
+    /// button would appear to have done nothing.
+    fn thread_page_etag_changes_when_a_post_score_changes() {
+        let board = sample_board();
+        let before = ThreadPageData {
+            board: board.clone(),
+            thread: sample_thread(1),
+            posts: vec![sample_post(1)],
+            poll: None,
+            is_admin: false,
+            owned_post_controls: std::collections::BTreeMap::new(),
+            votes: std::collections::BTreeMap::from([(1, PostVoteView::default())]),
+        };
+        let after = ThreadPageData {
+            board,
+            thread: sample_thread(1),
+            posts: vec![sample_post(1)],
+            poll: None,
+            is_admin: false,
+            owned_post_controls: std::collections::BTreeMap::new(),
+            votes: std::collections::BTreeMap::from([(
+                1,
+                PostVoteView {
+                    score: 1,
+                    my_vote: 1,
+                },
+            )]),
+        };
+
+        assert_ne!(
+            thread_page_etag_signature(&before),
+            thread_page_etag_signature(&after),
+            "a changed score must produce a changed page signature"
         );
     }
 }

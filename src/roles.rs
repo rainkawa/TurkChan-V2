@@ -25,6 +25,12 @@ pub const ANGEL_KARMA: i64 = 101;
 pub const LEGEND_KARMA: i64 = 201;
 /// Karma at which an account becomes a God.
 pub const GOD_KARMA: i64 = 451;
+/// The score every account starts from.
+///
+/// A score is a number a board gives an account for existing, not a number it
+/// has to earn from nothing, so an account is not a zero until it has been
+/// voted on. Votes move this number; they do not create it.
+pub const KARMASEED: i64 = 110;
 /// Longest suspension an operator may set, in seconds (30 days).
 ///
 /// A suspension is a temporary measure; anything longer is a ban, which is a
@@ -410,7 +416,7 @@ impl RoleBadge {
 mod tests {
     use super::{
         AccountStatus, Permission, RoleBadge, TrustTier, UserRole,
-        ANGEL_KARMA, GOD_KARMA, LEGEND_KARMA, MAX_SUSPEND_SECS,
+        ANGEL_KARMA, GOD_KARMA, KARMASEED, LEGEND_KARMA, MAX_SUSPEND_SECS,
     };
 
     #[test]
@@ -556,6 +562,13 @@ mod tests {
         }
         assert!(!Verified.is_dark() && !User.is_dark());
         assert!(Banned.is_dark() && God.is_dark());
+    }
+
+    #[test]
+    /// The base score is the number a profile starts from, and it is one
+    /// constant rather than a number repeated by each reader of it.
+    fn the_base_score_is_the_documented_one() {
+        assert_eq!(KARMASEED, 110);
     }
 
     #[test]

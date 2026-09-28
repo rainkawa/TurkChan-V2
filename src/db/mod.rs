@@ -35,6 +35,8 @@ pub mod users;
 mod types;
 /// Anonymous per-thread display preferences.
 mod user_thread_prefs;
+/// Post votes and the account score they add up to.
+pub mod votes;
 
 pub use pool::{first_run_check, has_no_admin, init_pool};
 pub use types::{CachedFile, DbPool, NewPost};
@@ -52,6 +54,7 @@ pub use themes::*;
 pub use threads::*;
 pub use user_thread_prefs::*;
 pub use users::*;
+pub use votes::*;
 
 /// Return the database schema version for the current release baseline.
 #[must_use]

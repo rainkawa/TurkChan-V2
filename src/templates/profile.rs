@@ -160,11 +160,16 @@ fn render_avatar(account: &User) -> String {
     )
 }
 
-/// Render the header with the avatar, names, description, and the two summary
+/// Render the header with the avatar, names, description, and the summary
 /// tiles.
 ///
 /// The score and the account age sit next to each other in one centered row so
-/// they read as a pair rather than as two unrelated corners of the header.
+/// they read as a pair rather than as two unrelated corners of the header. The
+/// score tile breaks its own number apart, because the total alone hides the
+/// only thing a reader can act on: a reputation built out of threads is a
+/// different kind of reputation from one built out of replies, and an account
+/// that has never been posted with should be able to see that both are zero
+/// while its total is not.
 fn render_header(account: &User, stats: &ProfileStats) -> String {
     let bio = if account.bio.trim().is_empty() {
         r#"<p class="profile-bio is-empty">bu hesap henüz bir açıklama eklememiş.</p>"#.to_owned()
@@ -185,7 +190,12 @@ fn render_header(account: &User, stats: &ProfileStats) -> String {
 <div class="profile-metrics">
 <div class="profile-score">
 <span class="profile-score-value">{karma}</span>
-<span class="profile-score-label">beğeni puanı</span>
+<span class="profile-score-label">toplam beğeni</span>
+<span class="profile-score-breakdown">
+<span class="profile-score-part">temel <strong>{base}</strong></span>
+<span class="profile-score-part">konu <strong>{thread_likes}</strong></span>
+<span class="profile-score-part">yorum <strong>{comment_likes}</strong></span>
+</span>
 </div>
 <div class="profile-score">
 <span class="profile-score-value profile-score-value-date">{account_age}</span>
@@ -200,6 +210,9 @@ fn render_header(account: &User, stats: &ProfileStats) -> String {
         bio = bio,
         account_age = escape_html(&fmt_account_age(account.created_at)),
         karma = stats.karma,
+        base = stats.karma_base,
+        thread_likes = stats.thread_likes,
+        comment_likes = stats.comment_likes,
     )
 }
 
@@ -380,7 +393,10 @@ mod tests {
             thread_count: 1,
             post_count: 2,
             reply_count: 1,
-            karma: 3,
+            thread_likes: 1,
+            comment_likes: 2,
+            karma_base: crate::roles::KARMASEED,
+            karma: crate::roles::KARMASEED + 3,
         }
     }
 
@@ -573,8 +589,12 @@ mod tests {
             .and_then(|(_, rest)| rest.split_once(r#"<section class="profile-feed">"#))
             .map_or("", |(metrics, _)| metrics);
         assert!(
-            metrics.contains("beğeni puanı") && metrics.contains("hesap yaşı"),
+            metrics.contains("toplam beğeni") && metrics.contains("hesap yaşı"),
             "the score and the account age should share one centered row: {metrics}"
+        );
+        assert!(
+            metrics.contains("temel") && metrics.contains("konu") && metrics.contains("yorum"),
+            "the score should break into the base, the thread votes, and the reply votes: {metrics}"
         );
         assert!(!html.contains("Katıldı"), "the old join label should be gone");
 

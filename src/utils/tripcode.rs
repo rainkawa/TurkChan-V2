@@ -16,10 +16,41 @@ const TRIPCODE_HASH_BYTES: usize = 8;
 /// Default display name when the user supplies an empty or whitespace-only name.
 const DEFAULT_NAME: &str = "Anonymous";
 
-/// Parse a name field that may contain a tripcode marker (`#`).
+/// Marker written for a tripcode whose secret is not shown.
+///
+/// A secure tripcode claims a capability without disclosing it: the board
+/// records that the poster typed a password, and shows that fact as a lock,
+/// without ever showing a code derived from the password. Nothing derived from
+/// the password is stored or rendered, so there is nothing to correlate across
+/// boards, nothing to crack offline, and nothing to compare two posters by.
+/// The trade is deliberate: a secure tripcode proves to the reader exactly
+/// what a claimed name does, and no more.
+pub const SECURE_MARKER: &str = "!!secure";
+
+/// The marker typed to ask for a secure tripcode.
+const SECURE_PREFIX: &str = "##";
+
+/// Parse a name field that may contain a tripcode marker (`#` or `##`).
+///
+/// `#secret` yields the derived tripcode that has always been shown, and
+/// `##secret` yields the secure kind, which is recorded but never revealed.
 #[must_use]
 pub fn parse_name_tripcode(raw: &str) -> (String, Option<String>) {
     let raw = truncate_to_char_boundary(raw, MAX_RAW_INPUT_LEN);
+
+    // A doubled marker is read before a single one, so `Name##secret` asks for
+    // the secure kind rather than for a normal tripcode of `#secret`. The
+    // derivation of a normal tripcode is untouched by this: a tripcode already
+    // on a post is still the tripcode its author typed.
+    if let Some((name_part, secret)) = raw.split_once(SECURE_PREFIX) {
+        let name_part = name_part.trim();
+        let name = if name_part.is_empty() {
+            DEFAULT_NAME.to_owned()
+        } else {
+            name_part.to_owned()
+        };
+        return (name, (!secret.is_empty()).then(|| SECURE_MARKER.to_owned()));
+    }
 
     if let Some((name_part, password)) = raw.split_once('#') {
         let name_part = name_part.trim();
@@ -278,6 +309,60 @@ mod tests {
             name.as_str(),
             "truncated multibyte name did not round-trip as UTF-8"
         );
+    }
+
+    #[test]
+    fn the_normal_tripcode_derivation_is_unchanged() {
+        // Pinned rather than recomputed: a normal tripcode is already written
+        // on posts that exist, so the derivation behind it cannot move.
+        let (_, trip) = parse_name_tripcode("Anon#password123");
+        assert_eq!(
+            trip.as_deref(),
+            Some("!75K3eLr-dx"),
+            "the seeded normal tripcode derivation must not change"
+        );
+    }
+
+    #[test]
+    fn a_doubled_marker_yields_the_secure_kind_and_discloses_nothing() {
+        let (name, trip) = parse_name_tripcode("Anon##secret");
+        assert_eq!(name, "Anon");
+        assert_eq!(trip.as_deref(), Some(SECURE_MARKER));
+        assert!(
+            !SECURE_MARKER.contains("secret"),
+            "the secure marker must not carry any part of the secret"
+        );
+    }
+
+    #[test]
+    fn the_secure_kind_is_not_derived_and_so_cannot_be_correlated() {
+        let (_, first) = parse_name_tripcode("A##same-secret");
+        let (_, second) = parse_name_tripcode("B##same-secret");
+        assert_eq!(
+            first, second,
+            "the same secret must not produce a comparable code, or boards could correlate it"
+        );
+        let (_, normal) = parse_name_tripcode("A#same-secret");
+        assert_ne!(first, normal);
+    }
+
+    #[test]
+    fn an_empty_secure_secret_yields_no_tripcode() {
+        let (name, trip) = parse_name_tripcode("Anon##");
+        assert_eq!(name, "Anon");
+        assert!(trip.is_none(), "an empty secret produces no tripcode");
+    }
+
+    #[test]
+    fn the_secure_marker_is_unambiguous_against_a_derived_tripcode() {
+        let (_, normal) = parse_name_tripcode("Anon#secret");
+        let body = normal.as_deref().unwrap_or_default();
+        assert_eq!(body.len(), 1 + TRIPCODE_ENCODED_LEN);
+        assert!(
+            !body.starts_with("!"),
+            "a derived tripcode is stored without its own marker in this module"
+        );
+        assert_ne!(SECURE_MARKER, body);
     }
 
     #[test]

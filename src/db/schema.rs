@@ -138,6 +138,14 @@ const BASE_SCHEMA_SQL: &str = "
         expires_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS post_votes (
+        post_id    INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+        voter_key  TEXT NOT NULL,
+        value      INTEGER NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        PRIMARY KEY (post_id, voter_key)
+    );
+
     CREATE TABLE IF NOT EXISTS bans (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         ip_hash    TEXT NOT NULL,
@@ -309,6 +317,8 @@ const INDEX_SCHEMA_SQL: &str = "
         ON user_sessions(expires_at);
     CREATE INDEX IF NOT EXISTS idx_user_sessions_user
         ON user_sessions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_post_votes_voter
+        ON post_votes(voter_key, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_posts_file_path
         ON posts(file_path) WHERE file_path IS NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_posts_thumb_path
@@ -1165,6 +1175,14 @@ const ADDITIVE_USER_TABLES_SQL: &str = "
         created_at INTEGER NOT NULL DEFAULT (unixepoch()),
         expires_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS post_votes (
+        post_id    INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+        voter_key  TEXT NOT NULL,
+        value      INTEGER NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        PRIMARY KEY (post_id, voter_key)
+    );
 ";
 
 /// Install the anonymous-account tables on a database that predates them.
@@ -1175,7 +1193,7 @@ fn create_additive_user_tables(conn: &rusqlite::Connection) -> Result<()> {
 
 /// Return whether a missing table is one the additive repair path installs.
 fn is_additive_user_table(name: &str) -> bool {
-    matches!(name, "users" | "user_sessions")
+    matches!(name, "users" | "user_sessions" | "post_votes")
 }
 
 /// Columns appended to an existing table after the original release baseline.

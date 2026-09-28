@@ -94,6 +94,11 @@ pub(in crate::server) async fn view_thread(
         }
     };
 
+    // The viewer is resolved for the score and the share attribution only. A
+    // suspended account can still read the board, so this asks who they are
+    // rather than whether they are allowed to post.
+    let account_id = crate::handlers::auth::current_account_id(&state, &jar)?;
+
     let page_data = tokio::task::spawn_blocking({
         let pool = state.db.clone();
         let board_short = board_short.clone();
@@ -107,6 +112,7 @@ pub(in crate::server) async fn view_thread(
                 &identity_key,
                 admin_session_id.as_deref(),
                 &CONFIG.cookie_secret,
+                account_id,
             )?;
             let is_admin = page_data.is_admin;
             let thread_badges_enabled = db::get_thread_new_reply_badges_enabled(&conn);
@@ -469,6 +475,7 @@ pub(in crate::server) async fn post_reply(
                     &identity_key_err,
                     admin_session_err.as_deref(),
                     &CONFIG.cookie_secret,
+                    account_id,
                 )?;
                 let admin_csrf_for_error = if page_data.is_admin {
                     admin_session_err.as_deref().map(|session_id| {

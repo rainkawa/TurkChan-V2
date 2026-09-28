@@ -267,6 +267,41 @@ function initTorCopyButtons(root) {
 
 initTorCopyButtons(document);
 
+// Post share controls: the permalink is already on the page as text, so the
+// button only has to put it on the clipboard. Delegated because posts arrive
+// and leave as the thread autoupdates.
+function initPostShareCopy() {
+  document.addEventListener('click', function (e) {
+    var button = e.target.closest('[data-action="copy-share-link"]');
+    if (!button) return;
+    e.preventDefault();
+
+    var link = button.getAttribute('data-share-link') || '';
+    if (!link) return;
+    link = link.charAt(0) === '/' ? window.location.origin + link : link;
+
+    var defaultText = button.getAttribute('data-default-label') || button.textContent;
+    var resetTimer = null;
+    function setLabel(text, copied) {
+      button.textContent = text;
+      button.classList.toggle('is-copied', !!copied);
+      window.clearTimeout(resetTimer);
+      resetTimer = window.setTimeout(function () {
+        button.textContent = defaultText;
+        button.classList.remove('is-copied');
+      }, 1800);
+    }
+
+    copyTextToClipboard(link).then(function () {
+      setLabel('kopyalandı', true);
+    }).catch(function () {
+      setLabel('kopyalanamadı', false);
+    });
+  });
+}
+
+initPostShareCopy();
+
 // Localize post timestamps to device timezone
 function padTwoDigits(value) {
   value = String(value);

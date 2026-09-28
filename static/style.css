@@ -1431,6 +1431,152 @@ html:not([data-theme]) .profile-name { text-shadow: 0 0 10px rgba(0,255,65,0.4);
   text-transform: uppercase;
 }
 
+/* The score's own breakdown. Three small numbers under one large one, so the
+   total stays the headline while the parts stay readable. */
+.profile-score-breakdown {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.profile-score-part {
+  display: inline-flex;
+  gap: 3px;
+  align-items: baseline;
+  white-space: nowrap;
+}
+
+.profile-score-part strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Votes and sharing sit together under a post header: what a reader does with
+   a post, in one quiet strip rather than scattered around the post body. */
+.post-social {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin: 6px 0 2px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.78rem;
+}
+
+.post-vote {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.vote-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 3px 7px;
+  transition: color .12s ease, background .12s ease, border-color .12s ease;
+}
+
+.vote-btn:hover {
+  color: var(--text);
+  background: var(--bg-op);
+  border-color: var(--border);
+}
+
+/* The pressed arrow is the way back out of a vote, so it has to look pressed
+   without looking like a disabled control. */
+.vote-up.is-active {
+  color: var(--green-bright);
+  background: color-mix(in srgb, var(--green) 16%, transparent);
+  border-color: color-mix(in srgb, var(--green) 45%, transparent);
+}
+
+.vote-down.is-active {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 16%, transparent);
+  border-color: color-mix(in srgb, var(--red) 45%, transparent);
+}
+
+.vote-score {
+  min-width: 2.2rem;
+  text-align: center;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.post-share {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-dim);
+}
+
+.post-share-by {
+  white-space: nowrap;
+}
+
+.post-share-by strong {
+  color: var(--text);
+}
+
+/* An opening post is what a thread is shared by, so its share line is stated
+   as a share and given a marker, rather than blending into the replies. */
+.post-share-op {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-op);
+}
+
+.post-share-label {
+  color: var(--green);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.post-share-link {
+  font-family: var(--font);
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.post-share-copy {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  white-space: nowrap;
+  transition: color .12s ease, border-color .12s ease;
+}
+
+.post-share-copy:hover {
+  color: var(--green-bright);
+  border-color: var(--green-dim);
+}
+
+.post-share-copy.is-copied {
+  color: var(--green-bright);
+  border-color: var(--green);
+}
+
 .profile-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -2190,6 +2336,22 @@ html.no-js .post-form-wrap {
 .tripcode {
   color: var(--amber);
   font-size: 0.78rem;
+}
+
+/* A secure tripcode has no code to show, so it is a lock rather than a code.
+   Same colour as a normal tripcode: the reader should not be able to tell from
+   the styling alone which kind a poster chose. */
+.tripcode-secure {
+  font-size: 0.82rem;
+}
+
+/* The name field is where a tripcode is asked for, so the markers sit next to
+   it rather than in a help page nobody opens. */
+.tripcode-hint {
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  margin-left: 6px;
+  white-space: nowrap;
 }
 
 .poster-id-btn {

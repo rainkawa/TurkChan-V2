@@ -305,7 +305,8 @@ pub(super) fn new_thread_form(
   <input type="hidden" name="submission_token" value="{submission_token}">
   <table>
     <tr><td><label for="thread-name">ad</label></td>
-        <td><label class="post-form-mobile-label" for="thread-name">Ad</label><input type="text" id="thread-name" name="name" value="{name_value}" placeholder="Anonim" maxlength="64"></td></tr>
+        <td><label class="post-form-mobile-label" for="thread-name">Ad</label><input type="text" id="thread-name" name="name" value="{name_value}" placeholder="Anonim" maxlength="64">
+            <span class="tripcode-hint" title="Adın sonuna #gizli yazarsan görünen bir tripcode oluşur, ##gizli yazarsan parolan gösterilmez.">#gizli &#183; ##gizli</span></td></tr>
     <tr><td><label for="thread-subject">konu</label></td>
         <td><label class="post-form-mobile-label" for="thread-subject">Konu</label><input type="text" id="thread-subject" name="subject" value="{subject_value}" maxlength="128">
             <button type="submit">konuyu gönder</button></td></tr>
@@ -419,7 +420,8 @@ pub(super) fn reply_form(
   <input type="hidden" name="submission_token" value="{submission_token}">
   <table>
     <tr><td><label for="reply-name">ad</label></td>
-        <td><label class="post-form-mobile-label" for="reply-name">Ad</label><input type="text" id="reply-name" name="name" value="{name_value}" placeholder="Anonim" maxlength="64"></td></tr>
+        <td><label class="post-form-mobile-label" for="reply-name">Ad</label><input type="text" id="reply-name" name="name" value="{name_value}" placeholder="Anonim" maxlength="64">
+            <span class="tripcode-hint" title="Adın sonuna #gizli yazarsan görünen bir tripcode oluşur, ##gizli yazarsan parolan gösterilmez.">#gizli &#183; ##gizli</span></td></tr>
     <tr><td><label for="reply-body">gövde</label></td>
         <td><label class="post-form-mobile-label" for="reply-body">Gövde</label><textarea id="reply-body" name="body" rows="4" maxlength="4096">{body_value}</textarea>
             <button type="submit">yanıtı gönder</button></td></tr>

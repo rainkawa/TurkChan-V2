@@ -13,6 +13,7 @@ pub(crate) mod posting;
 pub(crate) mod render;
 pub(crate) mod setup;
 pub(crate) mod thread;
+pub(crate) mod votes;
 
 // Shared multipart form parsing
 // Both create_thread and post_reply parse the same multipart fields.

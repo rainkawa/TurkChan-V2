@@ -59,9 +59,16 @@ pub fn create_user(
 ) -> Result<i64> {
     let id: i64 = conn
         .query_row(
-            "INSERT INTO users (username, display_name, password_hash, avatar_file, bio)
-             VALUES (?1, ?2, ?3, ?4, ?5) RETURNING id",
-            params![username, display_name, password_hash, avatar_file, bio],
+            "INSERT INTO users (username, display_name, password_hash, avatar_file, bio, karma)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6) RETURNING id",
+            params![
+                username,
+                display_name,
+                password_hash,
+                avatar_file,
+                bio,
+                crate::roles::KARMASEED
+            ],
             |row| row.get(0),
         )
         .context("Failed to create user account")?;
@@ -98,9 +105,15 @@ pub fn ensure_admin_profile(conn: &rusqlite::Connection, admin_name: &str) -> Re
     }
     let unusable_hash = admin_profile_password_hash()?;
     conn.execute(
-        "INSERT INTO users (username, display_name, password_hash, avatar_file, bio)
-         VALUES (?1, ?2, ?3, NULL, ?4)",
-        params![username, admin_name.trim(), unusable_hash, ADMIN_PROFILE_BIO],
+        "INSERT INTO users (username, display_name, password_hash, avatar_file, bio, karma)
+         VALUES (?1, ?2, ?3, NULL, ?4, ?5)",
+        params![
+            username,
+            admin_name.trim(),
+            unusable_hash,
+            ADMIN_PROFILE_BIO,
+            crate::roles::KARMASEED
+        ],
     )
     .context("Failed to create the administrator's profile")?;
     tracing::info!(target: "db", %username, "Created the administrator's board profile");
@@ -558,8 +571,11 @@ pub fn link_post_to_account(
 /// would keep a deleted post visible as a tab badge that the listing below
 /// refuses to show.
 ///
-/// `karma` mirrors `users.karma`, the column the upvote and downvote system
-/// will maintain. It reads zero until that system exists.
+/// The score is read from the votes the account's own posts received, and split
+/// by post kind, so the header can show what the threads earned apart from what
+/// the replies earned. It is never read from `users.karma`: that column is a
+/// cache of the same number, and a header that could disagree with it is worse
+/// than no cache at all.
 ///
 /// # Errors
 /// Returns an error if the database query fails.
@@ -585,20 +601,15 @@ pub fn profile_stats(conn: &rusqlite::Connection, user_id: i64) -> Result<Profil
             |row| row.get(0),
         )
         .context("Failed to count account threads")?;
-    let karma: i64 = conn
-        .query_row(
-            "SELECT karma FROM users WHERE id = ?1",
-            params![user_id],
-            |row| row.get(0),
-        )
-        .optional()
-        .context("Failed to read account score")?
-        .unwrap_or(0);
+    let breakdown = super::votes::karma_breakdown(conn, user_id)?;
     Ok(ProfileStats {
         thread_count,
         post_count,
         reply_count,
-        karma,
+        thread_likes: breakdown.thread_likes,
+        comment_likes: breakdown.comment_likes,
+        karma_base: breakdown.base(),
+        karma: breakdown.total(),
     })
 }
 
@@ -894,7 +905,10 @@ mod tests {
         let account = find_user_by_username(&conn, "anon")?
             .context("the existing account should survive the profile migration")?;
         assert_eq!(account.bio, "", "an appended bio column starts empty");
-        assert_eq!(account.karma, 0);
+        assert_eq!(
+            account.karma, 0,
+            "the migration must not rewrite an existing row's score; the startup seed moves it onto the base"
+        );
         assert!(conn.query_row(
             "SELECT EXISTS (SELECT 1 FROM posts WHERE id = 1 AND body = 'ilk gonderi')",
             [],
