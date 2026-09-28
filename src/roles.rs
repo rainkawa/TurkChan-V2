@@ -284,7 +284,7 @@ impl AccountStatus {
     /// and nobody has to remember to clear it.
     #[must_use]
     pub const fn effective(self, suspended_until: Option<i64>, now: i64) -> Self {
-        if self == Self::Banned {
+        if matches!(self, Self::Banned) {
             return Self::Banned;
         }
         match suspended_until {
