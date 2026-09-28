@@ -96,7 +96,7 @@ fn acting_staff(conn: &rusqlite::Connection, jar: &CookieJar) -> Result<ActingSt
 
 /// Query params accepted by the listing.
 #[derive(Deserialize)]
-struct UsersQuery {
+pub(in crate::server) struct UsersQuery {
     /// Page number, one-based.
     #[serde(default)]
     page: Option<i64>,
@@ -110,7 +110,7 @@ struct UsersQuery {
 
 /// Form for renaming an account.
 #[derive(Deserialize)]
-struct RenameForm {
+pub(in crate::server) struct RenameForm {
     /// Row the action applies to.
     user_id: i64,
     /// Name shown on posts and profiles.
@@ -123,7 +123,7 @@ struct RenameForm {
 
 /// Form for setting a new password.
 #[derive(Deserialize)]
-struct PasswordForm {
+pub(in crate::server) struct PasswordForm {
     /// Row the action applies to.
     user_id: i64,
     /// Replacement password, typed into a field that is never echoed back.
@@ -134,7 +134,7 @@ struct PasswordForm {
 
 /// Form for changing a staff role.
 #[derive(Deserialize)]
-struct RoleForm {
+pub(in crate::server) struct RoleForm {
     /// Row the action applies to.
     user_id: i64,
     /// Requested role name.
@@ -145,7 +145,7 @@ struct RoleForm {
 
 /// Form for suspending an account for a while.
 #[derive(Deserialize)]
-struct SuspendForm {
+pub(in crate::server) struct SuspendForm {
     /// Row the action applies to.
     user_id: i64,
     /// How long to suspend for, in hours.
@@ -156,7 +156,7 @@ struct SuspendForm {
 
 /// Form for an action that only names its target.
 #[derive(Deserialize)]
-struct UserActionForm {
+pub(in crate::server) struct UserActionForm {
     /// Row the action applies to.
     user_id: i64,
     #[serde(rename = "_csrf")]

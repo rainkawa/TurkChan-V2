@@ -7,7 +7,8 @@
 
 use crate::models::{Pagination, User};
 use crate::roles::{AccountStatus, Permission, RoleBadge, UserRole, MAX_SUSPEND_SECS};
-use crate::templates::{base_layout, escape_html, render_pagination, urlencoding_simple};
+use crate::templates::{base_layout, render_pagination, urlencoding_simple};
+use crate::utils::sanitize::escape_html;
 use chrono::TimeZone as _;
 use std::fmt::Write as _;
 
