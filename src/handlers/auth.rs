@@ -766,7 +766,7 @@ pub(crate) async fn login_submit(
         }
     })
     .await
-    .map_err(|e| AppError::Internal(anyhow::anyhow!(e))??;
+    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
     if banned {
         return Ok(render_login_failure(
             jar,
