@@ -71,10 +71,20 @@ Start with the narrowest test that covers the change. The repository's baseline
 Rust checks are:
 
 ```sh
+python3 scripts/check-struct-literals.py $(git ls-files '*.rs')
 cargo fmt --all --check
 cargo clippy --locked --workspace --all-targets --all-features
 cargo test --locked --workspace --all-features
 ```
+
+`scripts/check-struct-literals.py` needs no toolchain and runs first, because
+the two errors it looks for are the two a reviewer cannot see: a struct literal
+that no longer names every field of its struct, and two modules re-exporting the
+same name through a glob. Both have shipped from this tree. The second one is
+worth running first in particular, because the compiler reports it as an
+ambiguous glob rather than as the duplicate name that caused it, and because
+Rust stops type-checking a crate partway through — a first build can show one
+missing-field error where the next one, after that is fixed, shows three more.
 
 Use a local Playwright harness for public UI, admin UI, media, backup and restore,
 moderation, Tor/proxy, and no-JavaScript changes. Browser-test infrastructure is

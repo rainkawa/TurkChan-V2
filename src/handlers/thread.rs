@@ -1244,7 +1244,7 @@ pub(in crate::server) async fn vote_handler(
             let (poll_id, thread_id, board_short) = db::get_poll_context(&conn, option_id)?
                 .ok_or_else(|| AppError::NotFound("Poll option not found.".into()))?;
 
-            let recorded = db::cast_vote(&conn, poll_id, option_id, &ip_hash)?;
+            let recorded = db::cast_poll_vote(&conn, poll_id, option_id, &ip_hash)?;
             if !recorded {
                 return Err(AppError::BadRequest(
                     "This poll has closed or you have already voted.".into(),
@@ -1444,6 +1444,11 @@ pub(in crate::server) async fn thread_updates(
                         thread_state: None,
                         thread_op_id: thread.op_id,
                         video_audio_muted: user_preferences.video_audio_muted,
+                        // No user controls in auto-appended HTML, and a
+                        // full reload restores them along with the viewer's
+                        // own score and pressed arrow.
+                        vote: None,
+                        share_by: None,
                     },
                     0,
                 ));
@@ -1472,6 +1477,11 @@ pub(in crate::server) async fn thread_updates(
                                 thread_state: Some((thread.sticky, thread.locked, thread.archived)),
                                 thread_op_id: thread.op_id,
                                 video_audio_muted: user_preferences.video_audio_muted,
+                                // No user controls in auto-appended HTML, and a
+                                // full reload restores them along with the
+                                // viewer's own score and pressed arrow.
+                                vote: None,
+                                share_by: None,
                             },
                             0,
                         ),

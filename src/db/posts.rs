@@ -1111,13 +1111,13 @@ pub fn get_poll_for_thread(
 ///   1. The voter has already voted (UNIQUE constraint fires INSERT OR IGNORE)
 ///   2. The option does not belong to the poll, or the poll has expired
 ///
-/// Callers that need to distinguish these cases should call `cast_vote` and, on
-/// false, separately query whether the IP has voted on this poll. A future
-/// refactor could return a tri-state enum instead.
+/// Callers that need to distinguish these cases should call `cast_poll_vote`
+/// and, on false, separately query whether the IP has voted on this poll. A
+/// future refactor could return a tri-state enum instead.
 ///
 /// # Errors
 /// Returns an error if the database operation fails.
-pub fn cast_vote(
+pub fn cast_poll_vote(
     conn: &rusqlite::Connection,
     poll_id: i64,
     option_id: i64,
@@ -2644,7 +2644,7 @@ pub fn delete_file_hash_by_path(conn: &rusqlite::Connection, file_path: &str) ->
 #[cfg(test)]
 mod tests {
     use super::{
-        acknowledge_failed_background_jobs, background_job_summary, cast_vote, claim_next_job,
+        acknowledge_failed_background_jobs, background_job_summary, cast_poll_vote, claim_next_job,
         complete_job, count_posts_by_media_processing_state, count_search_results, get_post,
         get_post_submission, get_posts_for_thread, is_stale_media_target_error, persist_media_job,
         recent_background_jobs, record_post_submission, recover_interrupted_background_jobs,
@@ -3965,7 +3965,7 @@ mod tests {
         clippy::panic_in_result_fn,
         reason = "test assertions intentionally panic on failure"
     )]
-    fn cast_vote_enforces_expiry_and_option_membership_in_the_insert() -> Result<()> {
+    fn a_ballot_is_refused_once_expired_or_for_another_polls_option() -> Result<()> {
         let conn = test_conn()?;
         let board_id = create_board(&conn, "poll", "Poll", "", false)?;
         let thread_id: i64 = conn.query_row(
@@ -4003,17 +4003,17 @@ mod tests {
             |row| row.get(0),
         )?;
 
-        assert!(cast_vote(&conn, open_poll, open_option, "viewer")?);
+        assert!(cast_poll_vote(&conn, open_poll, open_option, "viewer")?);
         assert!(
-            !cast_vote(&conn, open_poll, open_option, "viewer")?,
+            !cast_poll_vote(&conn, open_poll, open_option, "viewer")?,
             "a duplicate vote should not be inserted"
         );
         assert!(
-            !cast_vote(&conn, open_poll, expired_option, "other")?,
+            !cast_poll_vote(&conn, open_poll, expired_option, "other")?,
             "an option from another poll should not be inserted"
         );
         assert!(
-            !cast_vote(&conn, expired_poll, expired_option, "late")?,
+            !cast_poll_vote(&conn, expired_poll, expired_option, "late")?,
             "an expired poll should reject the vote in the write statement"
         );
         Ok(())

@@ -312,6 +312,11 @@ pub(in crate::server) async fn api_post_preview(
                             thread_state: None,
                             thread_op_id: None,
                             video_audio_muted: user_preferences.video_audio_muted,
+                            // This is a read-only preview fetched as JSON: the
+                            // reader's own vote and the share attribution are
+                            // resolved on the thread page, not here.
+                            vote: None,
+                            share_by: None,
                         },
                         0, // no edit window
                     );
