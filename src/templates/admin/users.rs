@@ -15,6 +15,7 @@ use std::fmt::Write as _;
 ///
 /// The password hash is deliberately absent: the section can rename an account
 /// and replace its credential, but it never reads one.
+#[derive(Debug)]
 pub struct AdminUserRow {
     /// The account being listed.
     pub account: User,
@@ -43,6 +44,7 @@ impl AdminUserRow {
 }
 
 /// Everything the section renders.
+#[derive(Debug)]
 pub struct AdminUsersView<'a> {
     /// Accounts on this page, already filtered and paginated.
     pub rows: &'a [AdminUserRow],
