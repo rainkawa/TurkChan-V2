@@ -536,3 +536,112 @@ pub fn account_settings_page(
         account_menu_html,
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        account_settings_page, AccountSettings, AccountSettingsNotice, AccountSettingsTokens,
+    };
+    use crate::templates::UserPreferences;
+
+    /// The account the settings screen renders for an ordinary member.
+    fn settings() -> AccountSettings {
+        AccountSettings {
+            display_name: "Anonim".to_owned(),
+            username: "anon".to_owned(),
+            bio: "selam".to_owned(),
+            user_id: 7,
+            has_avatar: false,
+            can_change_password: true,
+        }
+    }
+
+    /// Render the screen for a given account and notice.
+    fn render(account: &AccountSettings, notice: &AccountSettingsNotice) -> String {
+        account_settings_page(
+            account,
+            &[],
+            None,
+            UserPreferences::default(),
+            &AccountSettingsTokens {
+                layout: "layout-token".to_owned(),
+                form: "form-token".to_owned(),
+            },
+            "",
+            notice,
+        )
+    }
+
+    #[test]
+    /// Each form posts to the path that edits it. These two strings are the
+    /// contract with the route table: a form renamed without its route hands a
+    /// visitor a 404 the moment they press save.
+    fn settings_forms_post_to_the_paths_the_router_registers() {
+        let html = render(&settings(), &AccountSettingsNotice::empty());
+        assert!(
+            html.contains(
+                r#"method="POST" action="/account/profile" enctype="multipart/form-data">"#
+            ),
+            "the picture, names, and description post as one multipart form"
+        );
+        assert!(
+            html.contains(r#"method="POST" action="/account/password">"#),
+            "the password keeps its own form so a mistyped one costs nothing else"
+        );
+    }
+
+    #[test]
+    /// The saved values come back into the form escaped, so a rejected
+    /// submission re-renders without losing them and without running them as
+    /// markup.
+    fn settings_form_echoes_the_saved_values_escaped() {
+        let mut account = settings();
+        account.display_name = "Anon & <b>im</b>".to_owned();
+        account.bio = "satir & <script>".to_owned();
+        let html = render(&account, &AccountSettingsNotice::empty());
+
+        assert!(
+            html.contains(r#"value="Anon &amp; &lt;b&gt;im&lt;/b&gt;""#),
+            "the display name is escaped into its value"
+        );
+        assert!(
+            html.contains(r#"maxlength="280">satir &amp; &lt;script&gt;</textarea>"#),
+            "the description is escaped into the textarea"
+        );
+    }
+
+    #[test]
+    /// The settings forms carry the account-scoped token and the shared layout
+    /// carries the site-wide one, so neither borrows the other's scope.
+    fn settings_forms_and_layout_carry_their_own_csrf_tokens() {
+        let html = render(&settings(), &AccountSettingsNotice::empty());
+        assert_eq!(
+            html.matches(r#"name="_csrf" value="form-token""#).count(),
+            2,
+            "both settings forms carry the account-scoped token"
+        );
+        assert!(
+            html.contains(r#"<input type="hidden" id="csrf_global" value="layout-token">"#),
+            "the shared layout carries the site-wide token instead"
+        );
+    }
+
+    #[test]
+    /// An operator's credential lives in `admin_users`, so the screen shows a
+    /// note where the password form would be rather than a control that cannot
+    /// take effect.
+    fn settings_screen_replaces_the_password_form_for_an_operator() {
+        let mut account = settings();
+        account.can_change_password = false;
+        let html = render(&account, &AccountSettingsNotice::failed("Parola hatali."));
+
+        assert!(
+            !html.contains(r#"action="/account/password""#),
+            "an operator is not offered a password form at all"
+        );
+        assert!(
+            html.contains(r#"<p class="account-notice is-error" role="alert">"#),
+            "a rejected submission is announced as an error"
+        );
+    }
+}

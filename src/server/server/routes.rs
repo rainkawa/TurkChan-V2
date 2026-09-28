@@ -97,13 +97,16 @@ pub(super) fn public_routes() -> Router<AppState> {
             "/auth/avatar/{user_id}",
             get(crate::handlers::auth::serve_avatar),
         )
-        // The account menu's "Profili Düzenle" entry. The picture travels with
-        // the profile form, so that route accepts one multipart upload, while
-        // the password form stays a small urlencoded post of its own.
+        // The account menu's "Profili Düzenle" entry. The screen renders one
+        // form per thing it edits, and every form posts to the path that edits
+        // it, so a screen that grows a third form gains a third route here
+        // rather than another method on the page route.
+        .route("/account/edit", get(crate::handlers::auth::account_edit_page))
         .route(
-            "/account/edit",
-            get(crate::handlers::auth::account_edit_page)
-                .post(crate::handlers::auth::account_profile_submit)
+            "/account/profile",
+            post(crate::handlers::auth::account_profile_submit)
+                // The picture travels with the profile form, so this is the
+                // one route that accepts a multipart upload.
                 .layer(DefaultBodyLimit::max(3 * 1024 * 1024)),
         )
         .route(
@@ -1334,6 +1337,71 @@ mod tests {
             refresh.contains("Unrecognized+format"),
             "refresh should identify the invalid archive format"
         );
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "assertion failures are the intended failure mechanism for this route test"
+    )]
+    /// Every path the account settings screen posts to is a routed path.
+    ///
+    /// The screen writes its own form actions, so an action the route table
+    /// never registered is invisible until a visitor presses save and gets a
+    /// 404 instead of a confirmation. These three requests are the ones the
+    /// screen makes, and each has to reach its handler far enough to be turned
+    /// away for being unsigned rather than for not existing.
+    async fn account_settings_form_actions_are_routed() -> TestResult {
+        let app = public_routes().with_state(crate::test_support::app_state());
+
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/account/edit")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_ne!(
+            response.status(),
+            StatusCode::NOT_FOUND,
+            "GET /account/edit is the path the account menu links to"
+        );
+
+        // A real multipart body, so the profile form's extractor accepts the
+        // request and the rejection comes from the handler's own checks.
+        let boundary = "rustchan-account-settings";
+        let body = format!(
+            "--{boundary}\r\nContent-Disposition: form-data; name=\"_csrf\"\r\n\r\ntoken\r\n--{boundary}--\r\n"
+        );
+        for (uri, content_type) in [
+            (
+                "/account/profile",
+                format!("multipart/form-data; boundary={boundary}"),
+            ),
+            (
+                "/account/password",
+                "application/x-www-form-urlencoded".to_owned(),
+            ),
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri(uri)
+                        .header(header::CONTENT_TYPE, content_type)
+                        .body(Body::from(body.clone()))?,
+                )
+                .await?;
+            assert_ne!(
+                response.status(),
+                StatusCode::NOT_FOUND,
+                "{uri} is an action the settings form posts to, so it has to be routed"
+            );
+        }
         Ok(())
     }
 }

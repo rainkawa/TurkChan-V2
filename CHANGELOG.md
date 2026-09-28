@@ -23,6 +23,7 @@ All notable changes to TurkChan will be documented in this file.
 
 - Fixed deleted posts remaining visible in a profile's post history; the listing and its tab totals now skip any post whose thread no longer exists.
 - Fixed the header account button disappearing when entering a board, and stopped a cached signed-out page from being revalidated as a signed-in one by adding the account identity to the board, catalog, and thread `ETag`s.
+- Fixed the account settings screen answering 404 on save. The profile form posts to `/account/profile` but the handler had been registered as a second method on the page route at `/account/edit`, so the action the form names was not a path the router knew. The picture, display name, username, and description now have their own route, matching the password form, and the route table and the screen each pin the other's paths so a renamed form cannot ship again.
 
 ## TurkChan 1.4.1
 
