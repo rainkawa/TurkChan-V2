@@ -493,7 +493,7 @@ pub fn list_conversations(
                               ORDER BY last.id DESC LIMIT 1), ''),
                     COALESCE((SELECT created_at FROM direct_messages AS last
                               WHERE last.conversation_id = c.id
-                              ORDER BY last.id DESC LIMIT 1), c.created_at),
+                              ORDER BY last.id DESC LIMIT 1), c.created_at) AS last_at,
                     (SELECT COUNT(*) FROM direct_messages AS unread
                      WHERE unread.conversation_id = c.id
                        AND unread.created_at > member.last_read_at

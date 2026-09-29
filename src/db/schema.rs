@@ -826,6 +826,17 @@ pub(super) fn normalize_database_schema_version(conn: &rusqlite::Connection) -> 
         }
     }
     repair_known_legacy_baseline_drift(conn)?;
+    // The account tables are created here whatever the recorded version is,
+    // not only on the versions the drift repair recognises. Shape verification
+    // already tolerates their absence, so a database that reached this point
+    // without them is one the site will start on and then ask questions of:
+    // `/messages` and `/notifications` read `conversations`, `direct_messages`,
+    // and `notifications` on every request, and answer 500 for a signed-in
+    // reader when those tables are not there. The statements are
+    // `CREATE TABLE IF NOT EXISTS`, so a database that already has them is
+    // left exactly as it is.
+    create_additive_baseline_tables(conn)
+        .context("Install missing account tables failed")?;
     verify_database_schema_structure(conn)?;
     reconcile_thread_reply_counts(conn)?;
     let metadata_issues = schema_version_metadata_issues(conn)?;

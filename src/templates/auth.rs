@@ -268,6 +268,14 @@ pub struct AccountMenu {
     pub username: String,
     /// Whether this identity may also open the administration panel.
     pub is_admin: bool,
+    /// Account row identifier, when the identity has one.
+    ///
+    /// The bottom navigation draws the visitor's own picture, and a picture is
+    /// served by account row. An administrator whose board profile has not been
+    /// provisioned yet has no row, and falls back to a letter.
+    pub user_id: Option<i64>,
+    /// Stored avatar file name, when the account has uploaded one.
+    pub avatar_file: Option<String>,
 }
 
 /// The cache-busting version of an account's stored picture.

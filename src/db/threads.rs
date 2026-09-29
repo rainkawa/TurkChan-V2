@@ -19,6 +19,8 @@ pub struct PollInsert<'a> {
 ///   2  t.subject      6  t.sticky       10 `op.thumb_path` 14 t.archived
 ///   3  `t.created_at`   7  `t.reply_count`  11 op.name       15 `image_count`
 ///   16 `op.media_width`                          17 `op.media_height`
+///   18 author.id      19 `author.username`  20 `author.display_name`
+///   21 `author.avatar_file`
 fn map_thread(row: &rusqlite::Row<'_>) -> rusqlite::Result<Thread> {
     Ok(Thread {
         id: row.get(0)?,
@@ -39,6 +41,10 @@ fn map_thread(row: &rusqlite::Row<'_>) -> rusqlite::Result<Thread> {
         image_count: row.get(15)?,
         op_media_width: row.get(16)?,
         op_media_height: row.get(17)?,
+        author_user_id: row.get(18)?,
+        author_username: row.get(19)?,
+        author_display_name: row.get(20)?,
+        author_avatar_file: row.get(21)?,
     })
 }
 
@@ -103,16 +109,24 @@ fn collect_thread_file_paths(
 /// at index 17 while the reader took it from index 15 and read the opening
 /// post's nullable `media_width` as a non-null count. Every listing that held a
 /// text-only thread then failed to read its own row.
+///
+/// The account behind the opening post is joined at the end, after everything
+/// the reader already reads, for the same reason: a listing that shows a
+/// person's name and picture next to their post is showing the account, not the
+/// name typed into a form, and the typed name is still carried separately for a
+/// post nobody signed.
 const THREAD_SELECT: &str = "
     SELECT t.id, t.board_id, t.subject, t.created_at, t.bumped_at,
            t.locked, t.sticky, t.reply_count,
            op.body, op.file_path, op.thumb_path, op.name, op.tripcode, op.id,
            t.archived,
            COUNT(DISTINCT fp.id) AS image_count,
-           op.media_width, op.media_height
+           op.media_width, op.media_height,
+           author.id, author.username, author.display_name, author.avatar_file
     FROM threads t
     JOIN posts op ON op.thread_id = t.id AND op.is_op = 1
-    LEFT JOIN posts fp ON fp.thread_id = t.id AND fp.file_path IS NOT NULL";
+    LEFT JOIN posts fp ON fp.thread_id = t.id AND fp.file_path IS NOT NULL
+    LEFT JOIN users AS author ON author.id = op.user_id";
 
 /// Get paginated threads for a board with OP preview data.
 /// Sticky threads float to the top, then sorted by most recent bump.

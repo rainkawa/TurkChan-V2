@@ -347,6 +347,10 @@ mod tests {
             op_tripcode: None,
             op_media_width: None,
             op_media_height: None,
+            author_user_id: None,
+            author_username: None,
+            author_display_name: None,
+            author_avatar_file: None,
             op_id: Some(1),
         }
     }

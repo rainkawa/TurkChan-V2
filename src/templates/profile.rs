@@ -16,25 +16,33 @@ use std::collections::HashMap;
 use crate::models::{Board, Pagination, ProfilePost, ProfileStats, ProfileThread, User};
 use crate::templates::{fmt_ts_short, UserPreferences};
 use crate::utils::sanitize::{escape_html, render_post_excerpt};
-use chrono::TimeZone as _;
+use chrono::{Datelike as _, TimeZone as _};
 
 /// One profile tab.
+///
+/// A profile is read in two passes and no more: what the account published, and
+/// what it said in somebody else's thread. A reply written under a thread
+/// somebody else opened is a comment, so it belongs on the second tab even
+/// though it is a post like any other — otherwise a commenter's own profile
+/// would show them nothing but other people's threads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProfileTab {
-    /// Everything the account wrote.
+    /// Threads the account opened itself.
     Posts,
-    /// Threads the account opened.
-    Threads,
     /// Replies the account wrote, without its own opening posts.
     Replies,
 }
 
 impl ProfileTab {
-    /// Resolve a tab from a query value, defaulting to the full history.
+    /// Resolve a tab from a query value, defaulting to what the account
+    /// published.
+    ///
+    /// `threads` and `konular` are still accepted: they are what this tab was
+    /// called before the two that are left, and a link somebody kept from
+    /// then should not answer with the whole history.
     #[must_use]
     pub fn from_query(value: Option<&str>) -> Self {
         match value {
-            Some("threads") | Some("konular") => Self::Threads,
             Some("replies") | Some("yanitlar") => Self::Replies,
             _ => Self::Posts,
         }
@@ -45,7 +53,6 @@ impl ProfileTab {
     pub const fn slug(self) -> &'static str {
         match self {
             Self::Posts => "posts",
-            Self::Threads => "threads",
             Self::Replies => "replies",
         }
     }
@@ -54,24 +61,22 @@ impl ProfileTab {
     #[must_use]
     pub const fn label(self) -> &'static str {
         match self {
-            Self::Posts => "Gönderiler",
-            Self::Threads => "Konular",
-            Self::Replies => "Yanıtlar",
+            Self::Posts => "Paylaşımlar",
+            Self::Replies => "Yorumlar",
         }
     }
 
     /// Every tab in display order.
     #[must_use]
-    pub const fn all() -> [Self; 3] {
-        [Self::Posts, Self::Threads, Self::Replies]
+    pub const fn all() -> [Self; 2] {
+        [Self::Posts, Self::Replies]
     }
 
     /// How many records this tab counts for the badge on the tab strip.
     #[must_use]
     pub const fn count(self, stats: &ProfileStats) -> i64 {
         match self {
-            Self::Posts => stats.post_count,
-            Self::Threads => stats.thread_count,
+            Self::Posts => stats.thread_count,
             Self::Replies => stats.reply_count,
         }
     }
@@ -118,18 +123,65 @@ fn render_tabs(username: &str, active: ProfileTab, stats: &ProfileStats) -> Stri
     html
 }
 
-/// Format the day, month, and year an account was created on.
+/// Format how long an account has existed, in the words a person would use.
 ///
-/// The profile shows the account's age as a plain calendar date: the exact
-/// moment an account was created is not something a visitor needs, and the
-/// board's own timestamps carry it.
-///
-/// Falls back to the same `?` as [`fmt_ts_short`] when the stored timestamp is
-/// not a representable date.
+/// A creation date asks the reader to do the subtraction; "1 Yıl 3 Ay" is the
+/// same fact already done. The two largest units are shown and the rest is
+/// dropped, because "2 Yıl 8 Ay 14 Gün 3 saat" is a number only the account's
+/// owner is interested in. A brand-new account reads as "Yeni" rather than as
+/// "0 Gün", which is what a zero means to a reader and not what it means to a
+/// calendar.
 fn fmt_account_age(ts: i64) -> String {
-    match chrono::Local.timestamp_opt(ts, 0) {
-        chrono::LocalResult::Single(dt) => dt.format("%d/%m/%Y").to_string(),
-        _ => "?".to_owned(),
+    let Some(created) = chrono::Local.timestamp_opt(ts, 0).single() else {
+        return "?".to_owned();
+    };
+    let now = chrono::Local::now();
+    let mut years = now.year() - created.year();
+    let mut months = i32::from(now.month()) - i32::from(created.month());
+    // The day of the month is what decides the last, partial month: an account
+    // born on the 30th is a month old on the 28th of the next month only if
+    // that month is long enough, and borrowing thirty days is close enough for
+    // a label that is already rounding.
+    if now.day() < created.day() {
+        months -= 1;
+    }
+    if months < 0 {
+        years -= 1;
+        months += 12;
+    }
+    match (years, months) {
+        (0, 0) => "Yeni".to_owned(),
+        (0, months) => format!("{months} Ay"),
+        (years, 0) => format!("{years} Yıl"),
+        (years, months) => format!("{years} Yıl {months} Ay"),
+    }
+}
+
+/// Render a large count the way a feed shows one.
+///
+/// Past a thousand the exact digit stops being the point, and a five-digit
+/// number in a three-column row is what pushes the row wider than a phone.
+/// The value is still the real one; only its length is shortened.
+fn fmt_compact_count(value: i64) -> String {
+    let negative = value < 0;
+    let magnitude = value.unsigned_abs();
+    // `B` is bin, `M` is milyon: the same suffixes a Turkish reader meets on a
+    // counter, so 12.900 reads as "12,9B" rather than as an unfamiliar "12.9K".
+    let (whole, tenths, suffix) = if magnitude < 1_000_000 {
+        (magnitude / 1_000, (magnitude / 100) % 10, 'B')
+    } else {
+        (magnitude / 1_000_000, (magnitude / 100_000) % 10, 'M')
+    };
+    let sign = if negative { "-" } else { "" };
+    let rendered = if tenths == 0 {
+        format!("{whole}{suffix}")
+    } else {
+        format!("{whole},{tenths}{suffix}")
+    };
+    if magnitude < 1_000 {
+        value.to_string()
+    } else {
+        format!("{sign}{rendered}")
     }
 }
 
@@ -142,7 +194,7 @@ fn fmt_account_age(ts: i64) -> String {
 fn render_avatar(account: &User) -> String {
     if account.avatar_file.is_some() {
         return format!(
-            r#"<img class="profile-avatar" src="/auth/avatar/{user_id}?v={version}" width="96" height="96" alt="{alt}">"#,
+            r#"<img class="profile-avatar" src="/auth/avatar/{user_id}?v={version}" width="104" height="104" alt="{alt}">"#,
             user_id = account.id,
             version = escape_html(&crate::templates::auth::avatar_version(
                 account.avatar_file.as_deref(),
@@ -160,57 +212,68 @@ fn render_avatar(account: &User) -> String {
     )
 }
 
-/// Render the header with the avatar, names, description, and the summary
-/// tiles.
+/// Render the profile header: a cover, the picture that sits over its lower
+/// edge, the name, the handle, the description, and three numbers.
 ///
-/// The score and the account age sit next to each other in one centered row so
-/// they read as a pair rather than as two unrelated corners of the header. The
-/// score tile breaks its own number apart, because a total alone hides the only
-/// thing a reader can act on: a reputation built out of threads is a different
-/// kind of reputation from one built out of replies, and one upvote has to be
-/// visible as one point rather than hidden inside a number that was there
-/// already.
+/// The order is the whole design and it is fixed: cover, picture, name, handle,
+/// description, numbers. A reader recognises a person by the picture and the
+/// name before anything else, and a name above a picture reads as a heading
+/// over a page rather than as a person.
+///
+/// The cover fades into the page background instead of ending at an edge, so
+/// there is no line between the picture and the name; the picture hangs over
+/// that fade, which is what ties the two halves together.
+///
+/// The three numbers are the score the account's posts earned, the total of
+/// everything it wrote, and how long it has been here. "Karma" is not one of
+/// them: the number is a count of upvotes and is called what it is.
 fn render_header(account: &User, stats: &ProfileStats) -> String {
     let bio = if account.bio.trim().is_empty() {
-        r#"<p class="profile-bio is-empty">bu hesap henüz bir açıklama eklememiş.</p>"#.to_owned()
+        String::new()
     } else {
         format!(
             r#"<p class="profile-bio">{}</p>"#,
             escape_html(account.bio.trim())
         )
     };
+    // Everything the account wrote: the threads it opened and the replies it
+    // left. `post_count` already counts the opening posts, so adding the
+    // replies to it would count them twice.
+    let contributions = stats.post_count;
     format!(
-        r#"<header class="profile-header">
+        r##"<header class="profile-header">
+<div class="profile-cover" aria-hidden="true"></div>
+<div class="profile-head">
 {avatar}
 <div class="profile-identity">
 <h1 class="profile-name">{display_name} {badge}</h1>
 <p class="profile-handle">@{username}</p>
 {bio}
 </div>
+</div>
 <div class="profile-metrics">
-<div class="profile-score">
-<span class="profile-score-value">{karma}</span>
-<span class="profile-score-label">toplam beğeni</span>
-<span class="profile-score-breakdown">
-<span class="profile-score-part">konu <strong>{thread_likes}</strong></span>
-<span class="profile-score-part">yorum <strong>{comment_likes}</strong></span>
-</span>
+<div class="profile-metric">
+<span class="profile-metric-value">{score}</span>
+<span class="profile-metric-label">Skor</span>
 </div>
-<div class="profile-score">
-<span class="profile-score-value profile-score-value-date">{account_age}</span>
-<span class="profile-score-label">hesap yaşı</span>
+<div class="profile-metric">
+<span class="profile-metric-value">{contributions}</span>
+<span class="profile-metric-label">Katkılar</span>
+</div>
+<div class="profile-metric">
+<span class="profile-metric-value profile-metric-value-age">{account_age}</span>
+<span class="profile-metric-label">Hesap Yaşı</span>
 </div>
 </div>
-</header>"#,
+</header>"##,
         avatar = render_avatar(account),
         display_name = escape_html(&account.display_name),
         badge = crate::templates::admin::role_badge_html(account.badge(chrono::Utc::now().timestamp())),
         username = escape_html(&account.username),
         bio = bio,
         account_age = escape_html(&fmt_account_age(account.created_at)),
-        karma = stats.karma,
-        thread_likes = stats.thread_likes,
-        comment_likes = stats.comment_likes,
+        score = fmt_compact_count(stats.karma),
+        contributions = fmt_compact_count(contributions),
     )
 }
 
@@ -284,9 +347,8 @@ fn render_thread_entry(
 /// Message shown when the selected tab has nothing to list yet.
 fn render_empty(tab: ProfileTab) -> String {
     let message = match tab {
-        ProfileTab::Posts => "henüz gönderi yok.",
-        ProfileTab::Threads => "henüz konu açmamış.",
-        ProfileTab::Replies => "henüz yanıt yazmamış.",
+        ProfileTab::Posts => "henüz bir paylaşım yapmamış.",
+        ProfileTab::Replies => "henüz yorum yazmamış.",
     };
     format!(r#"<p class="profile-empty">{message}</p>"#)
 }
@@ -317,12 +379,12 @@ pub fn profile_page(
 ) -> String {
     let mut feed = String::new();
     match tab {
-        ProfileTab::Threads => {
+        ProfileTab::Posts => {
             for thread in threads {
                 feed.push_str(&render_thread_entry(thread, referenced_boards));
             }
         }
-        ProfileTab::Posts | ProfileTab::Replies => {
+        ProfileTab::Replies => {
             for post in posts {
                 feed.push_str(&render_post_entry(post, referenced_boards));
             }
@@ -366,7 +428,7 @@ pub fn profile_page(
 mod tests {
     use std::collections::HashMap;
 
-    use super::{fmt_account_age, profile_page, ProfileTab};
+    use super::{fmt_account_age, fmt_compact_count, profile_page, ProfileTab};
     use crate::models::{Pagination, ProfilePost, ProfileStats, ProfileThread, User};
     use crate::templates::UserPreferences;
 
@@ -443,9 +505,10 @@ mod tests {
         assert!(html.contains("Anonim"));
         assert!(html.contains("@anon"));
         assert!(html.contains("selam"));
-        assert!(html.contains(r#"<span class="profile-score-value">3</span>"#));
-        assert!(html.contains(r#"href="/u/anon?tab=threads""#));
+        assert!(html.contains(r#"<span class="profile-metric-value">3</span>"#));
         assert!(html.contains(r#"href="/u/anon?tab=replies""#));
+        assert!(html.contains(">Paylaşımlar<"));
+        assert!(html.contains(">Yorumlar<"));
         assert!(html.contains(r#"href="/g/thread/4#p5""#));
         assert!(html.contains(r#"href="/g/""#));
         // A reference with no matching post stays plain text instead of
@@ -525,13 +588,14 @@ mod tests {
     }
 
     #[test]
-    /// The threads tab renders the account's own threads, and an account with
-    /// no history says so instead of rendering an empty list.
+    /// The two tabs list different things: what the account opened, and what it
+    /// said in somebody else's thread. An account with neither says so instead
+    /// of rendering an empty list.
     fn profile_page_switches_listing_per_tab() {
-        let threads_html = profile_page(
+        let posts_html = profile_page(
             &account(),
             &stats(),
-            ProfileTab::Threads,
+            ProfileTab::Posts,
             &[],
             &threads(),
             &HashMap::new(),
@@ -542,8 +606,11 @@ mod tests {
             "csrf",
             "",
         );
-        assert!(threads_html.contains("1 yanıt"));
-        assert!(!threads_html.contains("&gt;&gt;1 selam"));
+        assert!(posts_html.contains("1 yanıt"));
+        assert!(
+            !posts_html.contains("&gt;&gt;1 selam"),
+            "a reply must not be listed as a post the account opened"
+        );
 
         let empty_html = profile_page(
             &account(),
@@ -559,13 +626,14 @@ mod tests {
             "csrf",
             "",
         );
-        assert!(empty_html.contains("henüz yanıt yazmamış."));
+        assert!(empty_html.contains("henüz yorum yazmamış."));
     }
 
     #[test]
-    /// The score and the account age share one centered row, and the age is a
-    /// plain day, month, and year rather than a full timestamp.
-    fn profile_header_pairs_the_score_with_a_day_month_year_account_age() {
+    /// The header leads with the score, the contributions, and the account age,
+    /// in that order and in one row. "Karma" is not one of them: the number is
+    /// a count of upvotes and is called what it is.
+    fn profile_header_shows_the_score_the_contributions_and_the_account_age() {
         let html = profile_page(
             &account(),
             &stats(),
@@ -586,26 +654,67 @@ mod tests {
             .and_then(|(_, rest)| rest.split_once(r#"<section class="profile-feed">"#))
             .map_or("", |(metrics, _)| metrics);
         assert!(
-            metrics.contains("toplam beğeni") && metrics.contains("hesap yaşı"),
-            "the score and the account age should share one centered row: {metrics}"
+            metrics.contains("Skor") && metrics.contains("Katkılar") && metrics.contains("Hesap Yaşı"),
+            "the three numbers should share one row: {metrics}"
         );
+        let score = metrics.find("Skor").unwrap_or(0);
+        let contributions = metrics.find("Katkılar").unwrap_or(0);
+        let age = metrics.find("Hesap Yaşı").unwrap_or(0);
         assert!(
-            metrics.contains("konu") && metrics.contains("yorum"),
-            "the score should break into the thread votes and the reply votes: {metrics}"
+            score < contributions && contributions < age,
+            "the score leads, the contributions follow, the age closes: {metrics}"
         );
+        assert!(!html.contains("Karma"), "the score is not called karma");
         assert!(!html.contains("Katıldı"), "the old join label should be gone");
+
+        // The score is the account's own upvote total, not a made-up number.
+        assert!(
+            metrics.contains(&format!(">{}<", stats().karma)),
+            "the score shown should be the recorded vote total: {metrics}"
+        );
+        // The contributions are everything the account wrote: two posts, one of
+        // which is its own opening post, plus the reply inside the two.
+        assert!(
+            metrics.contains(&format!(">{}<", stats().post_count)),
+            "the contributions shown should be the post total: {metrics}"
+        );
 
         let expected = fmt_account_age(1_700_000_000);
         assert!(
-            html.contains(&expected),
+            metrics.contains(&expected),
             "the account age should be rendered as {expected}"
         );
-        // Day, month, and year only: no time and no weekday.
-        assert_eq!(expected.split('/').count(), 3);
+    }
+
+    #[test]
+    /// The header is read cover first, then the picture over its edge, then the
+    /// name, the handle, and the description. A name above the picture reads as
+    /// a page heading rather than as a person.
+    fn profile_header_reads_cover_picture_name_handle_description() {
+        let html = profile_html_for_bio("selam");
+        let cover = html.find(r#"<div class="profile-cover""#).unwrap_or(0);
+        let avatar = html.find(r#"class="profile-avatar"#).unwrap_or(0);
+        let name = html.find(r#"<h1 class="profile-name">"#).unwrap_or(0);
+        let handle = html.find(r#"<p class="profile-handle">"#).unwrap_or(0);
+        let bio = html.find(r#"<p class="profile-bio">"#).unwrap_or(0);
         assert!(
-            !expected.contains(':') && !expected.contains('('),
-            "the account age carries no time of day: {expected}"
+            cover < avatar && avatar < name && name < handle && handle < bio,
+            "the header order is fixed: {cover} {avatar} {name} {handle} {bio}"
         );
+    }
+
+    #[test]
+    /// A count past a thousand is shortened rather than left to push the row
+    /// off a phone, and a small one is left exactly as it is.
+    fn compact_counts_shorten_only_when_they_have_to() {
+        assert_eq!(fmt_compact_count(0), "0");
+        assert_eq!(fmt_compact_count(173), "173");
+        assert_eq!(fmt_compact_count(999), "999");
+        assert_eq!(fmt_compact_count(1_000), "1B");
+        assert_eq!(fmt_compact_count(12_900), "12,9B");
+        assert_eq!(fmt_compact_count(1_000_000), "1M");
+        assert_eq!(fmt_compact_count(2_450_000), "2,4M");
+        assert_eq!(fmt_compact_count(-1_500), "-1,5B");
     }
 
     /// Render the page for an account carrying the given description.
@@ -640,13 +749,14 @@ mod tests {
     }
 
     #[test]
-    /// Clearing the description is allowed, and the profile says so instead of
-    /// leaving a gap where the line used to be.
-    fn profile_says_when_an_account_has_no_description() {
+    /// An account with no description leaves the line out rather than filling
+    /// the gap with a sentence about itself: the header is a name and a
+    /// picture, and an apology is neither.
+    fn profile_leaves_out_a_description_it_does_not_have() {
         let html = profile_html_for_bio("   ");
         assert!(
-            html.contains(r#"<p class="profile-bio is-empty">"#),
-            "an account with no description gets the empty-state line"
+            !html.contains(r#"class="profile-bio""#),
+            "no description, no paragraph: {html}"
         );
     }
 }

@@ -118,6 +118,10 @@ pub(crate) struct AuthenticatedUser {
     pub username: String,
     /// Name shown on posts.
     pub display_name: String,
+    /// Account row identifier, used to serve the account's picture.
+    pub user_id: i64,
+    /// Stored avatar file name, when the account uploaded one.
+    pub avatar_file: Option<String>,
 }
 
 impl From<User> for AuthenticatedUser {
@@ -125,6 +129,8 @@ impl From<User> for AuthenticatedUser {
         Self {
             username: user.username,
             display_name: user.display_name,
+            user_id: user.id,
+            avatar_file: user.avatar_file,
         }
     }
 }
@@ -183,18 +189,34 @@ async fn issue_admin_session(
     let session_id = new_session_id();
     let expires_at = Utc::now().timestamp() + CONFIG.session_duration;
     let sid = session_id.clone();
+    // The operator is signing in on the public sign-in screen, so they are
+    // given both sessions. The board account is what every page outside the
+    // administration panel asks for — a profile, a message thread, a
+    // notification — and an operator without one was told to sign in again on a
+    // page they had already signed in to.
+    let user_session_id = new_session_id();
+    let user_sid = user_session_id.clone();
+    let operator_name = username.clone();
     tokio::task::spawn_blocking({
         let pool = state.db.clone();
-        move || -> Result<()> {
+        move || -> Result<i64> {
             let conn = pool.get()?;
             db::create_session(&conn, &sid, admin_id, expires_at)?;
-            Ok(())
+            db::ensure_admin_profile(&conn, &operator_name)?;
+            let account_name = operator_name.trim().to_lowercase();
+            let user_id = db::find_user_by_username(&conn, &account_name)?
+                .ok_or_else(|| anyhow::anyhow!("the administrator has no board profile"))?
+                .id;
+            db::create_user_session(&conn, &user_sid, user_id, expires_at)?;
+            Ok(user_id)
         }
     })
     .await
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
 
-    let jar = jar.add(admin_session_cookie(session_id, secure));
+    let jar = jar
+        .add(admin_session_cookie(session_id, secure))
+        .add(user_session_cookie(user_session_id, secure));
     tracing::info!(target: "auth", admin_id, "Administrator signed in from the sign-in screen");
     Ok(Some((jar, Redirect::to(return_to)).into_response()))
 }
@@ -462,6 +484,8 @@ pub(crate) fn account_menu_for_request(
             display_name: identity.display_name,
             username: identity.username,
             is_admin: identity.is_admin,
+            user_id: identity.user_id,
+            avatar_file: identity.avatar_file,
         }),
         token,
         jar,
@@ -495,6 +519,14 @@ pub(crate) struct AccountIdentity {
     pub username: String,
     /// Whether this identity may also open the administration panel.
     pub is_admin: bool,
+    /// Account row identifier, when the identity has a board account.
+    ///
+    /// The bottom navigation draws the visitor's own picture in its last slot,
+    /// and a picture is served by account row. An operator who has not been
+    /// given a board profile has none and is drawn as a letter instead.
+    pub user_id: Option<i64>,
+    /// Stored avatar file name, when the account uploaded one.
+    pub avatar_file: Option<String>,
 }
 
 /// Resolve the identity carried by the administrator session cookie.
@@ -513,23 +545,29 @@ fn admin_identity(state: &AppState, jar: &CookieJar) -> Result<Option<AccountIde
         display_name: username.clone(),
         username,
         is_admin: true,
+        user_id: None,
+        avatar_file: None,
     }))
 }
 
 /// Resolve the signed-in identity for the account menu.
 ///
 /// An anonymous board account wins when both cookies are present: it is the
-/// identity the visitor chose on the sign-in screen, and the operator session
-/// only adds the administration entry.
+/// identity the visitor chose on the sign-in screen. The operator session
+/// still adds the administration entry, so a signed-in administrator is shown
+/// as the account they post as and is still offered the panel.
 pub(crate) fn account_identity(
     state: &AppState,
     jar: &CookieJar,
 ) -> Result<Option<AccountIdentity>> {
     if let Some(user) = current_user(state, jar)? {
+        let is_admin = matches!(admin_identity(state, jar), Ok(Some(_)));
         return Ok(Some(AccountIdentity {
             display_name: user.display_name,
             username: user.username,
-            is_admin: false,
+            is_admin,
+            user_id: Some(user.user_id),
+            avatar_file: user.avatar_file,
         }));
     }
     admin_identity(state, jar)
@@ -1744,6 +1782,8 @@ mod account_settings_tests {
             display_name: "Anonim".to_owned(),
             username: "anon".to_owned(),
             is_admin: false,
+            user_id: None,
+            avatar_file: None,
         };
         let html = account_menu_html(Some(&menu), "token");
         assert!(

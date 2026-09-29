@@ -104,6 +104,8 @@ pub(in crate::server) async fn profile(
         display_name: identity.display_name,
         username: identity.username,
         is_admin: identity.is_admin,
+        user_id: identity.user_id,
+        avatar_file: identity.avatar_file,
     });
     let account_menu = menu.as_ref();
 
@@ -153,21 +155,10 @@ pub(in crate::server) async fn profile(
                 admin_session_id.as_deref(),
             );
             let (mut posts, mut threads, total) = match tab {
-                ProfileTab::Threads => (
+                ProfileTab::Posts => (
                     Vec::new(),
                     db::list_profile_threads(&conn, account.id, PROFILE_ITEMS_PER_PAGE, offset)?,
                     stats.thread_count,
-                ),
-                ProfileTab::Posts => (
-                    db::list_profile_posts(
-                        &conn,
-                        account.id,
-                        ProfilePostScope::All,
-                        PROFILE_ITEMS_PER_PAGE,
-                        offset,
-                    )?,
-                    Vec::new(),
-                    stats.post_count,
                 ),
                 ProfileTab::Replies => (
                     db::list_profile_posts(

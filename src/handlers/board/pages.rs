@@ -116,6 +116,8 @@ async fn render_feed(
             display_name: identity.display_name,
             username: identity.username,
             is_admin: identity.is_admin,
+            user_id: identity.user_id,
+            avatar_file: identity.avatar_file,
         }
     });
     // The token in the account menu is only useful if its cookie reaches the
@@ -352,6 +354,8 @@ pub(in crate::server) async fn index(
             display_name: identity.display_name,
             username: identity.username,
             is_admin: identity.is_admin,
+            user_id: identity.user_id,
+            avatar_file: identity.avatar_file,
         });
     let registration_notice_html = match (params.get("kayit").map(String::as_str), &account) {
         (Some("1"), Some(identity)) => templates::auth::registration_notice(&identity.display_name),

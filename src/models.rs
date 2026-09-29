@@ -515,6 +515,18 @@ pub struct Thread {
     pub op_media_height: Option<i64>,
     /// Opening-post identifier joined for catalog previews.
     pub op_id: Option<i64>,
+    /// Account row behind the opening post, when it was written signed in.
+    ///
+    /// `None` for a post written without an account, which is the whole point
+    /// of an imageboard: the board still carries the name the poster typed, and
+    /// a listing must not invent an account for it.
+    pub author_user_id: Option<i64>,
+    /// That account's login name, for the link to its profile.
+    pub author_username: Option<String>,
+    /// That account's chosen display name.
+    pub author_display_name: Option<String>,
+    /// That account's stored avatar file name, when it uploaded one.
+    pub author_avatar_file: Option<String>,
 }
 
 /// A single post (OP or reply)

@@ -4454,26 +4454,33 @@ document.addEventListener('click', function (e) {
 // only way to find out what happened.
 (function () {
   if (typeof window.EventSource !== 'function') return;
-
-  var badge = document.getElementById('unread-notifications-badge');
-  var messageBadge = document.getElementById('unread-messages-badge');
-  if (!badge && !messageBadge) return;
+  // The bottom navigation carries its own badges, and the header ones are still
+  // there for the pages that keep the header. Every id is looked up and the
+  // loop below writes to whichever exist, so one set of numbers drives both
+  // places and neither can drift from the other.
+  var badgeIds = [
+    'unread-notifications-badge',
+    'tabbar-notifications-badge',
+    'unread-messages-badge',
+    'tabbar-messages-badge'
+  ];
+  var badges = [];
+  for (var i = 0; i < badgeIds.length; i++) {
+    var element = document.getElementById(badgeIds[i]);
+    if (element) badges.push(element);
+  }
+  if (!badges.length) return;
 
   function showTotal(total) {
     var value = parseInt(total, 10);
     if (isNaN(value) || value < 0) return;
-    // The two badges share one number because the server answers with the
+    // Every badge shows the same number because the server answers with the
     // total: splitting it again on this side would mean guessing which of the
     // two grew, and a badge that guesses is worse than one that does not move.
-    if (badge) {
-      badge.textContent = String(value);
-      badge.dataset.unread = String(value);
-      badge.hidden = value === 0;
-    }
-    if (messageBadge) {
-      messageBadge.textContent = String(value);
-      messageBadge.dataset.unread = String(value);
-      messageBadge.hidden = value === 0;
+    for (var i = 0; i < badges.length; i++) {
+      badges[i].textContent = value > 99 ? '99+' : String(value);
+      badges[i].dataset.unread = String(value);
+      badges[i].hidden = value === 0;
     }
   }
 

@@ -772,6 +772,7 @@ pub fn base_layout_with_preferences(
         collapse_greentext,
         current_path,
         preferences,
+        None,
         "",
     )
 }
@@ -792,6 +793,81 @@ const ICON_POPULAR: &str = r##"<svg class="nav-icon" viewBox="0 0 24 24" aria-hi
 /// The mark drawn beside the "Ara" entry.
 const ICON_SEARCH: &str = r##"<svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10.4 2.6a7.8 7.8 0 1 0 4.72 13.94l4.4 4.4 1.5-1.5-4.4-4.4A7.8 7.8 0 0 0 10.4 2.6Zm0 2a5.8 5.8 0 1 1 0 11.6 5.8 5.8 0 0 1 0-11.6Z"/></svg>"##;
 
+/// The mark in the bottom navigation's home slot.
+const TAB_HOME: &str = r##"<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2 2.6 11.1a1 1 0 0 0 .64 1.76H5v7.14a1 1 0 0 0 1 1h4.2v-5.1h3.6V21H18a1 1 0 0 0 1-1v-7.14h1.76a1 1 0 0 0 .64-1.76Z"/></svg>"##;
+
+/// The mark in the bottom navigation's search slot.
+const TAB_SEARCH: &str = r##"<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10.4 2.6a7.8 7.8 0 1 0 4.72 13.94l4.4 4.4 1.5-1.5-4.4-4.4A7.8 7.8 0 0 0 10.4 2.6Zm0 2a5.8 5.8 0 1 1 0 11.6 5.8 5.8 0 0 1 0-11.6Z"/></svg>"##;
+
+/// The mark in the bottom navigation's direct-message slot.
+const TAB_MESSAGES: &str = r##"<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.6c-5.3 0-9.6 3.6-9.6 8.1 0 2.6 1.5 4.9 3.8 6.4l-.9 4.3 4.4-2.3a12.4 12.4 0 0 0 2.3.2c5.3 0 9.6-3.6 9.6-8.1S17.3 2.6 12 2.6Z"/></svg>"##;
+
+/// The mark in the bottom navigation's notification slot.
+const TAB_NOTIFICATIONS: &str = r##"<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.4a6.2 6.2 0 0 0-6.2 6.2v3.9L4 16.2a.8.8 0 0 0 .7 1.1h14.6a.8.8 0 0 0 .7-1.1l-1.8-3.7V8.6A6.2 6.2 0 0 0 12 2.4Zm-2.3 15.2a2.3 2.3 0 0 0 4.6 0Z"/></svg>"##;
+
+/// Render the five slots of the bottom navigation, in their fixed order.
+///
+/// The order is the whole design: home, search, direct messages, notifications,
+/// profile. Nothing that creates content sits in here — a thread is opened from
+/// the bar at the top of the feed, and from the board it belongs to — because a
+/// bar with a create button in it has nowhere to put the five places a reader
+/// actually goes.
+fn tab_bar_html(current_path: &str, account: Option<&crate::templates::auth::AccountMenu>) -> String {
+    // The sign-in and registration screens are the one place a signed-out
+    // visitor lands, and every slot but "home" answers a signed-out visitor
+    // with a refusal. A bar of five doors where four are locked is not a
+    // navigation, so those two screens carry none.
+    if current_path.starts_with("/login") || current_path.starts_with("/register") {
+        return String::new();
+    }
+    let on = |prefix: &str| {
+        if current_path == prefix || current_path.starts_with(&format!("{prefix}/")) {
+            r#" is-active" aria-current="page"#
+        } else {
+            ""
+        }
+    };
+    let profile_href = account.map_or_else(|| "/login".to_owned(), |account| {
+        format!("/u/{}", escape_html(&account.username))
+    });
+    // The profile slot carries the reader's own picture when there is one, and
+    // the first letter of a name when there is not: an empty circle reads as a
+    // picture that failed to load rather than as a fallback.
+    let profile_face = account.map_or_else(String::new, |account| match (account.user_id, &account.avatar_file) {
+        (Some(user_id), Some(_)) => format!(
+            r#"<img src="/auth/avatar/{user_id}?v={version}" alt="" width="24" height="24" loading="lazy" decoding="async">"#,
+            version = escape_html(&crate::templates::auth::avatar_version(
+                account.avatar_file.as_deref(),
+            )),
+        ),
+        _ => escape_html(&crate::templates::auth::account_initial(
+            &account.display_name,
+            &account.username,
+        )),
+    });
+
+    format!(
+        r##"<nav class="tabbar" aria-label="Ana gezinme">
+<a class="tabbar-item{home}" href="/"><span class="tabbar-icon">{home_icon}</span><span class="tabbar-label">Ana Sayfa</span></a>
+<a class="tabbar-item{search}" href="/search"><span class="tabbar-icon">{search_icon}</span><span class="tabbar-label">Arama</span></a>
+<a class="tabbar-item{messages}" href="/messages"><span class="tabbar-icon">{messages_icon}</span><span class="tabbar-badge" id="tabbar-messages-badge" data-unread="0" hidden>0</span><span class="tabbar-label">DM</span></a>
+<a class="tabbar-item{notifications}" href="/notifications"><span class="tabbar-icon">{notifications_icon}</span><span class="tabbar-badge" id="tabbar-notifications-badge" data-unread="0" hidden>0</span><span class="tabbar-label">Bildirimler</span></a>
+<a class="tabbar-item{profile}" href="{profile_href}"><span class="tabbar-icon tabbar-avatar">{profile_face}</span><span class="tabbar-label">Profil</span></a>
+</nav>"##,
+        home = on("/"),
+        search = on("/search"),
+        messages = on("/messages"),
+        notifications = on("/notifications"),
+        profile = if account.is_some() { on("/u/") } else { "" },
+        home_icon = TAB_HOME,
+        search_icon = TAB_SEARCH,
+        messages_icon = TAB_MESSAGES,
+        notifications_icon = TAB_NOTIFICATIONS,
+        profile_href = profile_href,
+        profile_face = profile_face,
+    )
+}
+
 #[must_use]
 #[expect(
     clippy::too_many_arguments,
@@ -800,9 +876,10 @@ const ICON_SEARCH: &str = r##"<svg class="nav-icon" viewBox="0 0 24 24" aria-hid
 )]
 /// Renders the shared document layout with a signed-in account menu.
 ///
-/// `account_menu_html` is pre-rendered by the caller so the layout stays
-/// independent of how an identity is stored. Pages that do not offer the menu
-/// pass an empty string.
+/// `account` is the identity the page was rendered for, and the layout draws
+/// both the header menu and the bottom navigation from it: the last slot of
+/// that navigation is the reader's own profile, and a picture is served by
+/// account row. A page that has no identity to offer passes `None`.
 pub fn base_layout_with_account(
     title: &str,
     board_short: Option<&str>,
@@ -814,15 +891,17 @@ pub fn base_layout_with_account(
     collapse_greentext: bool,
     current_path: &str,
     preferences: UserPreferences,
-    account_menu_html: &str,
+    account: Option<&crate::templates::auth::AccountMenu>,
+    account_menu_csrf: &str,
 ) -> String {
+    let account_menu_html = crate::templates::auth::account_menu_html(account, account_menu_csrf);
     let board_links = board_nav_html_for_board(boards, preferences, board_short);
     // The account menu is rendered only when somebody is signed in, so an
     // empty one is this layout's record of a signed-out visitor. The bar and the
     // rail both need it: the notification centre and the message list answer 403
     // to an anonymous visitor, and the rail's own entry used to point at
     // `/account/profile`, which is a POST target with no page behind it.
-    let signed_in = !account_menu_html.trim().is_empty();
+    let signed_in = account.is_some();
     let is_auth_page = current_path.starts_with("/login") || current_path.starts_with("/register");
     let topbar_account_links = if signed_in {
         r#"<span class="topbar-actions-divider" aria-hidden="true"></span>
@@ -957,12 +1036,13 @@ pub fn base_layout_with_account(
 <title>{title}</title>
 {favicon_head}
 <link rel="stylesheet" href="{stylesheet_href}">
+<link rel="stylesheet" href="{social_stylesheet_href}">
 {admin_stylesheet_link}
 {theme_stylesheet_link}
 <noscript><style>#post-form-wrap{{display:block!important}}</style></noscript>
 <script src="{theme_init_src}"></script>
 </head>
-<body{collapse_attr}>
+<body{collapse_attr}{tabbar_attr}>
 <a class="skip-link" href="#main-content">&#8593; İçeriğe atla</a>
 <header class="site-header">
   <div class="topbar">
@@ -1010,6 +1090,7 @@ pub fn base_layout_with_account(
 <footer class="site-footer">
   <p class="site-footer-copy">{forum_name} &mdash; <a href="/">ana sayfa</a></p>
 </footer>
+{tab_bar}
 
 {confirmation_modal}
 <input type="hidden" id="csrf_global" value="{csrf_token}">
@@ -1049,6 +1130,7 @@ pub fn base_layout_with_account(
             }
         },
         body = body,
+        tab_bar = tab_bar_html(current_path, account),
         confirmation_modal = confirmation_modal_script(),
         csrf_token = escape_html(csrf_token),
         main_js_src = main_js_src,
@@ -1060,6 +1142,14 @@ pub fn base_layout_with_account(
         custom_theme_slugs = escape_html(&custom_theme_slugs),
         collapse_attr = if collapse_greentext {
             " data-collapse-greentext=\"1\""
+        } else {
+            ""
+        },
+        // The page reserves room for the bottom bar so the last card is not
+        // left half under it. A screen that has no bar must not reserve room
+        // for one, or the sign-in form floats a bar's height above the fold.
+        tabbar_attr = if is_auth_page {
+            " data-no-tabbar=\"1\""
         } else {
             ""
         },
@@ -1103,6 +1193,7 @@ pub(crate) fn ban_page_with_theme(
         format!(r#" data-theme="{}""#, escape_html(&configured_default))
     };
     let stylesheet_href = static_asset_url("/static/style.css");
+    let social_stylesheet_href = static_asset_url("/static/social.css");
     let theme_init_src = static_asset_url("/static/theme-init.js");
     let main_js_src = static_asset_url("/static/main.js");
     let theme_stylesheet_link = if crate::theme::builtin_theme(&configured_default).is_some() {
@@ -1121,6 +1212,7 @@ pub(crate) fn ban_page_with_theme(
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Yasaklandınız</title>
 <link rel="stylesheet" href="{stylesheet_href}">
+<link rel="stylesheet" href="{social_stylesheet_href}">
 {theme_stylesheet_link}
 <script src="{theme_init_src}"></script>
 </head>
@@ -1147,6 +1239,7 @@ itirazlar site yetkilileri tarafından incelenir. 24 saatte bir itiraz göndereb
         theme_slugs_attr = theme_slugs_attr,
         active_theme_attr = active_theme_attr,
         stylesheet_href = stylesheet_href,
+        social_stylesheet_href = social_stylesheet_href,
         theme_stylesheet_link = theme_stylesheet_link,
         theme_init_src = theme_init_src,
         active_theme = escape_html(&configured_default),
@@ -1227,8 +1320,8 @@ pub(crate) fn error_page_with_preferences(
 #[cfg(test)]
 mod tests {
     use super::{
-        base_layout, base_layout_with_preferences, fmt_ts, fmt_ts_short, set_live_default_theme,
-        set_live_themes, PreferredBoardView, UserPreferences,
+        base_layout, base_layout_with_account, base_layout_with_preferences, fmt_ts, fmt_ts_short,
+        set_live_default_theme, set_live_themes, PreferredBoardView, UserPreferences,
     };
     use crate::models::{Board, Theme};
 
@@ -1438,6 +1531,112 @@ mod tests {
 
         assert!(html.contains(r#"<span class="board-list-group" data-board-nsfw="1"><a class="rail-board" href="/x/catalog">/x/</a></span>"#));
         assert!(html.contains(r#"<div class="mobile-board-group" data-board-nsfw="1"><div class="mobile-board-group-title">NSFW</div><a class="mobile-board-link" href="/x/catalog">/x/</a></div>"#));
+    }
+
+    #[test]
+    /// The bottom bar carries exactly five places, and their order is the
+    /// design: home, search, messages, notifications, profile. Nothing that
+    /// creates content sits in it, because a bar with a create button has no
+    /// room left for the five places a reader actually goes.
+    fn the_tab_bar_keeps_its_five_places_in_their_fixed_order() {
+        set_live_default_theme("forest");
+        set_live_themes(vec![builtin_theme("forest", "Forest", 10)]);
+        let html = base_layout("Home", None, "<p>body</p>", "", &[], None, None, false, "/");
+
+        let bar = html
+            .split_once(r#"<nav class="tabbar""#)
+            .and_then(|(_, rest)| rest.split_once("</nav>"))
+            .map_or("", |(bar, _)| bar);
+        let slots: Vec<&str> = ["Ana Sayfa", "Arama", "DM", "Bildirimler", "Profil"]
+            .iter()
+            .map(|label| {
+                bar.find(label)
+                    .map_or_else(|| usize::MAX, |position| position)
+            })
+            .collect();
+        let mut sorted = slots.clone();
+        sorted.sort_unstable();
+        assert_eq!(
+            slots, sorted,
+            "the five slots appear in the order they are meant to be read: {bar}"
+        );
+        assert!(
+            !bar.contains("Oluştur") && !bar.contains("Yeni Konu"),
+            "content creation is not one of the five places: {bar}"
+        );
+        // Every slot leads somewhere that exists, so no tap lands on a refusal.
+        for href in ["/", "/search", "/messages", "/notifications"] {
+            assert!(bar.contains(&format!(r#"href="{href}""#)), "{href} is missing");
+        }
+    }
+
+    #[test]
+    /// The last slot carries the reader's own picture, and a name's first
+    /// letter when there is no picture. An empty circle reads as an image that
+    /// failed to load rather than as a fallback.
+    fn the_tab_bar_profile_slot_carries_the_readers_own_picture() {
+        set_live_default_theme("forest");
+        set_live_themes(vec![builtin_theme("forest", "Forest", 10)]);
+        let menu = crate::templates::auth::AccountMenu {
+            display_name: "Mert".to_owned(),
+            username: "rainkawa".to_owned(),
+            is_admin: false,
+            user_id: Some(7),
+            avatar_file: Some("7-abc-0.png".to_owned()),
+        };
+        let html = base_layout_with_account(
+            "Home",
+            None,
+            "<p>body</p>",
+            "",
+            &[],
+            None,
+            None,
+            false,
+            "/",
+            UserPreferences::default(),
+            Some(&menu),
+            "csrf",
+        );
+        assert!(html.contains(r#"href="/u/rainkawa""#), "{html}");
+        assert!(
+            html.contains(&format!(
+                r#"<img src="/auth/avatar/7?v={}""#,
+                crate::templates::auth::avatar_version(Some("7-abc-0.png"))
+            )),
+            "the profile slot shows the picture the account uploaded"
+        );
+    }
+
+    #[test]
+    /// A signed-out visitor is sent to the sign-in screen from the profile
+    /// slot rather than to a profile that does not exist yet.
+    fn the_tab_bar_profile_slot_of_a_signed_out_visitor_leads_to_the_sign_in_screen() {
+        set_live_default_theme("forest");
+        set_live_themes(vec![builtin_theme("forest", "Forest", 10)]);
+        let html = base_layout("Home", None, "<p>body</p>", "", &[], None, None, false, "/");
+        let bar = html
+            .split_once(r#"<nav class="tabbar""#)
+            .and_then(|(_, rest)| rest.split_once("</nav>"))
+            .map_or("", |(bar, _)| bar);
+        assert!(bar.contains(r#"href="/login""#), "{bar}");
+    }
+
+    #[test]
+    /// The sign-in and registration screens carry no bar. Every slot but home
+    /// answers a signed-out visitor with a refusal, and four locked doors is
+    /// not a navigation.
+    fn the_sign_in_screens_carry_no_tab_bar() {
+        set_live_default_theme("forest");
+        set_live_themes(vec![builtin_theme("forest", "Forest", 10)]);
+        for path in ["/login", "/register"] {
+            let html = base_layout("Giriş", None, "<p>body</p>", "", &[], None, None, false, path);
+            assert!(!html.contains(r#"<nav class="tabbar""#), "{path} has a bar");
+            assert!(
+                html.contains(r#"data-no-tabbar="1""#),
+                "{path} must not reserve room for a bar it does not have"
+            );
+        }
     }
 
     #[test]

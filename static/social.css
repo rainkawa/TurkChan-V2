@@ -1,0 +1,1025 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   The social design.
+
+   A layer, not a rewrite. Everything above still describes the same elements
+   under other names, and this file restyles what the pages already emit rather
+   than introducing a second set of markup for the same screens.
+
+   The order of a phone screen is the design: a compact bar at the top, a
+   single scrolling column of cards in the middle, and a fixed bar of five
+   places at the bottom. The middle scrolls; the bottom does not. Nothing in
+   the middle is allowed to sit under the bottom bar, which is why the bar's
+   height is a variable the page reserves rather than a number the footer
+   guesses at.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* One dark palette, used whether the visitor chose dark, chose light, or
+     never chose at all. The light block below re-points the same names, so a
+     component never has to know which mode it is being drawn in. */
+  --bg:            #08090c;
+  --bg-panel:      #101218;
+  --bg-card:       #14161d;
+  --bg-post:       #14161d;
+  --bg-op:         #191c24;
+  --bg-raised:     #1e222b;
+  --bg-input:      #0c0e13;
+  --bg-hover:      #1e222b;
+  --bg-sunken:     #05060a;
+
+  --border:        #23262f;
+  --border-strong: #333844;
+  --border-glow:   #ff4500;
+
+  --text:          #eceef2;
+  --text-dim:      #9aa1ad;
+  --text-faint:    #6b7280;
+
+  --primary:       #ff4500;
+  --primary-hover: #ff6a33;
+  --primary-soft:  rgba(255, 69, 0, 0.13);
+  --primary-ring:  rgba(255, 69, 0, 0.32);
+  --on-primary:    #ffffff;
+
+  --accent:        #4c8dff;
+  --accent-hover:  #74a6ff;
+  --accent-soft:   rgba(76, 141, 255, 0.13);
+
+  --danger:        #ff4d4f;
+  --danger-soft:   rgba(255, 77, 79, 0.14);
+  --warning:       #f0b429;
+  --info:          #4c8dff;
+
+  --vote-up:       #ff4500;
+  --vote-down:     #6a8cff;
+
+  --shadow-panel:  0 12px 32px rgba(0, 0, 0, 0.5);
+  --shadow-soft:   0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-lift:   0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-cover:  0 -18px 40px rgba(8, 9, 12, 0.92);
+
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-full: 999px;
+
+  /* The one number the bottom bar's height is decided by. The page reserves it
+     as padding, so the last card is never half under the bar. */
+  --tabbar-height: 58px;
+  --tabbar-safe: env(safe-area-inset-bottom, 0px);
+
+  --font: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  --font-display: var(--font);
+}
+
+body[data-no-tabbar] { padding-bottom: 1.5rem; }
+
+:root[data-color-mode='light'] {
+  color-scheme: light;
+
+  --bg:            #f2f3f5;
+  --bg-panel:      #ffffff;
+  --bg-card:       #ffffff;
+  --bg-post:       #ffffff;
+  --bg-op:         #ffffff;
+  --bg-raised:     #e9ebef;
+  --bg-input:      #ffffff;
+  --bg-hover:      #eceef1;
+  --bg-sunken:     #e4e6ea;
+
+  --border:        #dde0e5;
+  --border-strong: #c3c8d0;
+  --border-glow:   #ff4500;
+
+  --text:          #0d1117;
+  --text-dim:      #5a6472;
+  --text-faint:    #8b95a1;
+
+  --primary:       #e03d00;
+  --primary-hover: #c53500;
+  --primary-soft:  rgba(224, 61, 0, 0.09);
+  --primary-ring:  rgba(224, 61, 0, 0.26);
+  --on-primary:    #ffffff;
+
+  --accent:        #0f6cbd;
+  --accent-hover:  #0a5493;
+  --accent-soft:   rgba(15, 108, 189, 0.10);
+
+  --danger:        #d92d2d;
+  --danger-soft:   rgba(217, 45, 45, 0.10);
+  --warning:       #b7791f;
+  --info:          #0f6cbd;
+
+  --vote-up:       #e03d00;
+  --vote-down:     #3b5bdb;
+
+  --shadow-panel:  0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-soft:   0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-lift:   0 4px 14px rgba(15, 23, 42, 0.12);
+  --shadow-cover:  0 -18px 40px rgba(242, 243, 245, 0.92);
+}
+
+html { font-size: 15px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  /* The bar is fixed, so the page has to end above it. */
+  padding-bottom: calc(var(--tabbar-height) + var(--tabbar-safe));
+  min-height: 100vh;
+}
+img, video, iframe, canvas, svg { max-width: 100%; }
+a { color: inherit; text-decoration: none; }
+button, input, select, textarea { font: inherit; color: inherit; }
+
+/* ── The compact top bar ────────────────────────────────────────────────── */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0.5rem 0.75rem;
+  min-width: 0;
+}
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.topbar-logo { color: var(--primary); font-size: 0.7rem; }
+.topbar .site-name {
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The search field is the bottom bar's second slot now, so the one in the top
+   bar is removed rather than duplicated. */
+.topbar-search { display: none; }
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin-left: auto;
+  min-width: 0;
+}
+.topbar-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--radius-full);
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.topbar-action:hover { background: var(--bg-raised); color: var(--text); }
+.topbar-action .nav-icon { width: 18px; height: 18px; fill: currentColor; }
+.topbar-actions-divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 0.2rem;
+  background: var(--border);
+  flex: 0 0 auto;
+}
+.color-mode-switch {
+  display: flex;
+  gap: 0.1rem;
+  padding: 0.15rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+.color-mode-btn {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+.color-mode-btn[aria-pressed='true'] { background: var(--primary-soft); color: var(--primary); }
+.account-menu { position: static; }
+.account-menu-panel {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0.75rem;
+  min-width: 210px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lift);
+  z-index: 60;
+}
+
+/* ── The five-place bottom bar ──────────────────────────────────────────────
+   The order is the design and never changes: home, search, messages,
+   notifications, profile. It is drawn on every screen, so a page that is
+   reached by an address bar has the same way out as one reached by tapping. */
+
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  align-items: stretch;
+  height: calc(var(--tabbar-height) + var(--tabbar-safe));
+  padding-bottom: var(--tabbar-safe);
+  background: color-mix(in srgb, var(--bg-panel) 94%, transparent);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid var(--border);
+}
+.tabbar-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 0.35rem 0.15rem;
+  color: var(--text-faint);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: color 0.15s ease;
+}
+/* Every icon is the same optical size. A filled bell next to an outlined house
+   does not read as a row of five; it reads as a row with one thing wrong. */
+.tabbar-icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+}
+.tabbar-icon svg { width: 22px; height: 22px; fill: currentColor; }
+.tabbar-item.is-active { color: var(--primary); }
+.tabbar-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tabbar-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  overflow: hidden;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+.tabbar-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.tabbar-badge {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  margin-left: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-full);
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+}
+.tabbar-badge[hidden] { display: none; }
+
+/* ── The page column ─────────────────────────────────────────────────────── */
+
+.shell {
+  display: block;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0.75rem;
+  min-width: 0;
+}
+/* The rail is a desktop convenience. On a phone the five places at the bottom
+   are the navigation, and a column of board names above the feed would push
+   the content the reader came for off the screen. */
+.shell .rail { display: none; }
+.shell.is-wide .rail { display: block; }
+.content {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  min-width: 0;
+}
+.shell.is-wide .content { max-width: 100%; }
+@media (min-width: 1024px) {
+  .shell {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 1.25rem;
+    padding: 1.25rem;
+  }
+  .shell .rail { display: block; }
+  .shell.is-wide { grid-template-columns: minmax(0, 1fr); }
+  .content { max-width: 760px; }
+  .shell.is-wide .content { max-width: 1180px; }
+}
+.site-footer {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1rem 0.75rem 1.5rem;
+  color: var(--text-faint);
+  font-size: 0.8rem;
+}
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  z-index: 100;
+}
+.skip-link:focus {
+  left: 0.5rem;
+  top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Feed cards ────────────────────────────────────────────────────────────
+   A card is a person, a line about what they did, the picture if there is one,
+   and what can be done to it. The picture goes below the text at full width:
+   beside the text it is a column of thumbnails, and on a phone it is a picture
+   with a caption squeezed into whatever is left over. */
+
+.feed-list { display: flex; flex-direction: column; gap: 0.75rem; }
+.post-card {
+  display: block;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  overflow-wrap: anywhere;
+}
+.post-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+  min-width: 0;
+}
+.post-card-author {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  color: inherit;
+}
+.post-card-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+.post-card-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.post-card-author-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+.post-card-author-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.post-card-author-handle {
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.post-card-head-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--text-faint);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.post-card-board {
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-raised);
+  color: var(--text-dim);
+  font-weight: 700;
+}
+.post-card-board:hover { background: var(--primary-soft); color: var(--primary); }
+.post-card-title {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 1.02rem;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--text);
+}
+.post-card-title:hover { color: var(--primary); }
+.post-card-preview {
+  margin: 0 0 0.5rem;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.post-card-media {
+  display: block;
+  margin: 0.5rem 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-sunken);
+}
+.post-card-media img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 70vh;
+  object-fit: contain;
+}
+.post-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: 0.82rem;
+}
+.post-card-comments {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 40px;
+  padding: 0 0.3rem;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.post-card-comments:hover { color: var(--primary); }
+.post-card-action-icon { font-size: 0.9rem; }
+.tag {
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+.tag.sticky { background: var(--accent-soft); color: var(--accent); }
+.tag.locked { background: var(--bg-raised); color: var(--text-faint); }
+.feed-more {
+  display: block;
+  margin: 0.75rem 0;
+  padding: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  text-align: center;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+.feed-more:hover { border-color: var(--primary); color: var(--primary); }
+.feed-sortbar {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+  padding: 0.25rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  overflow-x: auto;
+}
+.feed-sort {
+  flex: 1 0 auto;
+  padding: 0.45rem 0.8rem;
+  border-radius: var(--radius-full);
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.feed-sort.is-active { background: var(--primary); color: var(--on-primary); }
+
+/* ── Profile ────────────────────────────────────────────────────────────────
+   Cover, then the picture hanging over its lower edge, then the name, the
+   handle, the description, and three numbers. The cover fades into the page
+   instead of ending at an edge, so there is no line between the picture and
+   the name. */
+
+.profile-page { max-width: 640px; margin: 0 auto; }
+.profile-header {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  overflow: hidden;
+}
+.profile-cover {
+  height: 132px;
+  background:
+    radial-gradient(120% 140% at 15% 0%, rgba(255, 69, 0, 0.55), transparent 60%),
+    radial-gradient(110% 130% at 85% 10%, rgba(76, 141, 255, 0.45), transparent 62%),
+    linear-gradient(160deg, #2a1a3d 0%, #10131c 60%, var(--bg-card) 100%);
+}
+.profile-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.85rem;
+  padding: 0 1rem;
+  margin-top: -46px;
+}
+.profile-avatar {
+  flex: 0 0 auto;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  border: 4px solid var(--bg-card);
+  background: var(--bg-raised);
+  object-fit: cover;
+}
+.profile-avatar-letter {
+  display: grid;
+  place-items: center;
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+.profile-identity {
+  min-width: 0;
+  padding-bottom: 0.2rem;
+  flex: 1 1 auto;
+}
+.profile-name {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.profile-handle {
+  margin: 0.1rem 0 0;
+  color: var(--text-faint);
+  font-size: 0.88rem;
+}
+.profile-bio {
+  margin: 0.5rem 0 0;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.profile-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.25rem;
+  margin: 0.9rem 0 0;
+  padding: 0.75rem 0.5rem;
+  border-top: 1px solid var(--border);
+}
+.profile-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0 0.15rem;
+  text-align: center;
+}
+.profile-metric-value {
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.profile-metric-value-age { font-size: 0.92rem; }
+.profile-metric-label {
+  color: var(--text-faint);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.profile-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0.9rem 0 0.75rem;
+  padding: 0 0.25rem;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  width: 100%;
+  max-width: 100%;
+}
+.profile-tab {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 40px;
+  padding: 0.6rem 0.3rem;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+.profile-tab.is-active { color: var(--text); }
+/* A thin bar under the active tab, not a filled pill: the tab row is a
+   heading for the list below it, not a row of buttons. */
+.profile-tab.is-active::after {
+  content: "";
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--primary);
+}
+.profile-tab-count { color: var(--text-faint); font-weight: 600; }
+.profile-feed { display: flex; flex-direction: column; gap: 0.6rem; }
+.profile-entry {
+  padding: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  overflow-wrap: anywhere;
+}
+.profile-entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.35rem;
+  color: var(--text-faint);
+  font-size: 0.75rem;
+  flex-wrap: wrap;
+}
+.profile-entry-board {
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-raised);
+  color: var(--text-dim);
+  font-weight: 700;
+}
+.profile-entry-badge {
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+}
+.profile-entry-subject {
+  margin: 0 0 0.3rem;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+.profile-entry-subject a:hover { color: var(--primary); }
+.profile-entry-body {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.profile-entry-actions {
+  display: flex;
+  gap: 0.9rem;
+  margin: 0.6rem 0 0;
+  font-size: 0.8rem;
+}
+.profile-entry-link { color: var(--text-faint); font-weight: 600; }
+.profile-entry-link:hover { color: var(--primary); }
+.profile-empty {
+  padding: 1.5rem 0.75rem;
+  text-align: center;
+  color: var(--text-faint);
+}
+
+/* ── Direct messages ─────────────────────────────────────────────────────── */
+
+.page-box {
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+.messages-title { margin: 0 0 0.6rem; font-size: 1.2rem; font-weight: 800; }
+.messages-subtitle { margin: 1.1rem 0 0.4rem; font-size: 0.9rem; color: var(--text-dim); }
+.messages-empty { color: var(--text-faint); font-size: 0.9rem; }
+.message-list, .message-block-list, .notification-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.message-list-link, .notification-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+.message-list-item-unread .message-list-link {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.message-list-name { font-weight: 800; }
+.message-list-preview,
+.message-list-when { color: var(--text-faint); font-size: 0.82rem; }
+.message-list-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.message-unread {
+  align-self: flex-start;
+  margin-top: 0.2rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+.message-closed { color: var(--danger); font-size: 0.75rem; }
+.message-block-item, .message-block-form { font-size: 0.85rem; }
+.message-thread-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+/* A bubble aligned to the side it was written from: mine to the right, theirs
+   to the left. The alignment is the whole conversation, so it is not left to
+   a colour. */
+.message-bubble {
+  max-width: 82%;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-raised);
+  overflow-wrap: anywhere;
+}
+.message-bubble-mine {
+  align-self: flex-end;
+  background: var(--primary-soft);
+  border-bottom-right-radius: 4px;
+}
+.message-bubble-theirs { align-self: flex-start; border-bottom-left-radius: 4px; }
+.message-meta { color: var(--text-faint); font-size: 0.7rem; margin-bottom: 0.2rem; }
+.message-body { font-size: 0.9rem; line-height: 1.45; white-space: pre-wrap; }
+.message-delete-form { margin-top: 0.3rem; }
+.message-delete-form button {
+  border: 0;
+  background: none;
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  cursor: pointer;
+  padding: 0.2rem 0;
+}
+.message-delete-form button:hover { color: var(--danger); }
+
+/* ── Notifications ─────────────────────────────────────────────────────────
+   Read and unread differ in more than colour: an unread row carries a dot and
+   a heavier surface, so the state survives a reader who cannot see the
+   difference between two greys. */
+
+.notification-summary { margin: 0 0 0.6rem; color: var(--text-faint); font-size: 0.82rem; }
+.notification-kind {
+  align-self: flex-start;
+  padding: 0.05rem 0.45rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-raised);
+  color: var(--text-dim);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.notification-summary { color: var(--text); font-size: 0.9rem; }
+.notification-when { color: var(--text-faint); font-size: 0.75rem; }
+.notification-item-unread .notification-link {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.notification-item-unread .notification-summary { font-weight: 700; }
+.notifications-read-all { margin-bottom: 0.6rem; }
+.notifications-read-all button {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  color: var(--text-dim);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ── Search ──────────────────────────────────────────────────────────────── */
+
+.header-search input,
+.search-input,
+input[type='text'],
+input[type='search'],
+textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--bg-input);
+  color: var(--text);
+}
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--primary-ring);
+  outline-offset: 2px;
+}
+.search-results { display: flex; flex-direction: column; gap: 0.5rem; }
+
+/* ── Board and thread headers ────────────────────────────────────────────── */
+
+.sub-header, .post-header {
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+.sub-title, .post-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.sub-header-board, .post-header-board {
+  color: var(--text-faint);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.post, .thread, .reply {
+  border-color: var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  overflow-wrap: anywhere;
+}
+.post-body, .thread pre, pre, code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+pre {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+}
+code { font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 42px;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--bg-raised);
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+}
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-block { display: flex; width: 100%; }
+.side-card {
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+.home-columns { display: block; }
+.home-side { margin-top: 0.9rem; }
+.home-hero { margin-bottom: 0.75rem; }
+.home-title { margin: 0; font-size: 1.3rem; font-weight: 800; }
+.home-subtitle { margin: 0.2rem 0 0; color: var(--text-faint); font-size: 0.9rem; }
+@media (min-width: 1024px) {
+  .home-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 1.25rem;
+    align-items: start;
+  }
+  .home-side { margin-top: 0; }
+}
+
+/* ── Touch ─────────────────────────────────────────────────────────────────
+   Nothing that has to be tapped is smaller than a fingertip, and nothing that
+   can be pressed depends on a hover a phone never fires. */
+
+@media (hover: none) and (pointer: coarse) {
+  .tabbar-item,
+  .btn,
+  .post-card-comments,
+  .feed-sort,
+  .profile-tab,
+  .topbar-action,
+  .color-mode-btn,
+  .message-delete-form button {
+    min-height: 44px;
+  }
+  .topbar-action:hover,
+  .post-card-comments:hover { background: none; color: inherit; }
+}
+@media (hover: none) and (pointer: coarse) {
+  .topbar-action:hover { color: var(--text-dim); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* The narrowest phone the layout is built for. Anything tighter than this gets
+   the same rules with the padding taken out rather than a second layout. */
+@media (max-width: 400px) {
+  .shell { padding: 0.5rem; }
+  .post-card { padding: 0.7rem; }
+  .post-card-head { gap: 0.45rem; }
+  .post-card-avatar { width: 32px; height: 32px; }
+  .profile-cover { height: 108px; }
+  .profile-avatar { width: 78px; height: 78px; }
+  .profile-name { font-size: 1.2rem; }
+  .profile-metric-label { font-size: 0.62rem; letter-spacing: 0.02em; }
+  .tabbar-label { font-size: 0.6rem; }
+  .message-bubble { max-width: 90%; }
+}

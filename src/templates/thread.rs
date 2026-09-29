@@ -595,7 +595,8 @@ pub fn thread_page(
         collapse_greentext,
         &format!("/{}/thread/{}", board.short_name, thread.id),
         user_preferences,
-        &crate::templates::auth::account_menu_html(account, account_menu_csrf),
+        account,
+        account_menu_csrf,
     )
 }
 
@@ -1921,6 +1922,10 @@ mod tests {
             op_tripcode: None,
             op_media_width: None,
             op_media_height: None,
+            author_user_id: None,
+            author_username: None,
+            author_display_name: None,
+            author_avatar_file: None,
             op_id: Some(1),
         }
     }
@@ -3071,6 +3076,8 @@ mod tests {
             display_name: "Rain".to_owned(),
             username: "rainkawa".to_owned(),
             is_admin: false,
+            user_id: None,
+            avatar_file: None,
         };
         let votes = std::collections::BTreeMap::from([(
             post.id,

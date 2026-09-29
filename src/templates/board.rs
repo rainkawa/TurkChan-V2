@@ -938,7 +938,8 @@ pub fn index_page<S: std::hash::BuildHasher>(
         false,
         "/",
         user_preferences,
-        &crate::templates::auth::account_menu_html(account, account_menu_csrf),
+        account,
+        account_menu_csrf,
     )
 }
 
@@ -1112,7 +1113,8 @@ pub fn board_page<S: std::hash::BuildHasher>(
         collapse_greentext,
         &format!("/{}", board.short_name),
         user_preferences,
-        &crate::templates::auth::account_menu_html(account, account_menu_csrf),
+        account,
+        account_menu_csrf,
     )
 }
 
@@ -1413,11 +1415,67 @@ impl FeedKind {
     }
 }
 
+/// Render the picture and the name of whoever opened a thread.
+///
+/// A thread written without an account is an imageboard post: the name typed
+/// into the form is who it is from, there is no profile behind it, and the
+/// card says so by drawing a letter rather than an empty circle. A thread with
+/// an account behind it links to that account, because the same person appears
+/// on a board, on their profile, and in a message list, and a reader should be
+/// able to get from one to the other.
+fn feed_author(thread: &Thread) -> String {
+    match (
+        thread.author_user_id,
+        thread.author_username.as_deref(),
+        thread.author_display_name.as_deref(),
+    ) {
+        (Some(user_id), Some(username), Some(display_name)) => {
+            let face = match thread.author_avatar_file.as_deref() {
+                Some(_) => format!(
+                    r#"<img src="/auth/avatar/{user_id}?v={version}" alt="" width="36" height="36" loading="lazy" decoding="async">"#,
+                    user_id = user_id,
+                    version = escape_html(&crate::templates::auth::avatar_version(
+                        thread.author_avatar_file.as_deref(),
+                    )),
+                ),
+                None => escape_html(&crate::templates::auth::account_initial(
+                    display_name, username,
+                )),
+            };
+            format!(
+                r#"<a class="post-card-author" href="/u/{username}"><span class="post-card-avatar">{face}</span><span class="post-card-author-names"><span class="post-card-author-name">{display_name}</span><span class="post-card-author-handle">@{username}</span></span></a>"#,
+                username = escape_html(username),
+                face = face,
+                display_name = escape_html(display_name),
+            )
+        }
+        _ => {
+            let name = thread
+                .op_name
+                .as_deref()
+                .map(str::trim)
+                .filter(|name| !name.is_empty())
+                .unwrap_or("Anonim");
+            format!(
+                r#"<span class="post-card-author"><span class="post-card-avatar post-card-avatar-letter">{initial}</span><span class="post-card-author-names"><span class="post-card-author-name">{name}</span></span></span>"#,
+                initial = escape_html(&crate::templates::auth::account_initial(name, "")),
+                name = escape_html(name),
+            )
+        }
+    }
+}
+
 /// Render one thread as a post card in a feed.
 ///
 /// The card is the same shape everywhere a list of threads is shown — the
 /// homepage, `/new`, and `/popular` — so a reader recognises a thread by the
-/// same thumbnail, title, and meta line in every one of them.
+/// same picture, title, and meta line in every one of them.
+///
+/// It reads top to bottom the way a feed is read: who, what board, when; then
+/// the title; then the text; then the picture; then what can be done to it. The
+/// picture goes below the text rather than beside it, because a card with a
+/// thumbnail in a column is a list of pictures and a card with a picture in a
+/// column on a phone is a picture with a caption squeezed beside it.
 fn feed_row(kind: FeedKind, thread: &Thread, board_short: &str) -> String {
     let subject = thread
         .subject
@@ -1437,9 +1495,19 @@ fn feed_row(kind: FeedKind, thread: &Thread, board_short: &str) -> String {
         .collect();
 
     let media = thread.op_thumb.as_ref().map_or_else(String::new, |thumb| {
+        // The dimensions the opening post recorded let the box be reserved
+        // before the picture arrives, so a feed does not jump as it loads.
+        let dims = super::thread::scaled_image_dims(
+            thread.op_media_width,
+            thread.op_media_height,
+            FEED_MEDIA_MAX_EDGE_PX,
+        );
         format!(
-            r#"<div class="post-card-media"><img src="/boards/{thumb}" alt="" loading="lazy" decoding="async"></div>"#,
+            r#"<a class="post-card-media" href="/{board}/thread/{thread_id}"><img src="/boards/{thumb}" alt="" loading="lazy" decoding="async"{dims}></a>"#,
+            board = escape_html(board_short),
+            thread_id = thread.id,
             thumb = escape_html(thumb),
+            dims = dims,
         )
     });
 
@@ -1454,40 +1522,35 @@ fn feed_row(kind: FeedKind, thread: &Thread, board_short: &str) -> String {
         flags
     };
 
-    let author = thread
-        .op_name
-        .as_deref()
-        .map(str::trim)
-        .filter(|name| !name.is_empty())
-        .unwrap_or("Anonim");
-
     format!(
         r#"<article class="post-card">
-  {media}
-  <div class="post-card-main">
-    <a class="post-card-title" href="/{board}/thread/{thread_id}">{subject}</a>
-    {preview_html}
-    <div class="post-card-meta">
-      {flags}
+  <header class="post-card-head">
+    {author}
+    <div class="post-card-head-meta">
       <a class="post-card-board" href="/{board}">/{board}/</a>
-      <span class="post-card-author">{author}</span>
       <span class="post-card-no">No.{op_id}</span>
       <time class="post-card-time" datetime="{bumped_iso}">{bumped}</time>
-      <a class="post-card-comments" href="/{board}/thread/{thread_id}">{replies} {reply_label}</a>
     </div>
-  </div>
+  </header>
+  <a class="post-card-title" href="/{board}/thread/{thread_id}">{subject}</a>
+  {preview_html}
+  {media}
+  <footer class="post-card-actions">
+    {flags}
+    <a class="post-card-comments" href="/{board}/thread/{thread_id}"><span class="post-card-action-icon" aria-hidden="true">&#128172;</span><span class="post-card-action-label">{replies} {reply_label}</span></a>
+  </footer>
 </article>"#,
+        author = feed_author(thread),
         board = escape_html(board_short),
         thread_id = thread.id,
-        media = media,
         subject = escape_html(&subject),
         preview_html = if preview.is_empty() {
             String::new()
         } else {
             format!(r#"<p class="post-card-preview">{preview}</p>"#, preview = escape_html(&preview))
         },
+        media = media,
         flags = flags,
-        author = escape_html(author),
         op_id = thread.op_id.unwrap_or(thread.id),
         replies = thread.reply_count,
         reply_label = kind.reply_label(),
@@ -1495,6 +1558,13 @@ fn feed_row(kind: FeedKind, thread: &Thread, board_short: &str) -> String {
         bumped = fmt_ts(thread.bumped_at),
     )
 }
+
+/// Longest edge a feed picture may take, in pixels.
+///
+/// A feed card is read at arm's length on a phone, so a picture larger than
+/// this is downloaded, decoded, and then scaled down by the browser. The
+/// stylesheet caps the rendered size at the same edge.
+const FEED_MEDIA_MAX_EDGE_PX: i64 = 720;
 
 /// Render the cross-board "new" or "popular" feed.
 #[expect(
@@ -1560,7 +1630,8 @@ pub fn feed_page(
         false,
         kind.path(),
         user_preferences,
-        &crate::templates::auth::account_menu_html(account, account_menu_csrf),
+        account,
+        account_menu_csrf,
     )
 }
 
@@ -1788,7 +1859,8 @@ pub fn catalog_page<S: std::hash::BuildHasher>(
             format!("/{}/catalog", board.short_name)
         },
         user_preferences,
-        &crate::templates::auth::account_menu_html(account, account_menu_csrf),
+        account,
+        account_menu_csrf,
     )
 }
 
@@ -1900,7 +1972,8 @@ pub fn search_page(
             urlencoding_simple(query)
         ),
         user_preferences,
-        &crate::templates::auth::account_menu_html(account, account_menu_csrf),
+        account,
+        account_menu_csrf,
     )
 }
 
@@ -1968,7 +2041,8 @@ pub fn archive_page(
         board.collapse_greentext,
         &format!("/{}/archive", board.short_name),
         user_preferences,
-        &crate::templates::auth::account_menu_html(account, account_menu_csrf),
+        account,
+        account_menu_csrf,
     )
 }
 
@@ -2013,6 +2087,10 @@ mod tests {
             op_tripcode: None,
             op_media_width: None,
             op_media_height: None,
+            author_user_id: None,
+            author_username: None,
+            author_display_name: None,
+            author_avatar_file: None,
             op_id: Some(87),
         }
     }
