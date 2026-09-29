@@ -286,8 +286,6 @@ pub(crate) fn create_thread_submission(
             thread_id,
             is_op: true,
             ..post.clone()
-            media_width: None,
-            media_height: None,
         };
         let post_id = super::posts::create_post_inner(conn, &post_with_thread)?;
         let poll_id = poll

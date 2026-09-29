@@ -10,14 +10,15 @@ const MAX_JOB_ATTEMPTS: i64 = 3;
 const POST_SELECT_COLUMNS: &str = "id, thread_id, board_id, name, tripcode, subject, body, \
     body_html, ip_hash, file_path, file_name, file_size, thumb_path, mime_type, created_at, \
     deletion_token, is_op, media_type, audio_file_path, audio_file_name, audio_file_size, \
-    audio_mime_type, edited_at, media_processing_state, media_processing_error, user_id";
+    audio_mime_type, edited_at, media_processing_state, media_processing_error, user_id, \
+    media_width, media_height";
 /// Shared projection used to decode a complete post selected with alias `p`.
 const POST_SELECT_COLUMNS_WITH_P_ALIAS: &str =
     "p.id, p.thread_id, p.board_id, p.name, p.tripcode, p.subject, p.body, p.body_html, \
     p.ip_hash, p.file_path, p.file_name, p.file_size, p.thumb_path, p.mime_type, p.created_at, \
     p.deletion_token, p.is_op, p.media_type, p.audio_file_path, p.audio_file_name, \
     p.audio_file_size, p.audio_mime_type, p.edited_at, p.media_processing_state, \
-    p.media_processing_error, p.user_id";
+    p.media_processing_error, p.user_id, p.media_width, p.media_height";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// State assigned after recording a background-job failure.
@@ -165,6 +166,8 @@ pub(super) fn map_post(row: &rusqlite::Row<'_>) -> rusqlite::Result<Post> {
         media_processing_state,
         media_processing_error,
         user_id: row.get(25)?,
+        media_width: row.get(26)?,
+        media_height: row.get(27)?,
     })
 }
 
@@ -316,8 +319,9 @@ pub(super) fn create_post_inner(conn: &rusqlite::Connection, p: &super::NewPost)
          (thread_id, board_id, name, tripcode, subject, body, body_html,
           ip_hash, file_path, file_name, file_size, thumb_path, mime_type,
           deletion_token, is_op, media_type,
-          audio_file_path, audio_file_name, audio_file_size, audio_mime_type)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20)
+          audio_file_path, audio_file_name, audio_file_size, audio_mime_type,
+          media_width, media_height)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22)
          RETURNING id",
         params![
             p.thread_id,
@@ -340,6 +344,8 @@ pub(super) fn create_post_inner(conn: &rusqlite::Connection, p: &super::NewPost)
             p.audio_file_name,
             p.audio_file_size,
             p.audio_mime_type,
+            p.media_width,
+            p.media_height,
         ],
         |r| r.get(0),
     )?;
@@ -919,7 +925,7 @@ pub fn search_posts(
                 posts.media_type, posts.audio_file_path, posts.audio_file_name,
                 posts.audio_file_size, posts.audio_mime_type, posts.edited_at,
                 posts.media_processing_state, posts.media_processing_error,
-                posts.user_id
+                posts.user_id, posts.media_width, posts.media_height
          FROM posts
          JOIN posts_fts ON posts_fts.rowid = posts.id
          WHERE posts.board_id = ?1 AND posts_fts MATCH ?2

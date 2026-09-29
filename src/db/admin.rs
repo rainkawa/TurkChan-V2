@@ -756,7 +756,7 @@ pub fn get_posts_by_ip_hash(
                 p.deletion_token, p.is_op, p.media_type,
                 p.audio_file_path, p.audio_file_name, p.audio_file_size, p.audio_mime_type,
                 p.edited_at, p.media_processing_state, p.media_processing_error,
-                p.user_id, b.short_name
+                p.user_id, p.media_width, p.media_height, b.short_name
          FROM posts p
          JOIN boards b ON b.id = p.board_id
          WHERE p.ip_hash = ?1
@@ -765,10 +765,10 @@ pub fn get_posts_by_ip_hash(
     )?;
 
     let rows = stmt.query_map(rusqlite::params![ip_hash, limit, offset], |row| {
-        // map_post reads columns 0–25 (the 26 canonical post columns).
-        // Column 26 is b.short_name, appended only by this query.
+        // map_post reads columns 0–27 (the 28 canonical post columns).
+        // Column 28 is b.short_name, appended only by this query.
         let post = super::posts::map_post(row)?;
-        let board_short: String = row.get(26)?;
+        let board_short: String = row.get(28)?;
         Ok((post, board_short))
     })?;
 
