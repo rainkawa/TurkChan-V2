@@ -776,6 +776,22 @@ pub fn base_layout_with_preferences(
     )
 }
 
+/// The mark drawn in the top bar's home button.
+///
+/// An icon rather than the word "Ana Sayfa": the button sits next to the brand,
+/// which already links home, so the label repeated the thing the reader can
+/// already see. It still carries the name for anyone who cannot see the shape.
+const ICON_HOME: &str = r##"<svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2 2.6 11.1a1 1 0 0 0 .64 1.76H5v7.14a1 1 0 0 0 1 1h4.2v-5.1h3.6V21H18a1 1 0 0 0 1-1v-7.14h1.76a1 1 0 0 0 .64-1.76Z"/></svg>"##;
+
+/// The mark drawn beside the "Yeni" entry.
+const ICON_NEW: &str = r##"<svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.4a9.6 9.6 0 1 0 9.6 9.6A9.61 9.61 0 0 0 12 2.4Zm1.06 4.66h-2.12v3.3H7.64v2.12h3.3v3.3h2.12v-3.3h3.3v-2.12h-3.3Z"/></svg>"##;
+
+/// The mark drawn beside the "Popüler" entry.
+const ICON_POPULAR: &str = r##"<svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13.5 1.5S13 5 10.6 7.2C8.5 9.1 6 10.6 6 14.1A6.4 6.4 0 0 0 12.4 20.5a6.4 6.4 0 0 0 6.4-6.4c0-3.2-2-4.6-3.3-6.3-.4 1-1.1 1.7-2 2.1.6-3.2 0-6.6 0-8.4Z"/></svg>"##;
+
+/// The mark drawn beside the "Ara" entry.
+const ICON_SEARCH: &str = r##"<svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10.4 2.6a7.8 7.8 0 1 0 4.72 13.94l4.4 4.4 1.5-1.5-4.4-4.4A7.8 7.8 0 0 0 10.4 2.6Zm0 2a5.8 5.8 0 1 1 0 11.6 5.8 5.8 0 0 1 0-11.6Z"/></svg>"##;
+
 #[must_use]
 #[expect(
     clippy::too_many_arguments,
@@ -809,13 +825,15 @@ pub fn base_layout_with_account(
     let signed_in = !account_menu_html.trim().is_empty();
     let is_auth_page = current_path.starts_with("/login") || current_path.starts_with("/register");
     let topbar_account_links = if signed_in {
-        r#"<a class="topbar-action" href="/notifications" title="Bildirimler">Bildirimler</a>
+        r#"<span class="topbar-actions-divider" aria-hidden="true"></span>
+      <a class="topbar-action" href="/notifications" title="Bildirimler">Bildirimler</a>
       <a class="topbar-action" href="/messages" title="Mesajlar">Mesajlar</a>"#
             .to_owned()
     } else if is_auth_page {
         String::new()
     } else {
-        r#"<a class="topbar-action" href="/login" title="Giriş yap">Giriş Yap</a>
+        r#"<span class="topbar-actions-divider" aria-hidden="true"></span>
+      <a class="topbar-action" href="/login" title="Giriş yap">Giriş Yap</a>
       <a class="topbar-action" href="/register" title="Kayıt ol">Kayıt Ol</a>"#
             .to_owned()
     };
@@ -900,14 +918,6 @@ pub fn base_layout_with_account(
         format!(r#" data-theme="{}""#, escape_html(&active_theme))
     };
     let active_theme_value_attr = format!(r#" data-active-theme="{}""#, escape_html(&active_theme));
-    let theme_href = |theme: &str| {
-        format!(
-            "/theme/{}?return_to={}&_csrf={}",
-            escape_html(theme),
-            urlencoding_simple(current_path),
-            urlencoding_simple(csrf_token)
-        )
-    };
     let stylesheet_href = static_asset_url("/static/style.css");
     let admin_stylesheet_href = static_asset_url("/static/admin.css");
     let theme_init_src = static_asset_url("/static/theme-init.js");
@@ -937,90 +947,6 @@ pub fn base_layout_with_account(
     } else {
         String::new()
     };
-    let mut theme_picker_panel = String::new();
-    let mut theme_select_options = String::new();
-    let mut theme_noscript_buttons = String::new();
-    for theme in enabled_themes.iter().filter(|theme| theme.enabled) {
-        let href = theme_href(&theme.slug);
-        let selected_attr = if theme.slug == active_theme {
-            " selected"
-        } else {
-            ""
-        };
-        let _ = write!(
-            theme_select_options,
-            r#"<option value="{slug}"{selected}>{label}</option>"#,
-            slug = escape_html(&theme.slug),
-            selected = selected_attr,
-            label = escape_html(&theme.display_name),
-        );
-        let _ = write!(
-            theme_noscript_buttons,
-            r#"<button type="submit" name="theme" value="{slug}" aria-pressed="{selected}">{label}</button>"#,
-            slug = escape_html(&theme.slug),
-            selected = if theme.slug == active_theme {
-                "true"
-            } else {
-                "false"
-            },
-            label = escape_html(&theme.display_name),
-        );
-        let _ = write!(
-            theme_picker_panel,
-            r#"<a class="tp-option" data-action="set-theme" data-theme="{slug}" href="{href}" title="{description}">
-    <span class="tp-swatch" style="background:{swatch};"></span>{label}
-  </a>"#,
-            slug = escape_html(&theme.slug),
-            href = href,
-            description = escape_html(&theme.description),
-            swatch = escape_html(&theme.swatch_hex),
-            label = escape_html(&theme.display_name)
-        );
-    }
-    let theme_select_disabled = if theme_select_options.is_empty() {
-        let label = crate::theme::builtin_theme(&active_theme)
-            .map_or(active_theme.as_str(), |theme| theme.display_name);
-        theme_select_options = format!(
-            r#"<option value="{}" selected>{} (fallback)</option>"#,
-            escape_html(&active_theme),
-            escape_html(label)
-        );
-        theme_noscript_buttons = format!("<span>{} (fallback)</span>", escape_html(label));
-        " disabled"
-    } else {
-        ""
-    };
-    let hide_nsfw_checked = if preferences.hide_nsfw_boards {
-        " checked"
-    } else {
-        ""
-    };
-    let audio_on_checked = if preferences.video_audio_muted {
-        ""
-    } else {
-        " checked"
-    };
-    let audio_muted_checked = if preferences.video_audio_muted {
-        " checked"
-    } else {
-        ""
-    };
-    let catalog_checked = if preferences.preferred_board_view.is_catalog() {
-        " checked"
-    } else {
-        ""
-    };
-    let index_checked = if preferences.preferred_board_view.is_catalog() {
-        ""
-    } else {
-        " checked"
-    };
-    let badges_checked = if preferences.show_activity_badges {
-        " checked"
-    } else {
-        ""
-    };
-
     format!(
         r##"<!DOCTYPE html>
 <html lang="tr" class="no-js" data-theme-css-slugs="{custom_theme_slugs}"{default_theme_attr}{theme_slugs_attr}{active_theme_value_attr}{active_theme_attr}>
@@ -1047,10 +973,11 @@ pub fn base_layout_with_account(
     {board_menu}
     <div class="header-search topbar-search">{search_bar}</div>
     <nav class="topbar-actions" aria-label="Site gezinmesi">
-      <a class="topbar-action" href="/" title="Ana sayfa">Ana Sayfa</a>
-      <a class="topbar-action" href="/new" title="Yeni konular">Yeni</a>
-      <a class="topbar-action" href="/popular" title="Popüler konular">Popüler</a>
-      <a class="topbar-action" href="/search" title="Ara">Ara</a>
+      <a class="topbar-action topbar-action-home" href="/" title="Ana sayfa" aria-label="Ana sayfa">{home_icon}</a>
+      <span class="topbar-actions-divider" aria-hidden="true"></span>
+      <a class="topbar-action" href="/new" title="Yeni konular">{new_icon}<span>Yeni</span></a>
+      <a class="topbar-action" href="/popular" title="Popüler konular">{popular_icon}<span>Popüler</span></a>
+      <a class="topbar-action" href="/search" title="Ara">{search_icon}<span>Ara</span></a>
       {topbar_account_links}
     </nav>
     {account_menu_html}
@@ -1082,83 +1009,6 @@ pub fn base_layout_with_account(
 </div>
 <footer class="site-footer">
   <p class="site-footer-copy">{forum_name} &mdash; <a href="/">ana sayfa</a></p>
-  <div class="site-footer-theme">
-    <details class="user-preferences-panel">
-      <summary id="theme-picker-btn" class="user-preferences-summary">&#9881; Kullanıcı Tercihleri</summary>
-      <form class="user-preferences-form" id="user-preferences-form" method="POST" action="/preferences">
-        <button type="button" class="user-preferences-mobile-close" aria-label="Tercihleri kapat">&times;</button>
-        <p class="user-preferences-status" role="status" aria-live="polite">Değişiklikler hemen uygulanır.</p>
-        <input type="hidden" name="preferences_form" value="1">
-        <input type="hidden" name="_csrf" value="{csrf_token}">
-        <input type="hidden" name="return_to" value="{current_path}">
-        <label>Tema
-          <select name="theme"{theme_select_disabled}>{theme_select_options}</select>
-        </label>
-        <input type="hidden" name="hide_nsfw_boards_present" value="1">
-        <label><input type="checkbox" name="hide_nsfw_boards" value="1"{hide_nsfw_checked}> NSFW boardları gizle</label>
-        <fieldset>
-          <legend>Video sesi varsayılan olarak</legend>
-          <label><input type="radio" name="video_audio" value="on"{audio_on_checked}> Açık</label>
-          <label><input type="radio" name="video_audio" value="mute"{audio_muted_checked}> Sessiz</label>
-        </fieldset>
-        <fieldset>
-          <legend>Board bağlantıları</legend>
-          <label><input type="radio" name="preferred_board_view" value="catalog"{catalog_checked}> Katalog tercih et</label>
-          <label><input type="radio" name="preferred_board_view" value="index"{index_checked}> Liste tercih et</label>
-        </fieldset>
-        <input type="hidden" name="show_activity_badges_present" value="1">
-        <label><input type="checkbox" name="show_activity_badges" value="1"{badges_checked}> Yeni etkinlik rozetlerini göster</label>
-      </form>
-      <noscript>
-        <div class="user-preferences-noscript">
-          <p class="user-preferences-status">JavaScript kapalı. Aşağıdaki seçimlerin her biri hemen uygulanır.</p>
-          <form class="user-preferences-noscript-form" method="POST" action="/preferences">
-            <input type="hidden" name="_csrf" value="{csrf_token}">
-            <input type="hidden" name="return_to" value="{current_path}">
-            <fieldset><legend>Tema</legend><div class="user-preferences-choice-row">{theme_noscript_buttons}</div></fieldset>
-          </form>
-          <form class="user-preferences-noscript-form" method="POST" action="/preferences">
-            <input type="hidden" name="_csrf" value="{csrf_token}">
-            <input type="hidden" name="return_to" value="{current_path}">
-            <input type="hidden" name="hide_nsfw_boards_present" value="1">
-            <fieldset><legend>NSFW boardları</legend><div class="user-preferences-choice-row">
-              <button type="submit" name="hide_nsfw_boards" value="0" aria-pressed="{show_nsfw_pressed}">Göster</button>
-              <button type="submit" name="hide_nsfw_boards" value="1" aria-pressed="{hide_nsfw_pressed}">Gizle</button>
-            </div></fieldset>
-          </form>
-          <form class="user-preferences-noscript-form" method="POST" action="/preferences">
-            <input type="hidden" name="_csrf" value="{csrf_token}">
-            <input type="hidden" name="return_to" value="{current_path}">
-            <fieldset><legend>Video sesi varsayılan olarak</legend><div class="user-preferences-choice-row">
-              <button type="submit" name="video_audio" value="on" aria-pressed="{audio_on_pressed}">Açık</button>
-              <button type="submit" name="video_audio" value="mute" aria-pressed="{audio_muted_pressed}">Sessiz</button>
-            </div></fieldset>
-          </form>
-          <form class="user-preferences-noscript-form" method="POST" action="/preferences">
-            <input type="hidden" name="_csrf" value="{csrf_token}">
-            <input type="hidden" name="return_to" value="{current_path}">
-            <fieldset><legend>Board bağlantıları</legend><div class="user-preferences-choice-row">
-              <button type="submit" name="preferred_board_view" value="catalog" aria-pressed="{catalog_pressed}">Katalog</button>
-              <button type="submit" name="preferred_board_view" value="index" aria-pressed="{index_pressed}">Liste</button>
-            </div></fieldset>
-          </form>
-          <form class="user-preferences-noscript-form" method="POST" action="/preferences">
-            <input type="hidden" name="_csrf" value="{csrf_token}">
-            <input type="hidden" name="return_to" value="{current_path}">
-            <input type="hidden" name="show_activity_badges_present" value="1">
-            <fieldset><legend>Yeni etkinlik rozetleri</legend><div class="user-preferences-choice-row">
-              <button type="submit" name="show_activity_badges" value="1" aria-pressed="{show_badges_pressed}">Göster</button>
-              <button type="submit" name="show_activity_badges" value="0" aria-pressed="{hide_badges_pressed}">Gizle</button>
-            </div></fieldset>
-          </form>
-        </div>
-      </noscript>
-    </details>
-    <div id="theme-picker-panel" hidden inert aria-hidden="true">
-      <div class="tp-title">// TEMA SEÇ</div>
-      {theme_picker_panel}
-    </div>
-  </div>
 </footer>
 
 {confirmation_modal}
@@ -1177,6 +1027,10 @@ pub fn base_layout_with_account(
         shell_class = shell_class,
         search_bar = search_bar,
         board_menu = board_menu,
+        home_icon = ICON_HOME,
+        new_icon = ICON_NEW,
+        popular_icon = ICON_POPULAR,
+        search_icon = ICON_SEARCH,
         topbar_account_links = topbar_account_links,
         rail_account_link = rail_account_link,
         account_menu_html = account_menu_html,
@@ -1204,56 +1058,6 @@ pub fn base_layout_with_account(
         active_theme_value_attr = active_theme_value_attr,
         active_theme_attr = active_theme_attr,
         custom_theme_slugs = escape_html(&custom_theme_slugs),
-        theme_select_options = theme_select_options,
-        theme_picker_panel = theme_picker_panel,
-        theme_noscript_buttons = theme_noscript_buttons,
-        current_path = escape_html(current_path),
-        hide_nsfw_checked = hide_nsfw_checked,
-        audio_on_checked = audio_on_checked,
-        audio_muted_checked = audio_muted_checked,
-        catalog_checked = catalog_checked,
-        index_checked = index_checked,
-        badges_checked = badges_checked,
-        show_nsfw_pressed = if preferences.hide_nsfw_boards {
-            "false"
-        } else {
-            "true"
-        },
-        hide_nsfw_pressed = if preferences.hide_nsfw_boards {
-            "true"
-        } else {
-            "false"
-        },
-        audio_on_pressed = if preferences.video_audio_muted {
-            "false"
-        } else {
-            "true"
-        },
-        audio_muted_pressed = if preferences.video_audio_muted {
-            "true"
-        } else {
-            "false"
-        },
-        catalog_pressed = if preferences.preferred_board_view.is_catalog() {
-            "true"
-        } else {
-            "false"
-        },
-        index_pressed = if preferences.preferred_board_view.is_catalog() {
-            "false"
-        } else {
-            "true"
-        },
-        show_badges_pressed = if preferences.show_activity_badges {
-            "true"
-        } else {
-            "false"
-        },
-        hide_badges_pressed = if preferences.show_activity_badges {
-            "false"
-        } else {
-            "true"
-        },
         collapse_attr = if collapse_greentext {
             " data-collapse-greentext=\"1\""
         } else {
@@ -1494,29 +1298,14 @@ mod tests {
         let html = base_layout("Home", None, "<p>body</p>", "", &[], None, None, false, "/");
 
         assert!(html.contains(r#"data-default-theme="forest""#));
-
-        let forest_idx = html.find(r#"<option value="forest" selected>Forest</option>"#);
-        let blue_sky_idx = html.find(r#"<option value="blue-sky">Blue Sky</option>"#);
-        let deep_orbit_idx = html.find(r#"<option value="deep-orbit">Deep Orbit</option>"#);
-        let terminal_idx = html.find(r#"<option value="terminal">Terminal</option>"#);
-        let dorfic_idx = html.find(r#"<option value="dorfic">DORFic</option>"#);
-
-        assert!(forest_idx.is_some(), "forest option should be present");
-        assert!(blue_sky_idx.is_some(), "blue sky option should be present");
-        assert!(
-            deep_orbit_idx.is_some(),
-            "deep orbit option should be present"
-        );
-        assert!(terminal_idx.is_some(), "terminal option should be present");
-        assert!(dorfic_idx.is_some(), "DORFic option should be present");
-        assert!(forest_idx < blue_sky_idx);
-        assert!(blue_sky_idx < deep_orbit_idx);
-        assert!(deep_orbit_idx < terminal_idx);
-        assert!(terminal_idx < dorfic_idx);
+        // The enabled themes reach the browser as one ordered attribute, which
+        // is what the pre-paint script reads; the footer select that used to
+        // list them is gone.
+        assert!(html.contains(r#"data-theme-slugs="forest,blue-sky,deep-orbit,terminal,dorfic""#));
     }
 
     #[test]
-    fn base_layout_preferences_are_plain_html_and_selected() {
+    fn base_layout_carries_the_active_theme_without_a_footer_preferences_panel() {
         set_live_default_theme("forest");
         set_live_themes(vec![
             builtin_theme("forest", "Forest", 10),
@@ -1542,26 +1331,21 @@ mod tests {
             preferences,
         );
 
-        assert!(html.contains(r#"<details class="user-preferences-panel">"#));
-        assert!(html.contains(r#"method="POST" action="/preferences""#));
+        // The theme the visitor picked is still what the page renders with, so
+        // the pre-paint script and the colour variables agree.
         assert!(html.contains(r#"data-active-theme="blue-sky""#));
-        assert!(html.contains(r#"name="_csrf" value="csrf""#));
-        assert!(html.contains(r#"name="preferences_form" value="1""#));
-        assert!(html.contains(r#"class="user-preferences-mobile-close""#));
-        assert!(html.contains(r#"aria-label="Tercihleri kapat""#));
-        assert!(html.contains("Kullanıcı Tercihleri"));
-        assert!(html.contains(r#"<option value="blue-sky" selected>Blue Sky</option>"#));
-        assert!(html.contains(r#"name="hide_nsfw_boards_present" value="1""#));
-        assert!(html.contains(r#"name="hide_nsfw_boards" value="1" checked"#));
-        assert!(html.contains(r#"name="video_audio" value="mute" checked"#));
-        assert!(html.contains(r#"name="preferred_board_view" value="index" checked"#));
-        assert!(html.contains(r#"name="show_activity_badges_present" value="1""#));
-        assert!(!html.contains(r#"name="show_activity_badges" value="1" checked"#));
-        assert!(html.contains("Değişiklikler hemen uygulanır."));
-        assert!(html.contains("JavaScript kapalı. Aşağıdaki seçimlerin her biri hemen uygulanır."));
-        assert!(html.contains(r#"name="hide_nsfw_boards" value="0" aria-pressed="false""#));
-        assert!(html.contains(r#"name="hide_nsfw_boards" value="1" aria-pressed="true""#));
-        assert!(!html.contains("save preferences"));
+        assert!(html.contains(r#"data-theme="blue-sky""#));
+        assert!(html.contains(r#"data-theme-slugs="forest,blue-sky""#));
+        // The preferences sheet is gone from the footer. The colour switch in
+        // the bar is what a visitor still chooses light or dark with.
+        assert!(html.contains(r#"data-action="set-color-mode""#));
+        assert!(!html.contains(r#"class="user-preferences-panel""#));
+        assert!(!html.contains(r#"action="/preferences""#));
+        // The bar is one row of marks rather than a line of words.
+        assert!(html.contains(r#"class="topbar-action topbar-action-home""#));
+        assert!(html.contains(r#"aria-label="Ana sayfa""#));
+        assert!(html.contains("<span>Yeni</span>"));
+        assert!(!html.contains(">Ana Sayfa</a>"));
         assert!(!html.contains(r#"class="admin-header-link""#));
         assert!(!html.contains(r#"class="admin-footer-link""#));
         assert!(!html.contains(r#"aria-label="Yönetici girişi""#));

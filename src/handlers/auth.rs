@@ -2229,14 +2229,42 @@ pub(crate) async fn require_user_account_middleware(
             "Bu işlem için önce giriş yapmalısın.".into(),
         ));
     }
-    Ok(Redirect::to("/login").into_response())
+    // The sign-in screen carries the page the visitor asked for, so signing in
+    // puts them back on it rather than on the front page they never chose.
+    Ok(Redirect::to(&login_url_for(request.uri().path())).into_response())
+}
+
+/// The sign-in URL that sends the visitor back to `wanted` afterwards.
+fn login_url_for(wanted: &str) -> String {
+    if wanted == "/" {
+        return String::from("/login");
+    }
+    format!(
+        "/login?return_to={}",
+        crate::utils::redirect::encode_query_component(wanted)
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
 
-    use super::{avatar_initial, default_avatar, AVATAR_EDGE};
+    use super::{avatar_initial, default_avatar, login_url_for, AVATAR_EDGE};
+
+    #[test]
+    /// The gate has to hand the visitor the page they asked for, or signing
+    /// in drops them somewhere they never chose.
+    fn the_sign_in_url_carries_the_page_the_visitor_asked_for() {
+        assert_eq!(login_url_for("/"), "/login");
+        assert_eq!(login_url_for("/b/"), "/login?return_to=%2Fb%2F");
+        assert_eq!(
+            login_url_for("/b/thread/12?page=2"),
+            "/login?return_to=%2Fb%2Fthread%2F12%3Fpage%3D2"
+        );
+        // A path is the whole of what may travel, so a value that is not one
+        // cannot smuggle a second host into the query.
+        assert!(!login_url_for("//evil.example/").contains("//evil"));
+    }
 
     #[test]
     /// The generated avatar leads with the first letter of the account name.

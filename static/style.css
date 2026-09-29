@@ -9534,8 +9534,12 @@ body {
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 0.1rem;
+  gap: 0.15rem;
   margin-left: auto;
+  padding: 0.2rem 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--bg-raised);
   /* The links do not shrink below their own text, so without this the row
      would set the bar's minimum width and drag the account menu and the
      colour switch off the side of a narrow screen. */
@@ -9545,15 +9549,45 @@ body {
   scrollbar-width: none;
 }
 .topbar-actions::-webkit-scrollbar { display: none; }
+
+/* One control, not a row of words: the home button is a mark, and the places
+   beside it keep their name only when there is room for it. */
 .topbar-action {
-  padding: 0.45rem 0.7rem;
-  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--radius-full);
   color: var(--text-dim);
   font-size: 0.82rem;
   font-weight: 600;
   white-space: nowrap;
 }
-.topbar-action:hover { background: var(--bg-hover); color: var(--text); text-decoration: none; }
+.topbar-action:hover { background: var(--bg-card); color: var(--text); text-decoration: none; }
+
+.nav-icon {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex: 0 0 auto;
+  fill: currentColor;
+}
+
+.topbar-action-home {
+  padding: 0.4rem 0.55rem;
+  color: var(--text);
+}
+.topbar-action-home:hover { color: var(--primary); }
+.topbar-action-home .nav-icon { width: 1.15rem; height: 1.15rem; }
+
+/* A hairline between "where I am" and "where I can go", so the bar reads as
+   two groups rather than one undifferentiated line of links. */
+.topbar-actions-divider {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 1.1rem;
+  margin: 0 0.2rem;
+  background: var(--border-strong);
+}
 
 .color-mode-switch {
   border: 0;
@@ -10597,18 +10631,6 @@ textarea { resize: vertical; }
   font-size: 0.82rem;
 }
 .site-footer a { color: var(--text-dim); font-weight: 600; }
-.user-preferences-summary { cursor: pointer; font-weight: 600; }
-.user-preferences-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-  padding: 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-card);
-  color: var(--text);
-  text-align: left;
-}
 
 /* ── Fitting the column ─────────────────────────────────────────────────── */
 
@@ -10694,6 +10716,11 @@ button { max-width: 100%; }
   .sub-header-body { padding: 0.75rem; gap: 0.6rem; }
   .sub-title { font-size: 1.2rem; }
   .home-columns { gap: 0.75rem; }
+  /* The mark carries the meaning, so the words go first when the row is
+     tight. Nothing is lost: each link keeps its title and its accessible
+     name for anyone who cannot see the shape. */
+  .topbar-action span { display: none; }
+  .topbar-action { padding: 0.4rem 0.5rem; }
 }
 
 @media (max-width: 420px) {

@@ -97,13 +97,19 @@ fn collect_thread_file_paths(
 ///
 /// A left-join aggregation computes image counts in one pass. Callers must
 /// group by thread to preserve one output row per thread.
+///
+/// The column order here is the contract `map_thread` documents. The two media
+/// dimensions were appended after the aggregate once, which left the aggregate
+/// at index 17 while the reader took it from index 15 and read the opening
+/// post's nullable `media_width` as a non-null count. Every listing that held a
+/// text-only thread then failed to read its own row.
 const THREAD_SELECT: &str = "
     SELECT t.id, t.board_id, t.subject, t.created_at, t.bumped_at,
            t.locked, t.sticky, t.reply_count,
            op.body, op.file_path, op.thumb_path, op.name, op.tripcode, op.id,
            t.archived,
-           op.media_width, op.media_height,
-           COUNT(DISTINCT fp.id) AS image_count
+           COUNT(DISTINCT fp.id) AS image_count,
+           op.media_width, op.media_height
     FROM threads t
     JOIN posts op ON op.thread_id = t.id AND op.is_op = 1
     LEFT JOIN posts fp ON fp.thread_id = t.id AND fp.file_path IS NOT NULL";
@@ -966,8 +972,8 @@ pub fn count_archived_threads_for_board(conn: &rusqlite::Connection, board_id: i
 mod tests {
     use super::{
         count_threads_for_board, create_reply_with_thread_update, create_thread_submission,
-        delete_thread, prune_old_archived_threads, prune_old_threads, validate_deduplicated_paths,
-        PostFilesystemCommit,
+        delete_thread, get_recent_threads, prune_old_archived_threads, prune_old_threads,
+        validate_deduplicated_paths, PostFilesystemCommit,
     };
     use crate::db::{create_board, create_thread_with_optional_poll, get_board_by_short, NewPost};
     use crate::error::AppError;
@@ -1010,6 +1016,74 @@ mod tests {
         let (thread_id, _, _) =
             create_thread_with_optional_poll(conn, board_id, Some(title), &post, "", None, None)?;
         Ok(thread_id)
+    }
+
+    #[test]
+    /// The listing projection and the reader that walks it have to agree on
+    /// column order.
+    ///
+    /// The aggregate count and the opening post's two pixel dimensions sat at
+    /// swapped indexes once. The count was then read out of the nullable
+    /// `media_width`, so a text-only thread — the one with no dimensions —
+    /// was the row that could not be read, and every page listing it answered
+    /// 500.
+    fn listing_reads_the_thread_image_count_apart_from_the_op_dimensions() -> Result<()> {
+        let conn = test_conn()?;
+        let board_id = create_board(&conn, "order", "Order", "", false)?;
+
+        let text_thread = create_plain_thread(&conn, board_id, "just words")?;
+
+        let post = NewPost {
+            thread_id: 0,
+            board_id,
+            name: "anon".to_owned(),
+            tripcode: None,
+            subject: Some("with a picture".to_owned()),
+            body: "with a picture".to_owned(),
+            body_html: "with a picture".to_owned(),
+            ip_hash: None,
+            file_path: Some("order/picture.png".to_owned()),
+            file_name: Some("picture.png".to_owned()),
+            file_size: Some(1024),
+            thumb_path: Some("order/picture-thumb.png".to_owned()),
+            mime_type: Some("image/png".to_owned()),
+            media_type: Some(MediaType::Image.as_str().to_owned()),
+            audio_file_path: None,
+            audio_file_name: None,
+            audio_file_size: None,
+            audio_mime_type: None,
+            deletion_token: "token".to_owned(),
+            is_op: true,
+            media_width: Some(640),
+            media_height: Some(480),
+        };
+        let (image_thread, _, _) = create_thread_with_optional_poll(
+            &conn,
+            board_id,
+            Some("with a picture"),
+            &post,
+            "",
+            None,
+            None,
+        )?;
+
+        let listed = get_recent_threads(&conn, 10, 0)?;
+        let text = listed
+            .iter()
+            .find(|thread| thread.id == text_thread)
+            .context("the text-only thread is listed")?;
+        let image = listed
+            .iter()
+            .find(|thread| thread.id == image_thread)
+            .context("the thread with a picture is listed")?;
+
+        assert_eq!(text.op_media_width, None);
+        assert_eq!(text.op_media_height, None);
+        assert_eq!(text.image_count, 0, "nothing in it carries a file");
+        assert_eq!(image.op_media_width, Some(640));
+        assert_eq!(image.op_media_height, Some(480));
+        assert_eq!(image.image_count, 1, "its opening post carries the file");
+        Ok(())
     }
 
     #[test]
