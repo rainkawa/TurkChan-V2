@@ -12,7 +12,7 @@ A self-hosted imageboard written in Rust.
 
 TurkChan gives you boards, threads, replies, media uploads, moderation, backups, themes, and an admin panel without requiring a stack of services. It runs as one binary, uses bundled SQLite, and keeps its runtime files in one data directory.
 
-Current version: `1.4.1`. Minimum supported Rust version: `1.91`.
+Current version: `2.2.1`. Minimum supported Rust version: `1.91`.
 
 ## Screenshots
 

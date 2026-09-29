@@ -2,7 +2,7 @@
 
 Current setup and deployment guide for Linux, macOS, and Windows.
 
-Current development version: `1.4.1`.
+Current development version: `2.2.1`.
 
 This guide reflects the current TurkChan architecture:
 
@@ -655,12 +655,15 @@ Before major updates, back up:
 
 Or use the built-in backup tools from the admin panel.
 
-TurkChan `1.4.1` resets the database baseline: fresh installs create the
-current `1.4.1` schema directly instead of replaying pre-release internal
-migrations. Existing in-development databases that structurally match that
-schema are marked as database schema version `1.4.1`; partial, unknown, or
-corrupt schemas are rejected without deleting data. Future released schema
-changes should add normal forward migrations tied to TurkChan release versions.
+TurkChan `1.4.1` reset the database baseline: fresh installs create the
+current schema directly instead of replaying pre-release internal migrations.
+A database that structurally matches a recognized baseline is marked with the
+version of the release that introduced it, so `1.3.0`, `1.4.0`, and `1.4.1`
+databases are all carried forward into `2.2.1` by the additive repair path,
+which appends the tables, columns, indexes, and invariants the newer release
+added rather than rebuilding anything. Partial, unknown, or corrupt schemas are
+rejected without deleting data. Future released schema changes should add
+normal forward migrations tied to TurkChan release versions.
 
 ## Troubleshooting
 

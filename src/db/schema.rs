@@ -1072,7 +1072,8 @@ fn table_exists(conn: &rusqlite::Connection, table: &str) -> Result<bool> {
 
 /// Return whether a recorded version belongs to a recognized repairable baseline.
 fn is_known_legacy_schema_version(version: Option<&str>) -> bool {
-    if matches!(version, None | Some("1.3.0" | "1.4.0")) || version == Some(BASELINE_SCHEMA_VERSION)
+    if matches!(version, None | Some("1.3.0" | "1.4.0" | "1.4.1"))
+        || version == Some(BASELINE_SCHEMA_VERSION)
     {
         return true;
     }

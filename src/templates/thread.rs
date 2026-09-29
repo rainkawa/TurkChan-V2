@@ -980,9 +980,14 @@ pub(super) fn scaled_image_dims(width: Option<i64>, height: Option<i64>, box_px:
     }
     // One edge keeps the box, the other is rounded so the ratio stays honest.
     // The product is widened before it is scaled, because two i64 pixel counts
-    // multiplied together overflow far below the sizes involved here.
-    let scaled_short =
-        ((i128::from(width.min(height)) * i128::from(box_px)) / i128::from(long_edge)).max(1);
+    // multiplied together overflow far below the sizes involved here, and it is
+    // narrowed back afterwards: the result cannot exceed the box it is being
+    // scaled into, so the box is the value it falls back to rather than a guess.
+    let scaled_short = i64::try_from(
+        (i128::from(width.min(height)) * i128::from(box_px)) / i128::from(long_edge),
+    )
+    .unwrap_or(box_px)
+    .max(1);
     let (scaled_width, scaled_height) = if width >= height {
         (box_px, scaled_short)
     } else {
