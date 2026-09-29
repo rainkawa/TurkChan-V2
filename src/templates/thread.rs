@@ -1067,6 +1067,20 @@ fn effective_media_type(post: &Post) -> crate::models::MediaType {
     clippy::too_many_lines,
     reason = "post rendering keeps all media variants and security-sensitive escaping together"
 )]
+/// First visible character of a poster's name, for the post avatar.
+///
+/// The avatar is decorative here: a reader who recognizes a name does not need
+/// a picture of it, and an account with a real avatar gets that from the
+/// account menu instead. It exists so a post still reads as belonging to
+/// somebody at a glance.
+fn avatar_initial(name: &str) -> String {
+    name.trim()
+        .chars()
+        .find(|character| !character.is_whitespace())
+        .map(|character| character.to_uppercase().to_string())
+        .unwrap_or_else(|| "#".to_owned())
+}
+
 pub fn render_post(
     post: &Post,
     board_short: &str,
@@ -1151,18 +1165,26 @@ pub fn render_post(
 
     let mut html = format!(
         r##"<div class="post{op_class}" id="p{id}" data-thread-id="{thread_id}"{poster_attr}{media_processing_state_attr}>
-<div class="post-meta">
-{subject_html}<strong class="name">{name}</strong>{tripcode}{poster_id_html}
-<span class="post-time" data-utc="{ts}">{time}</span>
-<a class="post-num" href="#p{id}" data-action="append-reply" data-id="{id}">No.{id}</a>{post_state_badges}{media_processing_badge}
-<span class="backrefs" id="backrefs-{id}"></span>
-</div>"##,
+<div class="post-head">
+<span class="post-avatar" aria-hidden="true">{initial}</span>
+<div class="post-head-main">
+  <div class="post-head-line">
+    <strong class="name">{name}</strong>{tripcode}{poster_id_html}
+    <a class="post-num" href="#p{id}" data-action="append-reply" data-id="{id}">No.{id}</a>{post_state_badges}{media_processing_badge}
+  </div>
+  <div class="post-head-line post-head-sub">
+    <span class="post-time" data-utc="{ts}">{time}</span>
+    <span class="backrefs" id="backrefs-{id}"></span>
+  </div>
+</div>
+</div>
+{subject_html}"##,
         op_class = op_class,
         id = post.id,
         thread_id = post.thread_id,
         poster_attr = poster_attr,
         media_processing_state_attr = media_processing_state_attr,
-        subject_html = subject_html,
+        initial = avatar_initial(&post.name),
         name = escape_html(&post.name),
         tripcode = tripcode_html,
         poster_id_html = poster_id_html,

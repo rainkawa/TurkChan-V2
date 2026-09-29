@@ -5,38 +5,10 @@ use crate::{
 };
 use anyhow::{Context as _, Result};
 use rusqlite::{params, OptionalExtension as _};
-use std::collections::BTreeSet;
-
-/// Built-in themes enabled by installations predating featured themes.
-const LEGACY_DEFAULT_BUILTIN_THEMES: &[&str] = &[
-    "terminal",
-    "aero",
-    "dorfic",
-    "forest",
-    "chanclassic",
-    "neoncubicle",
-    "fluorogrid",
-];
 
 /// Return configured built-in theme slugs with legacy defaults upgraded.
 fn configured_enabled_builtin_slugs() -> Vec<String> {
-    let mut enabled_builtin_slugs = CONFIG.initial_enabled_builtin_themes.clone();
-
-    let configured = enabled_builtin_slugs
-        .iter()
-        .map(|slug| slug.to_ascii_lowercase())
-        .collect::<BTreeSet<_>>();
-    let legacy_default = LEGACY_DEFAULT_BUILTIN_THEMES
-        .iter()
-        .copied()
-        .map(str::to_owned)
-        .collect::<BTreeSet<_>>();
-
-    if configured == legacy_default {
-        enabled_builtin_slugs.extend(["blue-sky".to_owned(), "deep-orbit".to_owned()]);
-    }
-
-    enabled_builtin_slugs
+    CONFIG.initial_enabled_builtin_themes.clone()
 }
 
 /// Decode a theme row from the standard theme projection.
@@ -120,6 +92,33 @@ pub fn upsert_builtin_themes(conn: &rusqlite::Connection) -> Result<()> {
             ],
         )
         .context("Failed to upsert built-in theme")?;
+    }
+    remove_retired_builtin_themes(conn)
+}
+
+/// Delete built-in rows for designs this build no longer ships.
+///
+/// A retired design leaves its row behind, and the theme resolver matches on
+/// rows rather than on the registry: without this, a visitor whose cookie still
+/// named a retired design would be served a `data-theme` that no stylesheet
+/// answers to, and the site would render with no theme at all. Only built-in
+/// rows are touched, so an administrator's own themes are never removed.
+fn remove_retired_builtin_themes(conn: &rusqlite::Connection) -> Result<()> {
+    let retired = {
+        let mut stmt = conn.prepare_cached("SELECT slug FROM themes WHERE is_builtin = 1")?;
+        let slugs = stmt
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        drop(stmt);
+        slugs
+            .into_iter()
+            .filter(|slug| crate::theme::is_retired_builtin_slug(slug))
+            .collect::<Vec<_>>()
+    };
+
+    for slug in retired {
+        conn.execute("DELETE FROM themes WHERE slug = ?1", params![slug])
+            .with_context(|| format!("Failed to remove retired built-in theme {slug}"))?;
     }
     Ok(())
 }
@@ -390,7 +389,7 @@ mod tests {
     fn renamed_builder_theme_updates_metadata_and_advanced_selectors() -> Result<()> {
         let pool = crate::db::init_test_pool()?;
         let mut conn = pool.get()?;
-        let mut config = builder_defaults_for_preset("blue-sky");
+        let mut config = builder_defaults_for_preset("aurora");
         config.advanced_css = r#"html[data-theme="old"] .reply { font-style: italic; }"#.into();
         let css = build_theme_css("old", &config);
         super::create_custom_theme(&conn, "old", "Old", "", "#123456", &css, true)?;
@@ -407,7 +406,7 @@ mod tests {
     fn saved_light_builder_theme_corrects_legacy_native_controls() -> Result<()> {
         let pool = crate::db::init_test_pool()?;
         let conn = pool.get()?;
-        let config = builder_defaults_for_preset("blue-sky");
+        let config = builder_defaults_for_preset("aurora-light");
         let css = build_theme_css("light", &config)
             .replace("color-scheme: light;", "color-scheme: dark;");
         super::create_custom_theme(&conn, "light", "Light", "", "#123456", &css, true)?;
@@ -423,18 +422,53 @@ mod tests {
     }
 
     #[test]
-    fn legacy_default_builtin_list_is_upgraded_with_new_featured_themes() {
+    fn upsert_builtin_themes_removes_retired_designs_and_keeps_custom_ones() -> Result<()> {
+        let pool = crate::db::init_test_pool()?;
+        let conn = pool.get()?;
+        // A database seeded by an earlier release carries rows for designs this
+        // build no longer ships, and a visitor whose cookie still names one would
+        // otherwise be served a `data-theme` no stylesheet answers to.
+        conn.execute(
+            "INSERT INTO themes (slug, display_name, description, swatch_hex, enabled, sort_order, is_builtin, custom_css)
+             VALUES ('forest', 'Forest', '', '#6fa84a', 1, 10, 1, '')",
+            [],
+        )?;
+        conn.execute(
+            "INSERT INTO themes (slug, display_name, description, swatch_hex, enabled, sort_order, is_builtin, custom_css)
+             VALUES ('operator-theme', 'Operator', '', '#123456', 1, 50, 0, '')",
+            [],
+        )?;
+
+        super::upsert_builtin_themes(&conn)?;
+
+        let slugs = super::load_themes(&conn)?
+            .into_iter()
+            .map(|theme| theme.slug)
+            .collect::<Vec<_>>();
+        anyhow::ensure!(
+            !slugs.iter().any(|slug| slug == "forest"),
+            "a retired built-in row should be removed: {slugs:?}"
+        );
+        anyhow::ensure!(
+            slugs.iter().any(|slug| slug == "aurora"),
+            "the shipped design should be seeded: {slugs:?}"
+        );
+        anyhow::ensure!(
+            slugs.iter().any(|slug| slug == "operator-theme"),
+            "an administrator's own theme must survive: {slugs:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn enabled_builtin_list_only_names_designs_this_build_ships() {
         let enabled_builtin_slugs = super::configured_enabled_builtin_slugs();
 
         assert!(
-            enabled_builtin_slugs.iter().any(|slug| slug == "blue-sky"),
-            "legacy defaults should gain Blue Sky"
-        );
-        assert!(
             enabled_builtin_slugs
                 .iter()
-                .any(|slug| slug == "deep-orbit"),
-            "legacy defaults should gain Deep Orbit"
+                .all(|slug| crate::theme::builtin_theme(slug).is_some()),
+            "a retired design must not stay enabled: {enabled_builtin_slugs:?}"
         );
     }
 
@@ -455,18 +489,8 @@ mod tests {
 
         assert_eq!(
             builtins,
-            vec![
-                "forest",
-                "blue-sky",
-                "deep-orbit",
-                "terminal",
-                "dorfic",
-                "chanclassic",
-                "aero",
-                "neoncubicle",
-                "fluorogrid",
-            ],
-            "enabled built-ins should retain their configured featured order"
+            vec!["aurora"],
+            "the enabled built-ins should be exactly the design this build ships"
         );
         Ok(())
     }
@@ -481,25 +505,16 @@ mod tests {
         let conn = pool.get()?;
         let themes = super::load_themes(&conn)?;
 
-        let blue_sky = themes
+        let aurora = themes
             .iter()
-            .find(|theme| theme.slug == "blue-sky")
-            .context("Blue Sky theme should exist")?;
+            .find(|theme| theme.slug == "aurora")
+            .context("Aurora theme should exist")?;
         assert_eq!(
-            blue_sky.display_name, "Blue Sky",
-            "Blue Sky display name should match"
+            aurora.display_name, "Aurora",
+            "Aurora display name should match"
         );
-        assert!(blue_sky.enabled, "Blue Sky should be enabled");
-
-        let deep_orbit = themes
-            .iter()
-            .find(|theme| theme.slug == "deep-orbit")
-            .context("Deep Orbit theme should exist")?;
-        assert_eq!(
-            deep_orbit.display_name, "Deep Orbit",
-            "Deep Orbit display name should match"
-        );
-        assert!(deep_orbit.enabled, "Deep Orbit should be enabled");
+        assert!(aurora.enabled, "Aurora should be enabled");
+        assert!(aurora.is_builtin, "Aurora should be a built-in design");
         Ok(())
     }
 
@@ -511,7 +526,7 @@ mod tests {
     fn builder_theme_css_response_serves_saved_generated_css() -> Result<()> {
         let pool = crate::db::init_test_pool()?;
         let conn = pool.get()?;
-        let config = builder_defaults_for_preset("forest");
+        let config = builder_defaults_for_preset("aurora");
         let css = build_theme_css("guided-forest", &config);
 
         super::create_custom_theme(

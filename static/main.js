@@ -3983,6 +3983,12 @@ document.addEventListener('click', function (e) {
   var t = e.target.closest('[data-action]');
   if (t) {
     switch (t.dataset.action) {
+      case 'set-color-mode':
+        // The switch reads and writes the preference itself, so the page never
+        // reloads and the choice survives the next navigation as a cookie.
+        e.preventDefault();
+        window.chanColorMode && window.chanColorMode.save(t.dataset.colorModeValue);
+        break;
       case 'toggle-post-form':
         e.preventDefault();
         togglePostForm();

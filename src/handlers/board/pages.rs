@@ -11,6 +11,132 @@ use super::{
     PREVIEW_REPLIES, THREADS_PER_PAGE,
 };
 use axum::response::IntoResponse as _;
+use serde::Deserialize;
+
+/// Threads shown on one page of a cross-board feed.
+const FEED_PER_PAGE: i64 = 40;
+
+#[derive(Debug, Deserialize)]
+/// Query fields accepted by the cross-board feeds.
+pub(in crate::server) struct FeedQuery {
+    /// Which page of the list to show.
+    page: Option<i64>,
+}
+
+/// GET /new — threads bumped most recently, across every board.
+pub(in crate::server) async fn new_threads(
+    State(state): State<AppState>,
+    Query(q): Query<FeedQuery>,
+    jar: CookieJar,
+    req_headers: HeaderMap,
+    peer: OptionalConnectInfoPeer,
+) -> Result<Response> {
+    render_feed(
+        templates::board::FeedKind::New,
+        state,
+        q,
+        jar,
+        req_headers,
+        peer,
+    )
+    .await
+}
+
+/// GET /popular — the most-replied threads of the last week, across every board.
+pub(in crate::server) async fn popular_threads(
+    State(state): State<AppState>,
+    Query(q): Query<FeedQuery>,
+    jar: CookieJar,
+    req_headers: HeaderMap,
+    peer: OptionalConnectInfoPeer,
+) -> Result<Response> {
+    render_feed(
+        templates::board::FeedKind::Popular,
+        state,
+        q,
+        jar,
+        req_headers,
+        peer,
+    )
+    .await
+}
+
+/// Render one cross-board feed.
+///
+/// Both feeds are the same page over a different ordering, so they share the
+/// loading, paging, and rendering rather than carrying two copies that drift.
+async fn render_feed(
+    kind: templates::board::FeedKind,
+    state: AppState,
+    q: FeedQuery,
+    jar: CookieJar,
+    req_headers: HeaderMap,
+    peer: OptionalConnectInfoPeer,
+) -> Result<Response> {
+    let current_theme = current_theme_from_jar(&jar);
+    let user_preferences = user_preferences_from_jar(&jar);
+    let (jar, _csrf) = ensure_csrf_for_request(jar, &req_headers, optional_connect_info_peer(peer));
+
+    let page = q.page.unwrap_or(1).max(1);
+    let (threads, total) = tokio::task::spawn_blocking({
+        let pool = state.db.clone();
+        move || -> Result<(Vec<crate::models::Thread>, i64)> {
+            let conn = pool.get()?;
+            let (threads, total) = match kind {
+                templates::board::FeedKind::New => (
+                    db::get_recent_threads(&conn, FEED_PER_PAGE, (page - 1) * FEED_PER_PAGE)?,
+                    db::count_recent_threads(&conn)?,
+                ),
+                templates::board::FeedKind::Popular => (
+                    db::get_popular_threads(&conn, FEED_PER_PAGE, (page - 1) * FEED_PER_PAGE)?,
+                    db::count_popular_threads(&conn)?,
+                ),
+            };
+            Ok((threads, total))
+        }
+    })
+    .await
+    .map_err(|error| AppError::Internal(anyhow::anyhow!("Feed task failed: {error}")))??;
+
+    let boards = tokio::task::spawn_blocking({
+        let pool = state.db.clone();
+        move || -> Result<Vec<crate::models::Board>> {
+            let conn = pool.get()?;
+            db::get_all_boards(&conn)
+        }
+    })
+    .await
+    .map_err(|error| AppError::Internal(anyhow::anyhow!("Feed boards task failed: {error}")))??;
+
+    let account = crate::handlers::auth::account_identity(&state, &jar)?.map(|identity| {
+        templates::auth::AccountMenu {
+            display_name: identity.display_name,
+            username: identity.username,
+            is_admin: identity.is_admin,
+        }
+    });
+    let (jar, menu_csrf) = if account.is_some() {
+        crate::handlers::auth::account_menu_csrf(
+            jar,
+            should_set_public_secure_cookie(&req_headers, optional_connect_info_peer(peer)),
+        )
+    } else {
+        (jar, String::new())
+    };
+
+    let pagination = crate::models::Pagination::new(page, FEED_PER_PAGE, total);
+    Ok(Html(templates::board::feed_page(
+        kind,
+        &threads,
+        &boards,
+        &pagination,
+        current_theme.as_deref(),
+        user_preferences,
+        account.as_ref(),
+        &menu_csrf,
+    ))
+    .into_response())
+}
 
 type HomePageLoadResult = (
     Vec<crate::models::BoardStats>,

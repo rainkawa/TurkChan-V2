@@ -133,6 +133,83 @@ pub fn get_threads_for_board(
     Ok(threads)
 }
 
+/// How far back `get_popular_threads` looks before ranking by activity.
+///
+/// A popularity list built over all time is a list of the site's oldest
+/// arguments, not of what anyone is reading now, so the window is bounded.
+const POPULAR_WINDOW_SECS: i64 = 7 * 24 * 60 * 60;
+
+/// Threads bumped most recently, across every board.
+///
+/// # Errors
+/// Returns an error if the database operation fails.
+pub fn get_recent_threads(
+    conn: &rusqlite::Connection,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<Thread>> {
+    let sql = format!(
+        "{THREAD_SELECT}
+         WHERE t.archived = 0
+         GROUP BY t.id, op.id
+         ORDER BY t.bumped_at DESC
+         LIMIT ?1 OFFSET ?2"
+    );
+    let mut stmt = conn.prepare_cached(&sql)?;
+    let threads = stmt
+        .query_map(params![limit, offset], map_thread)?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(threads)
+}
+
+/// Threads with the most replies inside the popularity window, across every board.
+///
+/// # Errors
+/// Returns an error if the database operation fails.
+pub fn get_popular_threads(
+    conn: &rusqlite::Connection,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<Thread>> {
+    let sql = format!(
+        "{THREAD_SELECT}
+         WHERE t.archived = 0 AND t.bumped_at >= unixepoch() - ?1
+         GROUP BY t.id, op.id
+         ORDER BY t.reply_count DESC, t.bumped_at DESC
+         LIMIT ?2 OFFSET ?3"
+    );
+    let mut stmt = conn.prepare_cached(&sql)?;
+    let threads = stmt
+        .query_map(params![POPULAR_WINDOW_SECS, limit, offset], map_thread)?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(threads)
+}
+
+/// Count the threads `get_popular_threads` would walk through.
+///
+/// # Errors
+/// Returns an error if the database operation fails.
+pub fn count_popular_threads(conn: &rusqlite::Connection) -> Result<i64> {
+    Ok(conn.query_row(
+        "SELECT COUNT(*) FROM threads
+         WHERE archived = 0 AND bumped_at >= unixepoch() - ?1",
+        params![POPULAR_WINDOW_SECS],
+        |row| row.get(0),
+    )?)
+}
+
+/// Count the threads `get_recent_threads` would walk through.
+///
+/// # Errors
+/// Returns an error if the database operation fails.
+pub fn count_recent_threads(conn: &rusqlite::Connection) -> Result<i64> {
+    Ok(conn.query_row(
+        "SELECT COUNT(*) FROM threads WHERE archived = 0",
+        [],
+        |row| row.get(0),
+    )?)
+}
+
 /// # Errors
 /// Returns an error if the database operation fails.
 pub fn count_threads_for_board(conn: &rusqlite::Connection, board_id: i64) -> Result<i64> {

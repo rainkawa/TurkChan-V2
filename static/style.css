@@ -8143,3 +8143,1051 @@ html:not([data-theme]) .thread-nav-btn.active { text-shadow: 0 0 8px rgba(0,255,
 .messages-empty {
   color: var(--text-dim);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Aurora — the built-in design.
+
+   Everything above this line belongs to the retired per-theme stylesheets and
+   is kept only as a safety net; the rules below are what the site actually
+   looks like. They come last so they win the cascade without needing `!important`
+   against the layers they replace.
+
+   Colour is expressed once as tokens and swapped by appearance rather than by
+   theme, so a reader moves between light and dark without a page reload and
+   without the rest of the design having to know which one is showing.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root,
+:root[data-color-mode='dark'] {
+  color-scheme: dark;
+
+  /* Surfaces. Deliberately not black: a near-black with a violet cast reads as
+     a surface rather than as a hole, and keeps elevation legible. */
+  --bg:            #0e0c17;
+  --bg-panel:      #15121f;
+  --bg-card:       #1a1626;
+  --bg-post:       #1a1626;
+  --bg-op:         #221c3a;
+  --bg-raised:     #241f38;
+  --bg-input:      #131020;
+  --bg-hover:      #241f38;
+
+  --border:        #2c2645;
+  --border-strong: #3b3358;
+  --border-glow:   #8b5cf6;
+
+  --text:          #eae7f5;
+  --text-dim:      #a49dc2;
+  --text-faint:    #6f6890;
+
+  /* Violet carries identity and every primary action. */
+  --primary:       #8b5cf6;
+  --primary-hover: #a78bfa;
+  --primary-soft:  rgba(139, 92, 246, 0.14);
+  --primary-ring:  rgba(139, 92, 246, 0.45);
+  --on-primary:    #ffffff;
+
+  /* Green is reserved for the terminal lineage: success, and the accent that
+     says something is live. */
+  --accent:        #34d399;
+  --accent-hover:  #6ee7b7;
+  --accent-soft:   rgba(52, 211, 153, 0.13);
+
+  /* Red is destructive and moderation only, so it never competes with the
+     violet for attention on a button a reader is meant to press. */
+  --danger:        #f43f5e;
+  --danger-hover:  #fb7185;
+  --danger-soft:   rgba(244, 63, 94, 0.13);
+
+  --warning:       #fbbf24;
+  --info:          #60a5fa;
+
+  --shadow-panel:  0 12px 32px rgba(0, 0, 0, 0.45);
+  --shadow-soft:   0 2px 10px rgba(0, 0, 0, 0.30);
+  --shadow-lift:   0 6px 20px rgba(0, 0, 0, 0.38);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 999px;
+
+  --post-highlight-outline: var(--primary);
+  --post-highlight-bg:     var(--primary-soft);
+
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+          Arial, 'Noto Sans', sans-serif;
+  --font-display: var(--font);
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+               'Liberation Mono', monospace;
+}
+
+/* The retired designs named their palette `--green`, `--red`, `--amber`. A lot
+   of rules above are not scoped to a theme and still read those names, so they
+   are pointed at this palette rather than at the terminal greens they were
+   written for. They resolve at use time, which means they follow the light
+   overrides below without being repeated. They go when the retired layer does. */
+:root {
+  --green: var(--accent);
+  --green-dim: var(--text-dim);
+  --green-bright: var(--accent-hover);
+  --green-pale: var(--text);
+  --amber: var(--warning);
+  --red: var(--danger);
+  --gray: var(--border);
+  --gray-light: var(--text-faint);
+}
+
+/* Light is the same design with the values inverted, not a second design.
+   `prefers-color-scheme` answers for a reader who chose to follow the system;
+   the explicit attribute answers for one who picked. */
+:root[data-color-mode='light'] {
+  color-scheme: light;
+
+  --bg:            #f7f6fc;
+  --bg-panel:      #ffffff;
+  --bg-card:       #ffffff;
+  --bg-post:       #ffffff;
+  --bg-op:         #f4f1ff;
+  --bg-raised:     #f2effb;
+  --bg-input:      #ffffff;
+  --bg-hover:      #f2effb;
+
+  --border:        #e4e0f2;
+  --border-strong: #cdc6e6;
+  --border-glow:   #7c3aed;
+
+  --text:          #1a1630;
+  --text-dim:      #605a80;
+  --text-faint:    #8a83a8;
+
+  --primary:       #7c3aed;
+  --primary-hover: #6d28d9;
+  --primary-soft:  rgba(124, 58, 237, 0.10);
+  --primary-ring:  rgba(124, 58, 237, 0.35);
+  --on-primary:    #ffffff;
+
+  --accent:        #059669;
+  --accent-hover:  #047857;
+  --accent-soft:   rgba(5, 150, 105, 0.10);
+
+  --danger:        #e11d48;
+  --danger-hover:  #be123c;
+  --danger-soft:   rgba(225, 29, 72, 0.09);
+
+  --warning:       #b45309;
+  --info:          #2563eb;
+
+  --shadow-panel:  0 10px 28px rgba(35, 25, 66, 0.10);
+  --shadow-soft:   0 1px 6px rgba(35, 25, 66, 0.08);
+  --shadow-lift:   0 4px 16px rgba(35, 25, 66, 0.12);
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-color-mode='system'] {
+    color-scheme: light;
+
+    --bg:            #f7f6fc;
+    --bg-panel:      #ffffff;
+    --bg-card:       #ffffff;
+    --bg-post:       #ffffff;
+    --bg-op:         #f4f1ff;
+    --bg-raised:     #f2effb;
+    --bg-input:      #ffffff;
+    --bg-hover:      #f2effb;
+
+    --border:        #e4e0f2;
+    --border-strong: #cdc6e6;
+    --border-glow:   #7c3aed;
+
+    --text:          #1a1630;
+    --text-dim:      #605a80;
+    --text-faint:    #8a83a8;
+
+    --primary:       #7c3aed;
+    --primary-hover: #6d28d9;
+    --primary-soft:  rgba(124, 58, 237, 0.10);
+    --primary-ring:  rgba(124, 58, 237, 0.35);
+    --on-primary:    #ffffff;
+
+    --accent:        #059669;
+    --accent-hover:  #047857;
+    --accent-soft:   rgba(5, 150, 105, 0.10);
+
+    --danger:        #e11d48;
+    --danger-hover:  #be123c;
+    --danger-soft:   rgba(225, 29, 72, 0.09);
+
+    --warning:       #b45309;
+    --info:          #2563eb;
+
+    --shadow-panel:  0 10px 28px rgba(35, 25, 66, 0.10);
+    --shadow-soft:   0 1px 6px rgba(35, 25, 66, 0.08);
+    --shadow-lift:   0 4px 16px rgba(35, 25, 66, 0.12);
+  }
+}
+
+/* ── Base ──────────────────────────────────────────────────────────────── */
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  background-image: none;
+  min-height: 100dvh;
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+a:hover { color: var(--primary-hover); text-decoration: underline; }
+a:visited { color: var(--primary); }
+
+::selection {
+  background: var(--primary-soft);
+  color: var(--text);
+}
+
+body::-webkit-scrollbar { width: 10px; height: 10px; }
+body::-webkit-scrollbar-track { background: var(--bg); }
+body::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-full);
+}
+body::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+/* ── Header and navigation ──────────────────────────────────────────────── */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--space-3);
+  background: color-mix(in srgb, var(--bg-panel) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.site-header::before { display: none; }
+
+.site-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin-right: auto;
+}
+
+.site-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  text-shadow: none;
+}
+.site-name:hover { color: var(--primary-hover); text-decoration: none; }
+
+.site-tagline,
+.site-subtitle {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  letter-spacing: 0.02em;
+}
+
+.home-btn,
+.mobile-board-menu-btn,
+.thread-nav-btn,
+.post-toggle-btn,
+.board-nav-link,
+.board-list a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-shadow: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.home-btn:hover,
+.mobile-board-menu-btn:hover,
+.thread-nav-btn:hover,
+.post-toggle-btn:hover,
+.board-nav-link:hover,
+.board-nav-link.active,
+.board-list a:hover,
+.post-toggle-btn.active {
+  background: var(--primary-soft);
+  color: var(--primary-hover);
+  text-decoration: none;
+  border-color: var(--border);
+}
+
+.board-list {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-wrap: wrap;
+  order: 3;
+  width: 100%;
+  padding-top: var(--space-1);
+}
+.board-list-group {
+  display: inline-flex;
+  gap: 0.1rem;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.header-search {
+  order: 2;
+  flex: 1 1 160px;
+  max-width: 340px;
+}
+.header-search input {
+  width: 100%;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.header-search input::placeholder { color: var(--text-faint); }
+.header-search input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-ring);
+}
+
+/* ── Appearance switch ──────────────────────────────────────────────────── */
+
+.color-mode-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--bg-input);
+}
+
+.color-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.color-mode-btn:hover { background: var(--bg-hover); color: var(--text); }
+.color-mode-btn[aria-pressed='true'] {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+/* ── Home ───────────────────────────────────────────────────────────────── */
+
+.home {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-3) var(--space-4);
+}
+
+.home-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(120% 140% at 0% 0%, var(--primary-soft), transparent 62%),
+    var(--bg-card);
+}
+
+.home-title {
+  margin: 0;
+  font-size: clamp(1.6rem, 6vw, 2.4rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--text);
+}
+
+.home-subtitle {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.92rem;
+}
+
+/* Shortcuts first, so a reader with a purpose never has to open the menu. */
+.home-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+.home-quick-link {
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--bg-input);
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.home-quick-link:hover {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary-hover);
+  text-decoration: none;
+}
+
+.index-section { display: flex; flex-direction: column; gap: var(--space-2); }
+
+.index-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.index-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-2);
+}
+.index-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+.index-stat-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.index-stat-label { font-size: 0.75rem; color: var(--text-faint); }
+
+/* ── Cross-board feeds ──────────────────────────────────────────────────── */
+
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-3);
+}
+.feed-head { display: flex; flex-direction: column; gap: 0.25rem; }
+.feed-title { margin: 0; font-size: 1.4rem; font-weight: 700; letter-spacing: -0.01em; }
+.feed-lede { margin: 0; color: var(--text-dim); font-size: 0.88rem; }
+
+.feed-list { display: flex; flex-direction: column; gap: var(--space-2); }
+
+.feed-row {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.feed-row:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-soft);
+  text-decoration: none;
+}
+
+.feed-row-media { flex: 0 0 auto; width: 84px; }
+.feed-row-media img {
+  width: 84px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.feed-row-info { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.feed-row-subject { font-weight: 650; color: var(--text); }
+.feed-row-preview {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.feed-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--text-faint);
+}
+.feed-row-board {
+  font-family: var(--font-mono);
+  color: var(--primary);
+  font-weight: 600;
+}
+.feed-empty { color: var(--text-dim); padding: var(--space-3); }
+
+@media (min-width: 600px) {
+  .index-stats-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (min-width: 900px) {
+  .index-stats-grid { grid-template-columns: repeat(5, 1fr); }
+  .feed-row-media, .feed-row-media img { width: 120px; }
+  .feed-row-media img { height: 80px; }
+}
+
+/* ── Panels, boards, catalog ────────────────────────────────────────────── */
+
+.page-box,
+.board-card,
+.catalog-item,
+.post-form-container,
+.quotelink-popup,
+.mobile-board-menu-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+}
+
+.board-card,
+.catalog-item { padding: var(--space-3); }
+
+.board-card-link,
+.catalog-thread-link,
+.archive-thread-link { color: var(--text); font-weight: 600; }
+.board-card-link:hover,
+.catalog-thread-link:hover,
+.archive-thread-link:hover { color: var(--primary-hover); }
+
+/* ── Thread and post ────────────────────────────────────────────────────── */
+
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.op,
+.reply {
+  background: var(--bg-post);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.op {
+  background: var(--bg-op);
+  border-color: var(--border-strong);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-md);
+}
+.reply:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-soft);
+}
+
+.post-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: var(--space-2);
+  font-size: 0.8rem;
+}
+
+.name {
+  color: var(--primary);
+  font-weight: 600;
+}
+.name:hover { color: var(--primary-hover); }
+
+.post-time,
+.file-info,
+.thread-reply-stat,
+.catalog-replies,
+.catalog-subject,
+.board-desc { color: var(--text-faint); }
+
+.post-num,
+.post-ref,
+.post-body .quotelink,
+.backrefs .backref {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--text-faint);
+}
+.post-num:hover,
+.post-ref:hover,
+.backrefs .backref:hover,
+.post-body .quotelink:hover { color: var(--primary-hover); }
+
+.subject {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2);
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: var(--text);
+}
+.subject strong,
+.subject a { color: var(--text); }
+.subject a:hover { color: var(--primary-hover); }
+.subject::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--border);
+}
+
+.post-body {
+  font-size: 0.95rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.post-body .quote,
+.greentext,
+details.greentext-block > summary,
+details.greentext-block[open] > summary {
+  color: var(--accent);
+  border-left-color: var(--accent);
+}
+
+.post-body code,
+pre,
+code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.1rem 0.3rem;
+}
+
+.spoiler {
+  background: var(--text-dim);
+  color: transparent;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.spoiler:hover,
+.spoiler.revealed { background: var(--bg-raised); color: var(--text); }
+
+.backrefs { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: var(--space-2); }
+
+/* ── Buttons, forms, inputs ─────────────────────────────────────────────── */
+
+button,
+.btn,
+input[type='submit'] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.95rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-raised);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-shadow: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease,
+              color 0.15s ease, transform 0.06s ease;
+}
+button:hover,
+.btn:hover,
+input[type='submit']:hover {
+  background: var(--bg-hover);
+  border-color: var(--primary);
+  color: var(--primary-hover);
+  text-shadow: none;
+}
+button:active,
+.btn:active { transform: translateY(1px); }
+
+button:disabled,
+.btn:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.post-form button[type='submit'],
+.compress-do-btn,
+.poll-vote-submit {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+}
+.post-form button[type='submit']:hover,
+.compress-do-btn:hover,
+.poll-vote-submit:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+  color: var(--on-primary);
+}
+
+.btn-danger,
+.compress-cancel-btn {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.btn-danger:hover,
+.compress-cancel-btn:hover {
+  background: var(--danger);
+  color: #ffffff;
+}
+
+input[type='text'],
+input[type='search'],
+input[type='password'],
+input[type='number'],
+input[type='email'],
+textarea,
+select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+input::placeholder,
+textarea::placeholder { color: var(--text-faint); }
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-ring);
+}
+
+/* ── Post header, identity, and actions ─────────────────────────────────── */
+
+.post-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.post-avatar {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-full);
+  background: var(--primary-soft);
+  border: 1px solid var(--border);
+  color: var(--primary-hover);
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1;
+  user-select: none;
+}
+
+.post-head-main { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.post-head-line { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+.post-head-sub { font-size: 0.75rem; color: var(--text-faint); }
+
+/* The score and the press controls read as one strip, because they are the
+   same gesture on every post and splitting them hides that. */
+.post-social {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--bg-raised);
+  width: fit-content;
+  max-width: 100%;
+}
+.post-social button,
+.post-social .btn {
+  border-radius: var(--radius-full);
+  padding: 0.25rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+.post-score,
+.vote-score {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--primary);
+}
+.vote-up.active { color: var(--accent); border-color: var(--accent); }
+.vote-down.active { color: var(--danger); border-color: var(--danger); }
+
+/* ── Media ──────────────────────────────────────────────────────────────── */
+
+.post-body img,
+.post-body video,
+.file-info img,
+.post-media img,
+.post-media video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+}
+/* Thumbnails sit in a grid that stays one column on a phone and opens up as
+   there is room, so a long post never forces a sideways scroll. */
+.media-grid,
+.post-media {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.audio-player,
+video { width: 100%; }
+
+/* ── Modal ──────────────────────────────────────────────────────────────── */
+
+/* A dialog is centered on a phone too, and never wider than the screen it is
+   shown on, so a long line inside one cannot push the page sideways. */
+.compress-modal,
+.modal,
+.nsfw-disclaimer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3);
+  background: rgba(6, 4, 14, 0.62);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  overflow-y: auto;
+}
+
+.compress-modal-box,
+.modal-box,
+.nsfw-disclaimer-box {
+  width: 100%;
+  max-width: 560px;
+  max-height: min(86dvh, 720px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-panel);
+  color: var(--text);
+}
+
+.compress-modal-title,
+.modal-title { font-size: 1.1rem; font-weight: 700; margin-bottom: var(--space-2); }
+.compress-modal-actions,
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+/* ── Upload ─────────────────────────────────────────────────────────────── */
+
+.post-form-container input[type='file'] {
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+.post-form-container input[type='file']::file-selector-button {
+  margin-right: var(--space-2);
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.post-form-container input[type='file']::file-selector-button:hover {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary-hover);
+}
+
+.drag-over {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.upload-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.upload-preview-item {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+}
+.upload-preview-item img,
+.upload-preview-item video { width: 100%; height: 100%; object-fit: cover; }
+
+/* ── Mobile first: wider viewports add room, never a second design ───────── */
+
+@media (min-width: 600px) {
+  .media-grid { grid-template-columns: repeat(2, 1fr); }
+  .reply, .op { padding: var(--space-3) var(--space-4); }
+}
+
+@media (min-width: 900px) {
+  html { font-size: 16px; }
+  .board-list { order: 0; width: auto; padding-top: 0; }
+  .header-search { max-width: 260px; }
+  .media-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* ── Admin ───────────────────────────────────────────────────────────────── */
+
+/* The admin panel keeps its own layout sheet; these rules bring it onto the
+   same surfaces and controls as the public site so switching to it does not
+   look like leaving the product. */
+.admin-panel,
+.admin-wrap,
+body[data-admin] {
+  background: var(--bg);
+  color: var(--text);
+}
+.admin-panel a,
+.admin-wrap a { color: var(--primary); }
+.admin-panel input,
+.admin-panel textarea,
+.admin-panel select,
+.admin-wrap input,
+.admin-wrap textarea,
+.admin-wrap select {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+}
+.admin-panel input:focus,
+.admin-panel textarea:focus,
+.admin-panel select:focus,
+.admin-wrap input:focus,
+.admin-wrap textarea:focus,
+.admin-wrap select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-ring);
+}
+.admin-flash.flash-ok {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.admin-flash.flash-error {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+.admin-toolbar-btn {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.admin-toolbar-btn:hover { background: var(--danger); color: #ffffff; }
+
+/* Coarse pointers get targets a thumb can actually hit. */
+@media (hover: none) and (pointer: coarse) {
+  button,
+  .btn,
+  .home-btn,
+  .thread-nav-btn,
+  .post-toggle-btn,
+  .board-nav-link,
+  .board-list a { min-height: 40px; }
+  .post-num, .post-ref, .backrefs .backref { padding: 0.25rem 0.1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+

@@ -141,46 +141,26 @@ pub struct ThemeBuilderPreset {
 /// Presets offered as starting points in the theme builder.
 pub const BUILDER_PRESETS: &[ThemeBuilderPreset] = &[
     ThemeBuilderPreset {
-        slug: "forest",
-        label: "Forest",
+        slug: "aurora",
+        label: "Aurora",
     },
     ThemeBuilderPreset {
-        slug: "blue-sky",
-        label: "Blue Sky",
+        slug: "aurora-light",
+        label: "Aurora Light",
     },
     ThemeBuilderPreset {
-        slug: "deep-orbit",
-        label: "Deep Orbit",
+        slug: "terminal-green",
+        label: "Terminal Green",
     },
     ThemeBuilderPreset {
-        slug: "terminal",
-        label: "Terminal",
-    },
-    ThemeBuilderPreset {
-        slug: "dorfic",
-        label: "DORFic",
-    },
-    ThemeBuilderPreset {
-        slug: "chanclassic",
-        label: "ChanClassic",
-    },
-    ThemeBuilderPreset {
-        slug: "aero",
-        label: "Frutiger Aero",
-    },
-    ThemeBuilderPreset {
-        slug: "neoncubicle",
-        label: "NeonCubicle",
-    },
-    ThemeBuilderPreset {
-        slug: "fluorogrid",
-        label: "FluoroGrid",
+        slug: "ember",
+        label: "Ember",
     },
 ];
 
 /// Builds the default configuration for a named preset.
 ///
-/// Unknown preset names fall back to `forest`.
+/// Unknown preset names fall back to `aurora`.
 #[must_use]
 #[expect(
     clippy::too_many_lines,
@@ -428,32 +408,122 @@ pub fn builder_defaults_for_preset(preset_slug: &str) -> ThemeBuilderConfig {
             font_family: ThemeFontFamily::Sans,
             advanced_css: String::new(),
         },
+        "aurora-light" => ThemeBuilderConfig {
+            base_preset: "aurora-light".to_owned(),
+            background_color: "#f7f6fc".to_owned(),
+            panel_color: "#ffffff".to_owned(),
+            card_color: "#ffffff".to_owned(),
+            op_card_color: "#f4f1ff".to_owned(),
+            text_color: "#1a1630".to_owned(),
+            muted_text_color: "#605a80".to_owned(),
+            link_color: "#7c3aed".to_owned(),
+            link_hover_color: "#6d28d9".to_owned(),
+            border_color: "#e4e0f2".to_owned(),
+            input_background_color: "#ffffff".to_owned(),
+            input_text_color: "#1a1630".to_owned(),
+            input_border_color: "#cdc6e6".to_owned(),
+            button_background_color: "#7c3aed".to_owned(),
+            button_text_color: "#ffffff".to_owned(),
+            button_border_color: "#7c3aed".to_owned(),
+            button_hover_color: "#6d28d9".to_owned(),
+            header_background_color: "#ffffff".to_owned(),
+            header_text_color: "#1a1630".to_owned(),
+            header_border_color: "#e4e0f2".to_owned(),
+            quote_color: "#059669".to_owned(),
+            meta_text_color: "#605a80".to_owned(),
+            success_color: "#059669".to_owned(),
+            danger_color: "#e11d48".to_owned(),
+            border_radius_px: 10,
+            density: ThemeDensity::Cozy,
+            font_family: ThemeFontFamily::Sans,
+            advanced_css: String::new(),
+        },
+        "terminal-green" => ThemeBuilderConfig {
+            base_preset: "terminal-green".to_owned(),
+            background_color: "#0b0f0c".to_owned(),
+            panel_color: "#111812".to_owned(),
+            card_color: "#141d16".to_owned(),
+            op_card_color: "#18231a".to_owned(),
+            text_color: "#d8e6d8".to_owned(),
+            muted_text_color: "#8fae8f".to_owned(),
+            link_color: "#34d399".to_owned(),
+            link_hover_color: "#6ee7b7".to_owned(),
+            border_color: "#1f3326".to_owned(),
+            input_background_color: "#0e1510".to_owned(),
+            input_text_color: "#d8e6d8".to_owned(),
+            input_border_color: "#2a4433".to_owned(),
+            button_background_color: "#34d399".to_owned(),
+            button_text_color: "#06231a".to_owned(),
+            button_border_color: "#34d399".to_owned(),
+            button_hover_color: "#6ee7b7".to_owned(),
+            header_background_color: "#111812".to_owned(),
+            header_text_color: "#d8e6d8".to_owned(),
+            header_border_color: "#1f3326".to_owned(),
+            quote_color: "#34d399".to_owned(),
+            meta_text_color: "#8fae8f".to_owned(),
+            success_color: "#34d399".to_owned(),
+            danger_color: "#f43f5e".to_owned(),
+            border_radius_px: 6,
+            density: ThemeDensity::Compact,
+            font_family: ThemeFontFamily::Mono,
+            advanced_css: String::new(),
+        },
+        "ember" => ThemeBuilderConfig {
+            base_preset: "ember".to_owned(),
+            background_color: "#140f0e".to_owned(),
+            panel_color: "#1c1513".to_owned(),
+            card_color: "#221a17".to_owned(),
+            op_card_color: "#2c1f1a".to_owned(),
+            text_color: "#f2e9e4".to_owned(),
+            muted_text_color: "#b09a8f".to_owned(),
+            link_color: "#fb923c".to_owned(),
+            link_hover_color: "#fdba74".to_owned(),
+            border_color: "#3a2a22".to_owned(),
+            input_background_color: "#191312".to_owned(),
+            input_text_color: "#f2e9e4".to_owned(),
+            input_border_color: "#4a352b".to_owned(),
+            button_background_color: "#ea580c".to_owned(),
+            button_text_color: "#ffffff".to_owned(),
+            button_border_color: "#ea580c".to_owned(),
+            button_hover_color: "#f97316".to_owned(),
+            header_background_color: "#1c1513".to_owned(),
+            header_text_color: "#f2e9e4".to_owned(),
+            header_border_color: "#3a2a22".to_owned(),
+            quote_color: "#34d399".to_owned(),
+            meta_text_color: "#b09a8f".to_owned(),
+            success_color: "#34d399".to_owned(),
+            danger_color: "#ef4444".to_owned(),
+            border_radius_px: 10,
+            density: ThemeDensity::Cozy,
+            font_family: ThemeFontFamily::Sans,
+            advanced_css: String::new(),
+        },
         _ => ThemeBuilderConfig {
-            base_preset: "forest".to_owned(),
-            background_color: "#141914".to_owned(),
-            panel_color: "#1e281d".to_owned(),
-            card_color: "#243022".to_owned(),
-            op_card_color: "#2a3827".to_owned(),
-            text_color: "#e5e6d8".to_owned(),
-            muted_text_color: "#b0b796".to_owned(),
-            link_color: "#7ab84e".to_owned(),
-            link_hover_color: "#a8d77b".to_owned(),
-            border_color: "#4c6441".to_owned(),
-            input_background_color: "#161d15".to_owned(),
-            input_text_color: "#eceedd".to_owned(),
-            input_border_color: "#657e57".to_owned(),
-            button_background_color: "#466735".to_owned(),
-            button_text_color: "#f4f5e8".to_owned(),
-            button_border_color: "#6d9652".to_owned(),
-            button_hover_color: "#577f42".to_owned(),
-            header_background_color: "#1b2419".to_owned(),
-            header_text_color: "#f0efdd".to_owned(),
-            header_border_color: "#6a8c4f".to_owned(),
-            quote_color: "#98c86e".to_owned(),
-            meta_text_color: "#c2c6ab".to_owned(),
-            success_color: "#7eb25b".to_owned(),
-            danger_color: "#c46f6f".to_owned(),
-            border_radius_px: 8,
+            base_preset: "aurora".to_owned(),
+            background_color: "#0e0c17".to_owned(),
+            panel_color: "#15121f".to_owned(),
+            card_color: "#1a1626".to_owned(),
+            op_card_color: "#221c3a".to_owned(),
+            text_color: "#eae7f5".to_owned(),
+            muted_text_color: "#a49dc2".to_owned(),
+            link_color: "#8b5cf6".to_owned(),
+            link_hover_color: "#a78bfa".to_owned(),
+            border_color: "#2c2645".to_owned(),
+            input_background_color: "#131020".to_owned(),
+            input_text_color: "#eae7f5".to_owned(),
+            input_border_color: "#3b3358".to_owned(),
+            button_background_color: "#8b5cf6".to_owned(),
+            button_text_color: "#ffffff".to_owned(),
+            button_border_color: "#8b5cf6".to_owned(),
+            button_hover_color: "#a78bfa".to_owned(),
+            header_background_color: "#15121f".to_owned(),
+            header_text_color: "#eae7f5".to_owned(),
+            header_border_color: "#2c2645".to_owned(),
+            quote_color: "#34d399".to_owned(),
+            meta_text_color: "#a49dc2".to_owned(),
+            success_color: "#34d399".to_owned(),
+            danger_color: "#f43f5e".to_owned(),
+            border_radius_px: 10,
             density: ThemeDensity::Cozy,
             font_family: ThemeFontFamily::Sans,
             advanced_css: String::new(),
@@ -559,6 +629,24 @@ pub fn build_theme_css(slug: &str, config: &ThemeBuilderConfig) -> String {
         format!("\n\n/* Optional advanced overrides */\n{advanced_css}\n")
     };
 
+    // Shadows are read from tokens like every other surface value, so a custom
+    // theme has to supply its own: the built-in values are tuned for the
+    // built-in palette and a light custom theme wearing them looks smudged.
+    let color_scheme = input_color_scheme(&config.input_background_color);
+    let (shadow_soft, shadow_panel, shadow_lift) = if color_scheme == "light" {
+        (
+            "0 1px 6px rgba(35, 25, 66, 0.08)",
+            "0 10px 28px rgba(35, 25, 66, 0.10)",
+            "0 4px 16px rgba(35, 25, 66, 0.12)",
+        )
+    } else {
+        (
+            "0 2px 10px rgba(0, 0, 0, 0.30)",
+            "0 12px 32px rgba(0, 0, 0, 0.45)",
+            "0 6px 20px rgba(0, 0, 0, 0.38)",
+        )
+    };
+
     format!(
         r#"html[data-theme="{slug}"] {{
   {marker_property}: "{marker_hex}";
@@ -584,6 +672,32 @@ pub fn build_theme_css(slug: &str, config: &ThemeBuilderConfig) -> String {
   --post-highlight-bg: rgba(255, 255, 255, 0.06);
   --font: {font_stack};
   --font-display: {font_stack};
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  --bg-card: {card};
+  --bg-raised: {panel};
+  --bg-hover: {panel};
+  --border-strong: {border};
+  --text-faint: {meta_text};
+  --primary: {link};
+  --primary-hover: {link_hover};
+  --primary-soft: color-mix(in srgb, {link} 14%, transparent);
+  --primary-ring: color-mix(in srgb, {link} 45%, transparent);
+  --on-primary: {button_text};
+  --accent: {success};
+  --accent-hover: {success};
+  --accent-soft: color-mix(in srgb, {success} 13%, transparent);
+  --danger: {danger};
+  --danger-hover: {danger};
+  --danger-soft: color-mix(in srgb, {danger} 13%, transparent);
+  --warning: {success};
+  --info: {link};
+  --radius-sm: {radius}px;
+  --radius-md: {radius}px;
+  --radius-lg: {radius}px;
+  --radius-full: 999px;
+  --shadow-soft: {shadow_soft};
+  --shadow-panel: {shadow_panel};
+  --shadow-lift: {shadow_lift};
 }}
 
 html[data-theme="{slug}"] body {{
@@ -720,7 +834,11 @@ html[data-theme="{slug}"] .error {{
   color: {danger};
 }}{advanced_block}"#,
         slug = slug,
-        color_scheme = input_color_scheme(&config.input_background_color),
+        color_scheme = color_scheme,
+        shadow_soft = shadow_soft,
+        shadow_panel = shadow_panel,
+        shadow_lift = shadow_lift,
+        button_text = config.button_text_color,
         marker_property = BUILDER_DATA_PROPERTY,
         marker_hex = builder_marker_hex(config),
         background = config.background_color,
@@ -767,7 +885,7 @@ mod tests {
         for preset in super::BUILDER_PRESETS {
             let config = builder_defaults_for_preset(preset.slug);
             let expected = match preset.slug {
-                "forest" | "terminal" | "dorfic" | "deep-orbit" | "neoncubicle" => "dark",
+                "aurora" | "terminal-green" | "ember" => "dark",
                 _ => "light",
             };
             assert!(
@@ -778,10 +896,10 @@ mod tests {
 
     #[test]
     fn builder_theme_metadata_rejects_invalid_colors_and_ranges() {
-        let mut config = builder_defaults_for_preset("forest");
+        let mut config = builder_defaults_for_preset("aurora");
         config.background_color = "#ffffff; } body { color: red; }".into();
         assert!(parse_builder_config(&build_theme_css("audit", &config)).is_none());
-        config = builder_defaults_for_preset("forest");
+        config = builder_defaults_for_preset("aurora");
         config.border_radius_px = 255;
         assert!(parse_builder_config(&build_theme_css("audit", &config)).is_none());
     }

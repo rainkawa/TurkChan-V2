@@ -604,6 +604,18 @@ pub fn fmt_ts(ts: i64) -> String {
 }
 
 #[must_use]
+/// Formats a Unix timestamp as an RFC 3339 instant in UTC.
+///
+/// Used for the machine-readable `datetime` of a `<time>` element, where the
+/// browser needs a value it can parse rather than one meant for a reader.
+pub fn iso_timestamp(ts: i64) -> String {
+    match chrono::DateTime::from_timestamp(ts, 0) {
+        Some(dt) => dt.to_rfc3339(),
+        None => String::new(),
+    }
+}
+
+#[must_use]
 /// Formats a Unix timestamp compactly in the server's local time.
 pub fn fmt_ts_short(ts: i64) -> String {
     match Local.timestamp_opt(ts, 0) {
@@ -976,6 +988,11 @@ pub fn base_layout_with_account(
   </nav>
   <div class="header-search">{search_bar}</div>
   {account_menu_html}
+  <div class="color-mode-switch" role="group" aria-label="Renk modu">
+    <button type="button" class="color-mode-btn" data-action="set-color-mode" data-color-mode-value="light" aria-pressed="false" title="Aydınlık" aria-label="Aydınlık mod">&#9788;</button>
+    <button type="button" class="color-mode-btn" data-action="set-color-mode" data-color-mode-value="dark" aria-pressed="false" title="Koyu" aria-label="Koyu mod">&#9789;</button>
+    <button type="button" class="color-mode-btn" data-action="set-color-mode" data-color-mode-value="system" aria-pressed="false" title="Sistem" aria-label="Sistem modu">&#9881;</button>
+  </div>
 </header>
 <main>
 {body}

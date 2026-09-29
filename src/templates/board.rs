@@ -709,7 +709,7 @@ pub fn index_page<S: std::hash::BuildHasher>(
         String::new()
     } else {
         format!(
-            "<div class=\"index-section\"><h2 class=\"index-section-title\">// Boardlar</h2><div class=\"board-cards\">{}</div></div>",
+            "<div class=\"index-section\"><h2 class=\"index-section-title\">Boardlar</h2><div class=\"board-cards\">{}</div></div>",
             board_cards(&sfw, board_badges, board_reply_badges, nsfw_consent, csrf_token, admin_csrf_token, is_admin, user_preferences)
         )
     };
@@ -718,7 +718,7 @@ pub fn index_page<S: std::hash::BuildHasher>(
         String::new()
     } else {
         format!(
-            "<div class=\"index-section\" data-board-nsfw=\"1\"><h2 class=\"index-section-title\">// Yetişkin Boardları <span class=\"nsfw-badge\">NSFW</span></h2><div class=\"board-cards\">{}</div></div>",
+            "<div class=\"index-section\" data-board-nsfw=\"1\"><h2 class=\"index-section-title\">Yetişkin Boardları <span class=\"nsfw-badge\">NSFW</span></h2><div class=\"board-cards\">{}</div></div>",
             board_cards(&nsfw, board_badges, board_reply_badges, nsfw_consent, csrf_token, admin_csrf_token, is_admin, user_preferences)
         )
     };
@@ -732,7 +732,7 @@ pub fn index_page<S: std::hash::BuildHasher>(
     let stats_sec = site_stats.map_or_else(
         || {
             r#"<div class="index-section index-stats-section">
-<h2 class="index-section-title">// İstatistikler</h2>
+<h2 class="index-section-title">İstatistikler</h2>
 <p class="index-stats-unavailable">site istatistikleri geçici olarak kullanılamıyor.</p>
 </div>"#.to_owned()
         },
@@ -749,7 +749,7 @@ pub fn index_page<S: std::hash::BuildHasher>(
             let active_gb_fraction = active_gb_hundredths % 100;
             format!(
                 r#"<div class="index-section index-stats-section">
-<h2 class="index-section-title">// Stats</h2>
+<h2 class="index-section-title">İstatistikler</h2>
 <div class="index-stats-grid">
   <div class="index-stat"><span class="index-stat-value">{tp}</span><span class="index-stat-label">toplam gönderi</span></div>
   <div class="index-stat"><span class="index-stat-value">{ti}</span><span class="index-stat-label">yüklenen resim</span></div>
@@ -843,13 +843,23 @@ pub fn index_page<S: std::hash::BuildHasher>(
     };
 
     let body = format!(
-        r#"<div class="index-hero" data-activity-page="home">
-<h1 class="index-title">[ {name} ]</h1>
-<p class="index-subtitle">{subtitle}</p>
-</div>
+        r#"<div class="home" data-activity-page="home">
+<header class="home-hero">
+  <h1 class="home-title">{name}</h1>
+  <p class="home-subtitle">{subtitle}</p>
+  <nav class="home-quick" aria-label="Hizli gezinme">
+    <a class="home-quick-link" href="/new">Yeni</a>
+    <a class="home-quick-link" href="/popular">Populer</a>
+    <a class="home-quick-link" href="/search">Ara</a>
+    <a class="home-quick-link" href="/notifications">Bildirimler</a>
+    <a class="home-quick-link" href="/messages">Mesajlar</a>
+    <a class="home-quick-link" href="/account/profile">Profil</a>
+  </nav>
+</header>
 {registration_notice_html}
 {home_banner_html}
-{sfw}{nsfw}{empty}{stats}{onion}{nsfw_overlay}"#,
+{sfw}{nsfw}{empty}{stats}{onion}{nsfw_overlay}
+</div>"#,
         name = escape_html(&live_site_name()),
         subtitle = escape_html(&live_site_subtitle()),
         registration_notice_html = registration_notice_html,
@@ -1278,6 +1288,184 @@ fn render_thread_summary(
 // These flags map directly to render or DB inputs, so bundling them would make the call sites less clear.
 #[expect(
     clippy::fn_params_excessive_bools,
+    clippy::too_many_lines,
+    reason = "the catalog keeps its card grid, forms, navigation, and hidden-view state together"
+)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the catalog consumes distinct filtering, moderation, activity, and visitor contexts"
+)]
+/// Renders a board's catalog or hidden-thread view.
+/// Which cross-board feed a page is showing.
+///
+/// Both are the same list of threads under a different ordering, so they share
+/// one renderer instead of drifting into two layouts that only look alike.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FeedKind {
+    /// Threads bumped most recently, across every board.
+    New,
+    /// Threads with the most replies inside the popularity window.
+    Popular,
+}
+
+impl FeedKind {
+    /// The path this feed is served from.
+    const fn path(self) -> &'static str {
+        match self {
+            Self::New => "/new",
+            Self::Popular => "/popular",
+        }
+    }
+
+    /// The heading shown above the list.
+    const fn title(self) -> &'static str {
+        match self {
+            Self::New => "Yeni Konular",
+            Self::Popular => "Popüler",
+        }
+    }
+
+    /// One line explaining what the ordering means.
+    const fn lede(self) -> &'static str {
+        match self {
+            Self::New => "Tüm boardlarda en son hareket eden konular.",
+            Self::Popular => "Son bir haftada en çok yanıt alan konular.",
+        }
+    }
+
+    /// Label for the reply count, which reads differently on a ranked list.
+    const fn reply_label(self) -> &'static str {
+        match self {
+            Self::New => "yanıt",
+            Self::Popular => "yanıt",
+        }
+    }
+}
+
+/// Threads shown on one page of a cross-board feed.
+const FEED_PER_PAGE: i64 = 40;
+
+/// Render one thread as a row in a cross-board feed.
+fn feed_row(kind: FeedKind, thread: &Thread, board_short: &str) -> String {
+    let subject = thread
+        .subject
+        .as_deref()
+        .filter(|subject| !subject.trim().is_empty())
+        .map_or_else(|| "konu".to_owned(), |subject| subject.trim().to_owned());
+    let preview: String = thread
+        .op_body
+        .as_deref()
+        .unwrap_or("")
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .unwrap_or("")
+        .chars()
+        .take(140)
+        .collect();
+
+    let media = thread.op_thumb.as_ref().map_or_else(String::new, |thumb| {
+        format!(
+            r#"<div class="feed-row-media"><img src="/boards/{}" alt="" loading="lazy" decoding="async"></div>"#,
+            escape_html(thumb),
+        )
+    });
+
+    format!(
+        r#"<a class="feed-row" href="/{board}/thread/{thread_id}">
+  {media}
+  <div class="feed-row-info">
+    <span class="feed-row-subject">{subject}</span>
+    <span class="feed-row-preview">{preview}</span>
+    <span class="feed-row-meta">
+      <span class="feed-row-board">/{board}</span>
+      <span class="feed-row-no">No.{thread_id}</span>
+      <span class="feed-row-replies">{replies} {reply_label}</span>
+      <time class="feed-row-time" datetime="{bumped_iso}">{bumped}</time>
+    </span>
+  </div>
+</a>"#,
+        board = escape_html(board_short),
+        thread_id = thread.id,
+        media = media,
+        subject = escape_html(&subject),
+        preview = escape_html(&preview),
+        replies = thread.reply_count,
+        reply_label = kind.reply_label(),
+        bumped_iso = crate::templates::iso_timestamp(thread.bumped_at),
+        bumped = fmt_ts(thread.bumped_at),
+    )
+}
+
+/// Render the cross-board "new" or "popular" feed.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the feed renders list, layout, preference, and account context together"
+)]
+pub fn feed_page(
+    kind: FeedKind,
+    threads: &[Thread],
+    boards: &[Board],
+    pagination: &crate::models::Pagination,
+    current_theme: Option<&str>,
+    user_preferences: crate::templates::UserPreferences,
+    account: Option<&crate::templates::auth::AccountMenu>,
+    account_menu_csrf: &str,
+) -> String {
+    let shorts = boards
+        .iter()
+        .map(|board| (board.id, board.short_name.clone()))
+        .collect::<std::collections::HashMap<_, _>>();
+
+    let rows = threads
+        .iter()
+        .filter_map(|thread| {
+            shorts
+                .get(&thread.board_id)
+                .map(|short| feed_row(kind, thread, short))
+        })
+        .collect::<String>();
+
+    let empty = if threads.is_empty() {
+        r#"<p class="feed-empty">Henuz gosterilecek konu yok.</p>"#.to_owned()
+    } else {
+        String::new()
+    };
+
+    let pager = render_pagination(pagination, kind.path());
+
+    let body = format!(
+        r#"<div class="feed">
+<header class="feed-head">
+  <h1 class="feed-title">{title}</h1>
+  <p class="feed-lede">{lede}</p>
+</header>
+<div class="feed-list">{rows}{empty}</div>
+{pager}
+</div>"#,
+        title = kind.title(),
+        lede = kind.lede(),
+        rows = rows,
+        empty = empty,
+        pager = pager,
+    );
+
+    base_layout_with_account(
+        kind.title(),
+        None,
+        &body,
+        "",
+        boards,
+        current_theme,
+        None,
+        false,
+        kind.path(),
+        user_preferences,
+        &crate::templates::auth::account_menu_html(account, account_menu_csrf),
+    )
+}
+
+#[expect(
     clippy::too_many_lines,
     reason = "the catalog keeps its card grid, forms, navigation, and hidden-view state together"
 )]

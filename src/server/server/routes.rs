@@ -167,6 +167,8 @@ pub(super) fn public_routes() -> Router<AppState> {
         .route("/setup/review", post(crate::handlers::setup::setup_review))
         .route("/setup/finish", post(crate::handlers::setup::setup_finish))
         .route("/", get(crate::handlers::board::index))
+        .route("/new", get(crate::handlers::board::new_threads))
+        .route("/popular", get(crate::handlers::board::popular_threads))
         .route("/{board}", get(crate::handlers::board::board_index))
         .route(
             "/{board}",

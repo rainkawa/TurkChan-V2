@@ -1,4 +1,10 @@
 //! Registry of themes bundled with `RustChan`.
+//!
+//! TurkChan ships a single built-in design. The palette itself lives in
+//! `static/style.css`, which answers the light and dark halves of the same
+//! design through a `data-color-mode` attribute; this module only registers the
+//! slug the rest of the application resolves against. Administrators can still
+//! add themes of their own, which are stored beside it.
 
 use crate::models::Theme;
 
@@ -18,76 +24,16 @@ pub struct BuiltinTheme {
 }
 
 /// Theme used when no configured default can be resolved.
-pub const HARD_DEFAULT_THEME: &str = "forest";
+pub const HARD_DEFAULT_THEME: &str = "aurora";
 
-/// Metadata for every theme bundled with `RustChan`.
-pub const BUILTIN_THEMES: &[BuiltinTheme] = &[
-    BuiltinTheme {
-        slug: "forest",
-        display_name: "Forest",
-        description: "Earthy dark woodland palette with parchment accents.",
-        swatch_hex: "#6fa84a",
-        sort_order: 10,
-    },
-    BuiltinTheme {
-        slug: "blue-sky",
-        display_name: "Blue Sky",
-        description:
-            "Soft hazy daylight palette with cloud, sky blue, stone, and gentle accent tones.",
-        swatch_hex: "#6f9fbd",
-        sort_order: 20,
-    },
-    BuiltinTheme {
-        slug: "deep-orbit",
-        display_name: "Deep Orbit",
-        description:
-            "Cozy charcoal-indigo night palette with moon-gray text and soft teal-lavender accents.",
-        swatch_hex: "#88a8a2",
-        sort_order: 30,
-    },
-    BuiltinTheme {
-        slug: "terminal",
-        display_name: "Terminal",
-        description: "CRT-style dark green terminal theme.",
-        swatch_hex: "#00ff41",
-        sort_order: 40,
-    },
-    BuiltinTheme {
-        slug: "dorfic",
-        display_name: "DORFic",
-        description: "Warm amber sci-fi terminal with darker chrome.",
-        swatch_hex: "#ffcc66",
-        sort_order: 50,
-    },
-    BuiltinTheme {
-        slug: "chanclassic",
-        display_name: "ChanClassic",
-        description: "Light beige classic imageboard styling.",
-        swatch_hex: "#800000",
-        sort_order: 60,
-    },
-    BuiltinTheme {
-        slug: "aero",
-        display_name: "Frutiger Aero",
-        description: "Bright glossy blues with soft rounded chrome.",
-        swatch_hex: "#6aaed6",
-        sort_order: 70,
-    },
-    BuiltinTheme {
-        slug: "neoncubicle",
-        display_name: "NeonCubicle",
-        description: "Soft office-futurist magenta and gray palette.",
-        swatch_hex: "#b03888",
-        sort_order: 80,
-    },
-    BuiltinTheme {
-        slug: "fluorogrid",
-        display_name: "FluoroGrid",
-        description: "Light retro-futurist grid with bright accent colors.",
-        swatch_hex: "#8833aa",
-        sort_order: 90,
-    },
-];
+/// The built-in design.
+pub const BUILTIN_THEMES: &[BuiltinTheme] = &[BuiltinTheme {
+    slug: HARD_DEFAULT_THEME,
+    display_name: "Aurora",
+    description: "Modern violet dark palette with a light mode, readable at any size.",
+    swatch_hex: "#8b5cf6",
+    sort_order: 10,
+}];
 
 #[must_use]
 /// Find a built-in theme by slug, ignoring ASCII case and surrounding space.
@@ -121,4 +67,27 @@ pub fn builtin_theme_rows(enabled_slugs: &[String]) -> Vec<Theme> {
             custom_css: String::new(),
         })
         .collect()
+}
+
+#[must_use]
+/// Return whether a slug names a theme this build no longer ships.
+///
+/// A database keeps the rows it was seeded with. When a built-in design is
+/// retired the row stays behind, and because the theme resolver matches on the
+/// row rather than on the registry, a visitor whose cookie still named the old
+/// design would be served a `data-theme` no stylesheet answers to. This is what
+/// the seeding step uses to recognise those rows.
+pub fn is_retired_builtin_slug(slug: &str) -> bool {
+    const RETIRED: &[&str] = &[
+        "aero",
+        "blue-sky",
+        "chanclassic",
+        "deep-orbit",
+        "dorfic",
+        "fluorogrid",
+        "forest",
+        "neoncubicle",
+        "terminal",
+    ];
+    builtin_theme(slug).is_none() && RETIRED.iter().any(|name| name.eq_ignore_ascii_case(slug))
 }
