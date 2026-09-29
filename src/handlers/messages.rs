@@ -86,7 +86,13 @@ pub(in crate::server) struct LeaveConversationForm {
 /// A block and a missing account are told apart on purpose: one is something
 /// the reader did and can undo, the other is a link that no longer works, and
 /// saying the wrong one sends somebody looking for a control that is not there.
-fn refusal_message(refusal: db::DirectMessageRefusal) -> AppError {
+fn refusal_message(error: db::DirectMessageError) -> AppError {
+    let Some(refusal) = error.refusal() else {
+        // A storage failure is the operator's to hear about, not something to
+        // dress up as a block: telling a reader they are blocked when the
+        // database was unreachable would be a lie they could not argue with.
+        return AppError::Internal(anyhow::anyhow!("{error}"));
+    };
     match refusal {
         db::DirectMessageRefusal::Blocked => {
             AppError::Forbidden("Bu hesapla mesajlaşmak engellenmiş.".into())

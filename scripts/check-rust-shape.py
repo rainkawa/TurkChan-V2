@@ -67,6 +67,7 @@ ENUM = re.compile(
     r"^[ \t]*(?:pub(?:\([^)]*\))?[ \t]+)?enum[ \t]+([A-Z][A-Za-z0-9_]*)[ \t]*\{", re.M
 )
 VARIANT = re.compile(r"^ {4}([A-Z][A-Za-z0-9_]*)[ \t]*(?:,|\(|=|\{|$)", re.M)
+CHAR_LITERAL = re.compile(r"'(?:\\.|[^\\'\n])'")
 
 # `name(` is a call rather than the start of a definition when the token in
 # front of it is not one of the keywords that introduce a definition.
@@ -167,6 +168,19 @@ def strip_noise(text):
                     j += 1
                     break
                 j += 1
+            for k in range(i, j):
+                if text[k] != '\n':
+                    out[k] = ' '
+            i = j
+            continue
+        m = CHAR_LITERAL.match(text, i)
+        if m:
+            # A double-quote character literal such as '"' carries a quote
+            # that is not a string. Without this it opened a string here and
+            # blanked everything up to the next quote, which could be most of
+            # the rest of the file: a whole function, and everything it
+            # declared, silently disappeared from the checker's view.
+            j = m.end()
             for k in range(i, j):
                 if text[k] != '\n':
                     out[k] = ' '

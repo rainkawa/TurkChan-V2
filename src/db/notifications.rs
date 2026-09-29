@@ -99,6 +99,9 @@ pub struct Notification {
     pub board_id: Option<i64>,
     /// The board's short name, which is what a link is built from.
     pub board_short: Option<String>,
+    /// The message it came from, so a direct-message notification opens the
+    /// line rather than a post that does not exist.
+    pub message_id: Option<i64>,
     /// When it happened.
     pub created_at: i64,
     /// Whether the reader has seen it.
@@ -186,30 +189,33 @@ pub fn list_notifications(
         .context("Failed to prepare the notification list")?;
     let rows = stmt
         .query_map(params![user_id, limit, offset], |row| {
-            let kind: String = row.get(1)?;
-            let read_at: Option<i64> = row.get(10)?;
-            Ok(Notification {
-                id: row.get(0)?,
-                kind: NotificationKind::from_db_str(&kind),
-                actor_username: row.get(2)?,
-                summary: row.get(3)?,
-                post_id: row.get(4)?,
-                thread_id: row.get(5)?,
-                board_id: row.get(6)?,
-                board_short: row.get(7)?,
-                message_id: row.get(8)?,
-                created_at: row.get(9)?,
+            let kind: String = row.get(1).ok()?;
+            let read_at: Option<i64> = row.get(10).ok()?;
+            // An unknown kind maps to no row at all rather than to a stand-in,
+            // so a newer build's notification cannot be shown as an older one.
+            let kind = NotificationKind::from_db_str(&kind)?;
+            Ok(Some(Notification {
+                id: row.get(0).ok()?,
+                kind,
+                actor_username: row.get(2).ok()?,
+                summary: row.get(3).ok()?,
+                post_id: row.get(4).ok()?,
+                thread_id: row.get(5).ok()?,
+                board_id: row.get(6).ok()?,
+                board_short: row.get(7).ok()?,
+                message_id: row.get(8).ok()?,
+                created_at: row.get(9).ok()?,
                 is_read: read_at.is_some(),
-            })
+            }))
         })
         .context("Failed to read the notification list")?;
-    let listed = rows.collect::<rusqlite::Result<Vec<_>>>()?;
-    Ok(listed
+    // A row whose kind this build has never heard of is left out of the list
+    // rather than shown as something unrecognised: a skipped line is better
+    // than a line that lies about what happened.
+    Ok(rows
+        .collect::<rusqlite::Result<Vec<_>>>()?
         .into_iter()
-        .filter_map(|mut row| {
-            row.kind = row.kind?;
-            Some(row)
-        })
+        .flatten()
         .collect())
 }
 
@@ -316,30 +322,33 @@ pub fn notifications_since(
         .context("Failed to prepare the notification poll")?;
     let rows = stmt
         .query_map(params![user_id, after_id, limit], |row| {
-            let kind: String = row.get(1)?;
-            let read_at: Option<i64> = row.get(10)?;
-            Ok(Notification {
-                id: row.get(0)?,
-                kind: NotificationKind::from_db_str(&kind),
-                actor_username: row.get(2)?,
-                summary: row.get(3)?,
-                post_id: row.get(4)?,
-                thread_id: row.get(5)?,
-                board_id: row.get(6)?,
-                board_short: row.get(7)?,
-                message_id: row.get(8)?,
-                created_at: row.get(9)?,
+            let kind: String = row.get(1).ok()?;
+            let read_at: Option<i64> = row.get(10).ok()?;
+            // An unknown kind maps to no row at all rather than to a stand-in,
+            // so a newer build's notification cannot be shown as an older one.
+            let kind = NotificationKind::from_db_str(&kind)?;
+            Ok(Some(Notification {
+                id: row.get(0).ok()?,
+                kind,
+                actor_username: row.get(2).ok()?,
+                summary: row.get(3).ok()?,
+                post_id: row.get(4).ok()?,
+                thread_id: row.get(5).ok()?,
+                board_id: row.get(6).ok()?,
+                board_short: row.get(7).ok()?,
+                message_id: row.get(8).ok()?,
+                created_at: row.get(9).ok()?,
                 is_read: read_at.is_some(),
-            })
+            }))
         })
         .context("Failed to read the notification poll")?;
-    let listed = rows.collect::<rusqlite::Result<Vec<_>>>()?;
-    Ok(listed
+    // A row whose kind this build has never heard of is left out of the list
+    // rather than shown as something unrecognised: a skipped line is better
+    // than a line that lies about what happened.
+    Ok(rows
+        .collect::<rusqlite::Result<Vec<_>>>()?
         .into_iter()
-        .filter_map(|mut row| {
-            row.kind = row.kind?;
-            Some(row)
-        })
+        .flatten()
         .collect())
 }
 

@@ -26,6 +26,62 @@ pub enum DirectMessageRefusal {
     Body,
 }
 
+/// Why a write did not happen.
+///
+/// A refusal the reader can act on and a database that could not be reached
+/// are different answers, and a caller that cannot tell them apart would show
+/// somebody "this account has blocked you" when the truth is that the write
+/// never left the process. Keeping them in one type is what lets the writes
+/// below use `?` for the storage half and still refuse for the other one.
+#[derive(Debug)]
+pub enum DirectMessageError {
+    /// The write was refused, and this is why.
+    Refused(DirectMessageRefusal),
+    /// The write could not be attempted or completed.
+    Storage(anyhow::Error),
+}
+
+impl DirectMessageError {
+    /// Return the refusal this names, if it names one.
+    #[must_use]
+    pub fn refusal(&self) -> Option<DirectMessageRefusal> {
+        match self {
+            Self::Refused(refusal) => Some(*refusal),
+            Self::Storage(_) => None,
+        }
+    }
+}
+
+impl From<DirectMessageRefusal> for DirectMessageError {
+    fn from(refusal: DirectMessageRefusal) -> Self {
+        Self::Refused(refusal)
+    }
+}
+
+impl From<anyhow::Error> for DirectMessageError {
+    fn from(error: anyhow::Error) -> Self {
+        Self::Storage(error)
+    }
+}
+
+impl std::fmt::Display for DirectMessageError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Refused(refusal) => write!(formatter, "direct message refused: {refusal:?}"),
+            Self::Storage(error) => write!(formatter, "direct message storage failure: {error}"),
+        }
+    }
+}
+
+impl std::error::Error for DirectMessageError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Refused(_) => None,
+            Self::Storage(error) => Some(error.as_ref()),
+        }
+    }
+}
+
 /// One message as the reader sees it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DirectMessage {
@@ -204,9 +260,9 @@ pub fn open_conversation(
     conn: &rusqlite::Connection,
     sender_id: i64,
     recipient_id: i64,
-) -> Result<i64, DirectMessageRefusal> {
+) -> Result<i64, DirectMessageError> {
     if sender_id == recipient_id {
-        return Err(DirectMessageRefusal::NoSuchAccount);
+        return Err(DirectMessageRefusal::NoSuchAccount.into());
     }
     let recipient_exists: Option<i64> = conn
         .query_row(
@@ -218,13 +274,13 @@ pub fn open_conversation(
         .context("Failed to look up the recipient account")
         .map_err(|_| DirectMessageRefusal::NoSuchAccount)?;
     if recipient_exists.is_none() {
-        return Err(DirectMessageRefusal::NoSuchAccount);
+        return Err(DirectMessageRefusal::NoSuchAccount.into());
     }
     if either_way_blocked(conn, sender_id, recipient_id)
         .context("Failed to read the block list")
         .map_err(|_| DirectMessageRefusal::Blocked)?
     {
-        return Err(DirectMessageRefusal::Blocked);
+        return Err(DirectMessageRefusal::Blocked.into());
     }
     if let Some(existing) =
         find_conversation(conn, sender_id, recipient_id).context("Failed to find the conversation")?
@@ -247,7 +303,7 @@ pub fn open_conversation(
     let conversation_id = if inserted == 0 {
         find_conversation(conn, first, second)
             .context("Failed to find the conversation")?
-            .ok_or(DirectMessageRefusal::Blocked)?
+            .ok_or(DirectMessageError::from(DirectMessageRefusal::Blocked))?
     } else {
         conn.last_insert_rowid()
     };
@@ -266,10 +322,10 @@ pub fn open_conversation(
 ///
 /// Trimming first means a body of nothing but spaces is an empty body rather
 /// than a message that renders as one blank line.
-fn checked_body(body: &str) -> Result<String, DirectMessageRefusal> {
+fn checked_body(body: &str) -> Result<String, DirectMessageError> {
     let trimmed = body.trim();
     if trimmed.is_empty() || trimmed.chars().count() > DIRECT_MESSAGE_MAX_CHARS {
-        return Err(DirectMessageRefusal::Body);
+        return Err(DirectMessageRefusal::Body.into());
     }
     Ok(trimmed.to_owned())
 }
@@ -288,7 +344,7 @@ pub fn send_message(
     conversation_id: i64,
     sender_id: i64,
     body: &str,
-) -> Result<i64, DirectMessageRefusal> {
+) -> Result<i64, DirectMessageError> {
     let body = checked_body(body)?;
     let is_member: Option<i64> = conn
         .query_row(
@@ -301,7 +357,7 @@ pub fn send_message(
         .context("Failed to read the conversation members")
         .map_err(|_| DirectMessageRefusal::Blocked)?;
     if is_member.is_none() {
-        return Err(DirectMessageRefusal::Blocked);
+        return Err(DirectMessageRefusal::Blocked.into());
     }
     conn.execute(
         "INSERT INTO direct_messages (conversation_id, sender_id, body)
@@ -597,6 +653,17 @@ mod tests {
     const SECOND: i64 = 2;
     const THIRD: i64 = 3;
 
+    /// Return the refusal a write was refused for.
+    ///
+    /// A refusal and a storage failure are kept apart in the error type, so a
+    /// test that only cares about the refusal asks for it rather than
+    /// asserting on a whole error it cannot build.
+    fn refusal_of(error: super::DirectMessageError) -> DirectMessageRefusal {
+        error
+            .refusal()
+            .expect("an in-memory database must not fail to store")
+    }
+
     fn test_conn() -> Result<rusqlite::Connection> {
         let conn = rusqlite::Connection::open_in_memory()?;
         install_or_migrate_schema(&conn)?;
@@ -640,7 +707,7 @@ mod tests {
             "the far side must not be able to reach across the block either"
         );
         assert_eq!(
-            open_conversation(&conn, SECOND, FIRST),
+            open_conversation(&conn, SECOND, FIRST).map_err(refusal_of),
             Err(DirectMessageRefusal::Blocked)
         );
         Ok(())
@@ -658,7 +725,7 @@ mod tests {
             .map_err(|_| anyhow::anyhow!("send should succeed"))?;
         set_block(&conn, SECOND, FIRST, true)?;
         assert_eq!(
-            send_message(&conn, conversation, FIRST, "tekrar"),
+            send_message(&conn, conversation, FIRST, "tekrar").map_err(refusal_of),
             Err(DirectMessageRefusal::Blocked)
         );
         Ok(())
@@ -693,7 +760,7 @@ mod tests {
             .map_err(|_| anyhow::anyhow!("open should succeed"))?;
         assert!(conversation_messages(&conn, conversation, THIRD, 50).is_err());
         assert_eq!(
-            send_message(&conn, conversation, THIRD, "sizmemişim"),
+            send_message(&conn, conversation, THIRD, "sizmemişim").map_err(refusal_of),
             Err(DirectMessageRefusal::Blocked)
         );
         Ok(())
@@ -724,12 +791,12 @@ mod tests {
         let conversation = open_conversation(&conn, FIRST, SECOND)
             .map_err(|_| anyhow::anyhow!("open should succeed"))?;
         assert_eq!(
-            send_message(&conn, conversation, FIRST, "   \n  "),
+            send_message(&conn, conversation, FIRST, "   \n  ").map_err(refusal_of),
             Err(DirectMessageRefusal::Body)
         );
         let too_long = "x".repeat(DIRECT_MESSAGE_MAX_CHARS + 1);
         assert_eq!(
-            send_message(&conn, conversation, FIRST, &too_long),
+            send_message(&conn, conversation, FIRST, &too_long).map_err(refusal_of),
             Err(DirectMessageRefusal::Body)
         );
         Ok(())
@@ -804,7 +871,7 @@ mod tests {
     fn a_missing_recipient_is_refused() -> Result<()> {
         let conn = test_conn()?;
         assert_eq!(
-            open_conversation(&conn, FIRST, 9999),
+            open_conversation(&conn, FIRST, 9999).map_err(refusal_of),
             Err(DirectMessageRefusal::NoSuchAccount)
         );
         Ok(())

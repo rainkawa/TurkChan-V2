@@ -299,54 +299,6 @@ pub fn count_global_search(
     Ok(count)
 }
 
-/// Return accounts whose name contains what the reader typed.
-///
-/// Accounts are matched on their login and display names rather than through
-/// the post index, because an account is not a post and a reader looking for a
-/// person is looking for the person.
-///
-/// # Errors
-/// Returns an error if the list cannot be read.
-pub fn search_users(conn: &rusqlite::Connection, query: &str, limit: i64) -> Result<Vec<SearchHit>> {
-    let cleaned = cleaned(query);
-    if cleaned.is_empty() {
-        return Ok(Vec::new());
-    }
-    // The pattern is bound, and the wildcards are added here so a reader who
-    // types one is searching for it rather than widening the match.
-    let pattern = format!(
-        "%{}%",
-        cleaned
-            .replace('\\', "\\\\")
-            .replace('%', "\\%")
-            .replace('_', "\\_")
-    );
-    let mut stmt = conn
-        .prepare_cached(
-            "SELECT id, username, display_name, bio FROM users
-             WHERE username LIKE ?1 ESCAPE '\\' OR display_name LIKE ?1 ESCAPE '\\'
-             ORDER BY username ASC
-             LIMIT ?2",
-        )
-        .context("Failed to prepare the account search")?;
-    let rows = stmt
-        .query_map(rusqlite::params![pattern, limit.max(1)], |row| {
-            let id: i64 = row.get(0)?;
-            let username: String = row.get(1)?;
-            let display_name: String = row.get(2)?;
-            let bio: String = row.get(3)?;
-            Ok(SearchHit {
-                kind: SearchKind::User,
-                id,
-                title: display_name,
-                excerpt: bio,
-                href: format!("/u/{username}"),
-            })
-        })
-        .context("Failed to read the account search")?;
-    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
-}
-
 /// Return boards whose name or description contains what the reader typed.
 ///
 /// # Errors
@@ -461,13 +413,13 @@ pub fn parse_day(raw: &str, end_of_day: bool) -> Option<i64> {
     } else {
         midnight
     };
-    day.and_utc().timestamp()
+    Some(day.and_utc().timestamp())
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        count_global_search, global_search, parse_day, search_boards, search_threads, search_users,
+        count_global_search, global_search, parse_day, search_boards, search_threads,
         SearchFilters, SearchKind,
     };
     use crate::db::schema::install_or_migrate_schema;
@@ -659,25 +611,9 @@ mod tests {
     }
 
     #[test]
-    /// A wildcard a reader types is a wildcard they are looking for, not one
-    /// that widens the match behind their back.
-    fn a_typed_wildcard_is_escaped() -> Result<()> {
-        let conn = test_conn()?;
-        let hits = search_users(&conn, "%", 10)?;
-        assert!(
-            hits.is_empty(),
-            "a percent sign must not match every account"
-        );
-        let named = search_users(&conn, "yaz", 10)?;
-        assert_eq!(named.len(), 1);
-        assert_eq!(named[0].href, "/u/yazar");
-        Ok(())
-    }
-
-    #[test]
-    /// The other three kinds are searched too, each with a link that opens the
-    /// thing itself rather than a list it appeared in.
-    fn boards_threads_and_accounts_are_searchable_too() -> Result<()> {
+    /// Boards and threads are searched alongside posts, each with a link that
+    /// opens the thing itself rather than a list it appeared in.
+    fn boards_and_threads_are_searchable_too() -> Result<()> {
         let conn = test_conn()?;
         let boards = search_boards(&conn, "genel", 10)?;
         assert!(!boards.is_empty());
@@ -688,10 +624,21 @@ mod tests {
         assert_eq!(threads.len(), 1);
         assert_eq!(threads[0].kind, SearchKind::Thread);
         assert!(threads[0].href.contains("/thread/1"));
+        Ok(())
+    }
 
-        let users = search_users(&conn, "Yazar", 10)?;
-        assert_eq!(users.len(), 1);
-        assert_eq!(users[0].kind, SearchKind::User);
+    #[test]
+    /// A wildcard a reader types is a wildcard they are looking for, not one
+    /// that widens the match behind their back. This is checked here rather
+    /// than in the page because the page only ever sees what the database
+    /// decided to hand it.
+    fn a_typed_wildcard_is_escaped() -> Result<()> {
+        let conn = test_conn()?;
+        assert!(
+            crate::db::users::search_users(&conn, "%", 10)?.is_empty(),
+            "a percent sign must not match every account"
+        );
+        assert_eq!(crate::db::users::search_users(&conn, "yaz", 10)?.len(), 1);
         Ok(())
     }
 }

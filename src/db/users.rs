@@ -327,13 +327,24 @@ pub fn count_users_matching(
 
 /// List the accounts a search term matches, newest identifiers last.
 ///
+/// The two characters `LIKE` treats as wildcards are escaped, so a reader who
+/// types a percent sign is looking for a percent sign. Left unescaped, typing
+/// one would return every account on the site to a reader who only meant one
+/// character, which is both wrong and slow.
+///
 /// # Errors
 /// Returns an error if the database query fails.
 pub fn search_users(conn: &rusqlite::Connection, search: &str, limit: i64) -> Result<Vec<User>> {
-    let like = format!("%{search}%");
+    let term: String = search.trim().chars().take(crate::db::search::SEARCH_MAX_CHARS).collect();
+    let like = format!(
+        "%{}%",
+        term.replace('\\', "\\\\")
+            .replace('%', "\\%")
+            .replace('_', "\\_")
+    );
     let sql = format!(
         "SELECT {USER_COLUMNS} FROM users
-         WHERE username LIKE ?1 OR display_name LIKE ?1
+         WHERE username LIKE ?1 ESCAPE '\\' OR display_name LIKE ?1 ESCAPE '\\'
          ORDER BY id LIMIT ?2"
     );
     let mut stmt = conn.prepare_cached(&sql)?;

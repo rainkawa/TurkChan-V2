@@ -134,7 +134,19 @@ pub(in crate::server) async fn global_search(
             let total = db::count_global_search(&conn, &query, &filters)?;
             let threads = db::search_threads(&conn, &query, AUX_PER_KIND)?;
             let boards = db::search_boards(&conn, &query, AUX_PER_KIND)?;
-            let users = db::search_users(&conn, &query, AUX_PER_KIND)?;
+            // The account search already exists and returns whole accounts,
+            // so it is reused rather than written a second time. It becomes
+            // search hits here because that is all this page shows.
+            let users = db::users::search_users(&conn, &query, AUX_PER_KIND)?
+                .into_iter()
+                .map(|account| db::SearchHit {
+                    kind: db::SearchKind::User,
+                    id: account.id,
+                    title: account.display_name.clone(),
+                    excerpt: account.bio.clone(),
+                    href: format!("/u/{}", account.username),
+                })
+                .collect::<Vec<_>>();
 
             Ok(search_page(
                 &query,
