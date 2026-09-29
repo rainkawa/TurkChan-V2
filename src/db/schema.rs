@@ -1041,12 +1041,23 @@ pub(super) fn ensure_pending_fs_op_invariants(conn: &rusqlite::Connection) -> Re
 }
 
 /// Install one insert/update trigger pair from its shared validation predicate.
+///
+/// The pair is dropped before it is created rather than left to `IF NOT
+/// EXISTS`. A database created by an earlier release carries a trigger written
+/// against the columns that release knew about, and skipping a trigger that
+/// already exists would leave that older predicate in place, so the schema
+/// would still not match the baseline once every other object had been brought
+/// forward. Dropping and recreating is idempotent and costs nothing: a trigger
+/// holds no rows of its own.
 fn ensure_domain_invariant(conn: &rusqlite::Connection, invariant: &DomainInvariant) -> Result<()> {
     let insert_trigger = domain_trigger_name(invariant.table, "insert");
     let update_trigger = domain_trigger_name(invariant.table, "update");
     let predicate = invariant.invalid_predicate.replace("ROW.", "NEW.");
     let sql = format!(
-        "CREATE TRIGGER IF NOT EXISTS {insert_trigger}
+        "DROP TRIGGER IF EXISTS {insert_trigger};
+         DROP TRIGGER IF EXISTS {update_trigger};
+
+         CREATE TRIGGER IF NOT EXISTS {insert_trigger}
          BEFORE INSERT ON {table}
          FOR EACH ROW
          WHEN {predicate}
@@ -1239,6 +1250,35 @@ fn can_repair_known_legacy_baseline_drift(expected: &SchemaShape, actual: &Schem
         && tables_are_legacy_repairable(expected, actual)
 }
 
+/// Return whether the additive repair path reinstalls a trigger it found stale.
+///
+/// A trigger carried over from an earlier release differs only in the columns
+/// and predicates that release later added, and the repair replaces these rather
+/// than leaving them in place, so a difference here is drift the path can close.
+/// Every other trigger has to match exactly, because nothing would rewrite it.
+fn is_reinstallable_trigger(name: &str, kind: &str) -> bool {
+    kind == "trigger" && (is_additive_domain_trigger(name) || is_search_index_trigger(name))
+}
+
+/// Return whether a table belongs to the full-text search index.
+///
+/// `posts_fts` and the shadow tables `FTS5` creates beside it are dropped and
+/// rebuilt as one set by the search-index step. They hold nothing the migration
+/// is trying to carry forward, and `SQLite` cannot add a column to a virtual
+/// table, so their shape is replaced rather than compared.
+fn is_search_index_table(name: &str) -> bool {
+    name == "posts_fts" || name.starts_with("posts_fts_")
+}
+
+/// Return whether a trigger keeps the full-text search index synchronized.
+///
+/// The search-index step drops and recreates this pair whenever the indexed
+/// columns are not the ones the current release defines, so a legacy definition
+/// is replaced rather than compared.
+fn is_search_index_trigger(name: &str) -> bool {
+    matches!(name, "posts_ai" | "posts_ad" | "posts_au")
+}
+
 /// Compare schema objects while accepting only recognized additive-object drift.
 fn schema_objects_are_legacy_repairable(expected: &SchemaShape, actual: &SchemaShape) -> bool {
     for (name, expected_object) in &expected.objects {
@@ -1256,6 +1296,7 @@ fn schema_objects_are_legacy_repairable(expected: &SchemaShape, actual: &SchemaS
         }
         if matches!(expected_object.kind.as_str(), "index" | "trigger")
             && actual_object.sql != expected_object.sql
+            && !is_reinstallable_trigger(name, &expected_object.kind)
         {
             return false;
         }
@@ -1309,6 +1350,9 @@ fn is_legacy_theme_sort_index(sql: &str) -> bool {
 /// Compare table shapes under the known legacy exceptions.
 fn tables_are_legacy_repairable(expected: &SchemaShape, actual: &SchemaShape) -> bool {
     for (table, expected_table) in &expected.tables {
+        if is_search_index_table(table) {
+            continue;
+        }
         let Some(actual_table) = actual.tables.get(table) else {
             // A table the additive repair path installs is allowed to be absent
             // from an older database; the schema-object pass accepts the same
@@ -1428,7 +1472,18 @@ fn apply_additive_schema_repairs(conn: &rusqlite::Connection) -> Result<()> {
     }
 }
 
-/// Install additive indexes and domain triggers while the caller owns a transaction.
+/// Install additive indexes, invariants, and search objects while the caller
+/// owns a transaction.
+///
+/// This runs the same steps as a fresh installation, minus the table creation
+/// that the additive tables already cover. The steps that were missing here are
+/// the reason an older database could not be carried forward: the fresh path
+/// installs the post and board invariants and replaces the search index, so a
+/// database that predates those objects never converged and verification failed.
+///
+/// The search index goes last on purpose. Replacing it drops and recreates the
+/// triggers that keep it in step with `posts`, so anything that touches that
+/// table has to have finished first.
 fn apply_additive_schema_repairs_in_transaction(conn: &rusqlite::Connection) -> Result<()> {
     conn.execute_batch(
         "DROP INDEX IF EXISTS idx_themes_enabled_sort;
@@ -1439,7 +1494,11 @@ fn apply_additive_schema_repairs_in_transaction(conn: &rusqlite::Connection) -> 
     create_additive_baseline_tables(conn).context("Install additive baseline tables failed")?;
     create_additive_baseline_columns(conn).context("Install additive columns failed")?;
     create_indexes(conn).context("Install additive indexes failed")?;
-    ensure_domain_invariants(conn).context("Install additive domain invariants")
+    ensure_post_invariants(conn).context("Install additive post invariants")?;
+    ensure_board_access_invariants(conn)
+        .context("Install additive board access invariants")?;
+    ensure_domain_invariants(conn).context("Install additive domain invariants")?;
+    ensure_posts_search_index(conn).context("Install additive search index")
 }
 
 /// Tables introduced after the original release baseline.
@@ -2784,6 +2843,122 @@ mod tests {
         Ok(())
     }
 
+    /// Build the database a `1.4.1` release left behind.
+    ///
+    /// The current baseline is installed and then every object a later release
+    /// added is taken back out, so the fixture keeps describing the upgrade as
+    /// the baseline grows instead of hard-coding a frozen copy of the old DDL.
+    /// The two columns that cannot be un-added have to go last, because SQLite
+    /// refuses to drop a column while a trigger still names it.
+    fn create_legacy_1_4_1_schema(conn: &rusqlite::Connection) -> Result<()> {
+        create_pre_hardening_schema(conn, "1.4.1")?;
+        ensure_domain_invariants(conn)?;
+
+        conn.execute_batch(
+            r"
+            DROP TRIGGER IF EXISTS posts_domain_insert;
+            DROP TRIGGER IF EXISTS posts_domain_update;
+            CREATE TRIGGER posts_domain_insert BEFORE INSERT ON posts
+            FOR EACH ROW
+            WHEN typeof(NEW.is_op) <> 'integer' OR NEW.is_op NOT IN (0, 1)
+                OR (NEW.file_size IS NOT NULL
+                    AND (typeof(NEW.file_size) <> 'integer' OR NEW.file_size < 0))
+                OR (NEW.audio_file_size IS NOT NULL
+                    AND (typeof(NEW.audio_file_size) <> 'integer' OR NEW.audio_file_size < 0))
+                OR (NEW.media_type IS NOT NULL
+                    AND NEW.media_type NOT IN ('image', 'video', 'audio', 'pdf', 'other'))
+                OR NEW.media_processing_state NOT IN
+                    ('', 'pending', 'running', 'failed', 'prune_pending', 'pruned')
+                OR NOT EXISTS (
+                    SELECT 1 FROM threads AS parent
+                    WHERE parent.id = NEW.thread_id AND parent.board_id = NEW.board_id
+                )
+                OR EXISTS (
+                    SELECT 1 FROM reports AS report
+                    WHERE report.post_id = NEW.id
+                      AND (report.thread_id <> NEW.thread_id OR report.board_id <> NEW.board_id)
+                )
+                OR EXISTS (
+                    SELECT 1 FROM post_submissions AS submission
+                    WHERE submission.post_id = NEW.id
+                      AND (submission.thread_id <> NEW.thread_id
+                           OR submission.board_id <> NEW.board_id
+                           OR submission.is_thread <> NEW.is_op)
+                )
+            BEGIN
+                SELECT RAISE(ABORT, 'posts row violates a persisted domain invariant');
+            END;
+            CREATE TRIGGER posts_domain_update BEFORE UPDATE OF thread_id, board_id, file_size,
+                is_op, media_type, audio_file_size, media_processing_state ON posts
+            FOR EACH ROW
+            WHEN typeof(NEW.is_op) <> 'integer' OR NEW.is_op NOT IN (0, 1)
+                OR (NEW.file_size IS NOT NULL
+                    AND (typeof(NEW.file_size) <> 'integer' OR NEW.file_size < 0))
+                OR (NEW.audio_file_size IS NOT NULL
+                    AND (typeof(NEW.audio_file_size) <> 'integer' OR NEW.audio_file_size < 0))
+                OR (NEW.media_type IS NOT NULL
+                    AND NEW.media_type NOT IN ('image', 'video', 'audio', 'pdf', 'other'))
+                OR NEW.media_processing_state NOT IN
+                    ('', 'pending', 'running', 'failed', 'prune_pending', 'pruned')
+                OR NOT EXISTS (
+                    SELECT 1 FROM threads AS parent
+                    WHERE parent.id = NEW.thread_id AND parent.board_id = NEW.board_id
+                )
+                OR EXISTS (
+                    SELECT 1 FROM reports AS report
+                    WHERE report.post_id = NEW.id
+                      AND (report.thread_id <> NEW.thread_id OR report.board_id <> NEW.board_id)
+                )
+                OR EXISTS (
+                    SELECT 1 FROM post_submissions AS submission
+                    WHERE submission.post_id = NEW.id
+                      AND (submission.thread_id <> NEW.thread_id
+                           OR submission.board_id <> NEW.board_id
+                           OR submission.is_thread <> NEW.is_op)
+                )
+            BEGIN
+                SELECT RAISE(ABORT, 'posts row violates a persisted domain invariant');
+            END;
+
+            DROP INDEX IF EXISTS idx_conversation_members_user;
+            DROP INDEX IF EXISTS idx_conversation_members_conversation;
+            DROP INDEX IF EXISTS idx_direct_messages_conversation;
+            DROP INDEX IF EXISTS idx_notifications_user_recent;
+            DROP INDEX IF EXISTS idx_notifications_user_unread;
+            DROP INDEX IF EXISTS idx_upload_counters_window;
+            DROP INDEX IF EXISTS idx_user_blocks_blocked;
+            DROP TABLE IF EXISTS conversation_members;
+            DROP TABLE IF EXISTS direct_messages;
+            DROP TABLE IF EXISTS conversations;
+            DROP TABLE IF EXISTS notifications;
+            DROP TABLE IF EXISTS user_blocks;
+            DROP TABLE IF EXISTS upload_counters;
+
+            DROP TRIGGER IF EXISTS posts_ai;
+            DROP TRIGGER IF EXISTS posts_ad;
+            DROP TRIGGER IF EXISTS posts_au;
+            DROP TABLE IF EXISTS posts_fts;
+            CREATE VIRTUAL TABLE posts_fts
+                USING fts5(body, content='posts', content_rowid='id', tokenize='unicode61');
+            CREATE TRIGGER posts_ai AFTER INSERT ON posts BEGIN
+                INSERT INTO posts_fts(rowid, body) VALUES (new.id, new.body);
+            END;
+            CREATE TRIGGER posts_ad AFTER DELETE ON posts BEGIN
+                INSERT INTO posts_fts(posts_fts, rowid, body) VALUES('delete', old.id, old.body);
+            END;
+            CREATE TRIGGER posts_au AFTER UPDATE OF body ON posts BEGIN
+                INSERT INTO posts_fts(posts_fts, rowid, body) VALUES('delete', old.id, old.body);
+                INSERT INTO posts_fts(rowid, body) VALUES (new.id, new.body);
+            END;
+
+            ALTER TABLE posts DROP COLUMN media_width;
+            ALTER TABLE posts DROP COLUMN media_height;
+            ",
+        )
+        .context("Failed to build the 1.4.1 fixture")?;
+        Ok(())
+    }
+
     fn assert_sql_rejected(
         conn: &rusqlite::Connection,
         sql: &str,
@@ -3711,6 +3886,63 @@ mod tests {
             "fresh and migrated application schemas should be equivalent"
         );
         verify_database_schema(&migrated)?;
+        Ok(())
+    }
+
+    #[test]
+    fn legacy_1_4_1_database_is_carried_forward_to_the_current_baseline() -> Result<()> {
+        let migrated = rusqlite::Connection::open_in_memory()?;
+        create_legacy_1_4_1_schema(&migrated)?;
+        migrated.execute_batch(
+            "INSERT INTO boards (id, short_name, name) VALUES (1, 'b', 'Random');
+             INSERT INTO threads (id, board_id, subject, reply_count)
+             VALUES (10, 1, 'thread', 1);
+             INSERT INTO posts
+                 (id, thread_id, board_id, body, body_html, deletion_token, is_op)
+             VALUES (100, 10, 1, 'op', 'op', 'op-token', 1);",
+        )?;
+
+        normalize_database_schema_version(&migrated)?;
+        let first_shape = schema_shape(&migrated)?;
+        normalize_database_schema_version(&migrated)?;
+        ensure!(
+            schema_shape(&migrated)? == first_shape,
+            "retrying the migration should be idempotent"
+        );
+
+        let fresh = rusqlite::Connection::open_in_memory()?;
+        install_or_migrate_schema(&fresh)?;
+        ensure!(
+            schema_shape(&migrated)? == schema_shape(&fresh)?,
+            "a 1.4.1 database should reach the same shape as a fresh one"
+        );
+        verify_database_schema(&migrated)?;
+
+        // The rows that were there before the upgrade are the reason it has to be
+        // an upgrade at all, and the search index the migration rebuilt has to
+        // have been populated from them.
+        ensure!(
+            migrated.query_row("SELECT COUNT(*) FROM posts", [], |row| row.get::<_, i64>(0))? == 1,
+            "the migration must leave existing posts in place"
+        );
+        ensure!(
+            migrated.query_row("SELECT COUNT(*) FROM posts_fts", [], |row| row.get::<_, i64>(0))?
+                == 1,
+            "the rebuilt search index should be populated from the posts it indexes"
+        );
+        ensure!(
+            table_exists(&migrated, "conversations")?
+                && table_exists(&migrated, "direct_messages")?
+                && table_exists(&migrated, "notifications")?
+                && table_exists(&migrated, "user_blocks")?
+                && table_exists(&migrated, "upload_counters")?,
+            "the migration should install the tables a later release added"
+        );
+        ensure!(
+            column_exists(&migrated, "posts", "media_width")?
+                && column_exists(&migrated, "posts", "media_height")?,
+            "the migration should add the media dimension columns"
+        );
         Ok(())
     }
 
