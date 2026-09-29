@@ -547,12 +547,17 @@ async fn read_new_notifications(
     cursor: &mut StreamCursor,
 ) -> SseEvent {
     let after = cursor.last_sent;
-    let pool = pool.clone();
-    let rows = tokio::task::spawn_blocking(move || -> Vec<db::Notification> {
-        let Ok(conn) = pool.get() else {
-            return Vec::new();
-        };
-        db::notifications_since(&conn, account_id, after, STREAM_BATCH).unwrap_or_default()
+    // The pool is cloned into the blocking closure under a name of its own rather
+    // than shadowing the argument. The unread count read below still needs the
+    // pool this function was handed, and a shadow would have moved it.
+    let rows = tokio::task::spawn_blocking({
+        let pool = pool.clone();
+        move || -> Vec<db::Notification> {
+            let Ok(conn) = pool.get() else {
+                return Vec::new();
+            };
+            db::notifications_since(&conn, account_id, after, STREAM_BATCH).unwrap_or_default()
+        }
     })
     .await
     .unwrap_or_default();
@@ -563,7 +568,7 @@ async fn read_new_notifications(
     for row in &rows {
         cursor.last_sent = cursor.last_sent.max(row.id);
     }
-    let unread = read_unread_total(&pool, account_id).await;
+    let unread = read_unread_total(pool, account_id).await;
     SseEvent::default()
         .event("unread")
         .data(unread.to_string())
