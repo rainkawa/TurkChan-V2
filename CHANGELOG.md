@@ -27,6 +27,27 @@ All notable changes to TurkChan will be documented in this file.
 - Added a share control to every post that belongs to an account, named as `@username` and linked to that account's profile. The permalink is shown as text rather than hidden behind a button, because a board is shared by copying a line. A post that belongs to no account is shown no control at all rather than an "anonymous share" line: a share is a claim that somebody passed this on, and there is no somebody to name behind a post with no account behind it. The opening post carries the thread's share and is marked apart with its own "konu paylaşımı" label, because a thread is passed around by its first post; replies keep the same control in one quiet line. A copy button puts the absolute link on the clipboard when scripting is available and is inert without it.
 - Added a secure tripcode. `Ad#gizli` still derives and shows a tripcode exactly as before — the derivation is pinned by a test, because tripcodes already written on existing posts cannot move — and `Ad##gizli` records that a password was claimed without deriving anything from it. Nothing derived from a secure secret is stored or rendered, so there is nothing to correlate across boards, nothing to crack offline, and nothing to compare two posters by. A doubled marker is read before a single one, so `Ad##gizli` asks for the secure kind rather than for a normal tripcode of `#gizli`. Secure tripcodes are drawn as a lock in the same colour as a normal one, and the name field names both markers where the tripcode is typed.
 - Added an account score, shown broken down on the profile. The number is the net votes the account's own posts received, with nothing added underneath it: one upvote is one point and reads as one point, and zero means nobody has voted yet rather than that nobody has ever agreed. The votes on its opening posts and the votes on its replies are counted apart and shown apart, because a reputation built out of threads is a different kind of reputation from one built out of replies. The stored score is rewritten from the votes on every press rather than incremented, so taking a vote back moves the account back by exactly what it had gained, and a vote cannot be counted twice because the schema will not let it be written twice.
+- Added upload quotas, because a per-file size limit bounds one upload and says
+  nothing about the hundred that follow it. Two budgets are counted and both
+  are enforced against the same submission: the signed-in account, so one
+  person cannot spread an upload budget across fresh sessions, and the hashed
+  client address, so a shared address — a Tor exit, a school, a room with one
+  router — cannot be used to spend past a limit no single person reached. The
+  two are charged or neither is, inside one transaction, so a submission that
+  fits one budget and crosses the other leaves no trace on the first. What is
+  charged is what was actually stored, so a conversion that shrank the file is
+  not billed for the original and a deduplicated upload is billed for what it
+  added rather than for the file it reused. A submission carrying no file is
+  charged nothing and is never refused, so a text post is unaffected by a media
+  budget, and the byte budget and the file-count budget are reported separately
+  because "you have uploaded too much today" and "you have uploaded too many
+  files today" are different problems. The window is fixed and aligned to the
+  epoch, so every poster on the site resets at the same moment; the counters
+  are one row per subject per window and are pruned once a window closes.
+- Added AVIF uploads. AVIF shares the ISO base-media container with HEIC, so it
+  is told apart by its declared brand rather than by a distinct header, and it
+  takes the same route as HEIC: converted to WebP on the way in, because no
+  browser on the site can be relied on to show it directly.
 
 ### Improved
 - Redrew the new-thread and reply forms' name field so both tripcode markers are named where they are typed, instead of leaving the secure kind to be discovered.

@@ -13,6 +13,12 @@ pub(super) fn detect_mime_type(data: &[u8]) -> Result<&'static str> {
 
     if data.get(4..8) == Some(b"ftyp") {
         if let Some(brand) = data.get(8..12) {
+            // AVIF shares the ISO base-media container with HEIC, so it is
+            // declared by its brand rather than by a distinct header. The
+            // image sequence brand is `av01` rather than `avif`.
+            if has_ftyp_brand(data, &[b"avif", b"avis"]) || has_ftyp_brand(data, &[b"av01"]) {
+                return Ok("image/avif");
+            }
             if has_ftyp_brand(data, &[b"heic", b"heix", b"hevc", b"hevx"]) {
                 return Ok("image/heic");
             }
@@ -99,7 +105,7 @@ pub(super) fn detect_mime_type(data: &[u8]) -> Result<&'static str> {
     }
 
     Err(anyhow::anyhow!(
-        "File type not allowed. Accepted: JPEG, PNG, GIF, WebP, HEIC, HEIF, BMP, TIFF, \
+        "File type not allowed. Accepted: JPEG, PNG, GIF, WebP, AVIF, HEIC, HEIF, BMP, TIFF, \
          MP4, WebM, MP3, OGG, FLAC, WAV, M4A, AAC, PDF"
     ))
 }
@@ -146,5 +152,43 @@ mod tests {
         assert!(has_ftyp_brand(b"00000000heicx", accepted));
         assert!(has_ftyp_brand(b"00000000heicxy", accepted));
         assert!(!has_ftyp_brand(b"00000000xxxxhei", accepted));
+    }
+
+    /// AVIF and HEIC share one ISO base-media container, so only the declared
+    /// brand tells them apart. A file that declares AVIF must be read as AVIF
+    /// rather than falling through to the HEIC branch beside it, and a file
+    /// that declares HEIC must not be read as AVIF either — otherwise the
+    /// format stored and the format the reader was told about would disagree.
+    #[test]
+    fn avif_and_heic_are_told_apart_by_their_declared_brand() {
+        let avif = b"\0\0\0\x20ftypavif\0\0\0\0avifmif1miaf";
+        let heic = b"\0\0\0\x20ftypheic\0\0\0\0heicmif1miaf";
+
+        assert_eq!(
+            detect_mime_type(avif).unwrap_or_default(),
+            "image/avif",
+            "an AVIF brand must be detected as AVIF"
+        );
+        assert_eq!(
+            detect_mime_type(heic).unwrap_or_default(),
+            "image/heic",
+            "a HEIC brand must stay HEIC"
+        );
+        // The image sequence brand sits beside the major brand, and an AVIF
+        // file may declare it in either position.
+        assert_eq!(
+            detect_mime_type(b"\0\0\0\x20ftypavif\0\0\0\0av01miaf").unwrap_or_default(),
+            "image/avif"
+        );
+        assert_eq!(
+            detect_mime_type(b"\0\0\0\x20ftypmif1\0\0\0\0av01miaf").unwrap_or_default(),
+            "image/avif",
+            "an AVIF file may declare its image sequence brand first"
+        );
+        assert_eq!(
+            detect_mime_type(b"\0\0\0\x20ftypisom\0\0\0\0mp42").unwrap_or_default(),
+            "video/mp4",
+            "a brand that names neither format stays the generic MP4"
+        );
     }
 }

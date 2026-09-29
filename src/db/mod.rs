@@ -35,6 +35,8 @@ pub mod users;
 mod types;
 /// Anonymous per-thread display preferences.
 mod user_thread_prefs;
+/// Per-account and per-address upload budgets.
+pub mod upload_quota;
 /// Post votes and the account score they add up to.
 pub mod votes;
 
@@ -52,6 +54,7 @@ pub use posts::*;
 pub use setup::*;
 pub use themes::*;
 pub use threads::*;
+pub use upload_quota::*;
 pub use user_thread_prefs::*;
 pub use users::*;
 pub use votes::*;

@@ -1207,6 +1207,7 @@ fn mime_to_ext(mime: &str) -> &'static str {
         "image/png" => "png",
         "image/gif" => "gif",
         "image/webp" => "webp",
+        "image/avif" => "avif",
         "image/heic" => "heic",
         "image/heif" => "heif",
         "image/bmp" => "bmp",

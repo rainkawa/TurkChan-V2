@@ -297,6 +297,14 @@ const BASE_SCHEMA_SQL: &str = "
         is_thread        INTEGER NOT NULL DEFAULT 0,
         created_at       INTEGER NOT NULL DEFAULT (unixepoch())
     );
+
+    CREATE TABLE IF NOT EXISTS upload_counters (
+        subject          TEXT NOT NULL,
+        window_start     INTEGER NOT NULL,
+        bytes_uploaded   INTEGER NOT NULL DEFAULT 0,
+        uploads          INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (subject, window_start)
+    );
 ";
 
 /// Complete baseline secondary-index definitions.
@@ -365,12 +373,14 @@ const INDEX_SCHEMA_SQL: &str = "
         ON user_thread_preferences(thread_id);
     CREATE INDEX IF NOT EXISTS idx_post_submissions_created_at
         ON post_submissions(created_at ASC);
+    CREATE INDEX IF NOT EXISTS idx_upload_counters_window
+        ON upload_counters(window_start ASC);
 ";
 
 /// Obsolete theme index accepted only during the known legacy repair path.
 const LEGACY_THEME_SORT_INDEX: &str = "idx_themes_enabled_sort";
 /// Additive indexes introduced after the first package-version baseline.
-const ADDITIVE_BASELINE_INDEXES: [&str; 13] = [
+const ADDITIVE_BASELINE_INDEXES: [&str; 14] = [
     "idx_user_sessions_expires",
     "idx_user_sessions_user",
     "idx_posts_user",
@@ -384,6 +394,7 @@ const ADDITIVE_BASELINE_INDEXES: [&str; 13] = [
     "idx_ban_appeals_status_created",
     "idx_ban_appeals_ip_created",
     "idx_post_votes_user",
+    "idx_upload_counters_window",
 ];
 /// Redundant indexes removed when the additive index set is installed.
 const REDUNDANT_LEGACY_INDEXES: [&str; 2] = ["idx_file_hashes", "idx_posts_thread_id"];
@@ -620,6 +631,16 @@ const DOMAIN_INVARIANTS: &[DomainInvariant] = &[
             )
         ",
         error: "post_submissions row does not match its post",
+    },
+    DomainInvariant {
+        table: "upload_counters",
+        update_columns: "window_start, bytes_uploaded, uploads",
+        invalid_predicate: r"
+            typeof(ROW.window_start) <> 'integer' OR ROW.window_start < 0
+            OR typeof(ROW.bytes_uploaded) <> 'integer' OR ROW.bytes_uploaded < 0
+            OR typeof(ROW.uploads) <> 'integer' OR ROW.uploads < 0
+        ",
+        error: "upload_counters row must hold a non-negative total inside one window",
     },
 ];
 
@@ -972,7 +993,7 @@ fn rebuild_legacy_post_votes(conn: &rusqlite::Connection, expected: &SchemaShape
              DROP TABLE post_votes;",
         )
         .context("Drop legacy post votes table failed")?;
-        create_additive_user_tables(conn).context("Recreate the account votes table failed")
+        create_additive_baseline_tables(conn).context("Recreate the account votes table failed")
     })();
 
     match result {
@@ -1066,7 +1087,7 @@ fn schema_objects_are_legacy_repairable(expected: &SchemaShape, actual: &SchemaS
         let Some(actual_object) = actual.objects.get(name) else {
             if ADDITIVE_BASELINE_INDEXES.contains(&name.as_str())
                 || (expected_object.kind == "trigger" && is_additive_domain_trigger(name))
-                || (expected_object.kind == "table" && is_additive_user_table(name))
+                || (expected_object.kind == "table" && is_additive_baseline_table(name))
             {
                 continue;
             }
@@ -1134,7 +1155,7 @@ fn tables_are_legacy_repairable(expected: &SchemaShape, actual: &SchemaShape) ->
             // A table the additive repair path installs is allowed to be absent
             // from an older database; the schema-object pass accepts the same
             // names, and both passes have to agree before anything is written.
-            if is_additive_user_table(table) {
+            if is_additive_baseline_table(table) {
                 continue;
             }
             return false;
@@ -1257,19 +1278,19 @@ fn apply_additive_schema_repairs_in_transaction(conn: &rusqlite::Connection) -> 
          DROP INDEX IF EXISTS idx_posts_thread_id;",
     )
     .context("Remove obsolete indexes failed")?;
-    create_additive_user_tables(conn).context("Install anonymous account tables failed")?;
+    create_additive_baseline_tables(conn).context("Install additive baseline tables failed")?;
     create_additive_baseline_columns(conn).context("Install additive columns failed")?;
     create_indexes(conn).context("Install additive indexes failed")?;
     ensure_domain_invariants(conn).context("Install additive domain invariants")
 }
 
-/// Anonymous-account tables introduced after the original release baseline.
+/// Tables introduced after the original release baseline.
 ///
 /// A database created by an earlier build has none of these, so they are
 /// installed by the additive repair path rather than by a full rebuild.
 /// The definition is kept identical to the baseline SQL above; a fresh
 /// database gets the same shape through `install_baseline_schema_in_transaction`.
-const ADDITIVE_USER_TABLES_SQL: &str = "
+const ADDITIVE_BASELINE_TABLES_SQL: &str = "
     CREATE TABLE IF NOT EXISTS users (
         id              INTEGER PRIMARY KEY AUTOINCREMENT,
         username        TEXT NOT NULL UNIQUE,
@@ -1298,17 +1319,28 @@ const ADDITIVE_USER_TABLES_SQL: &str = "
         created_at INTEGER NOT NULL DEFAULT (unixepoch()),
         PRIMARY KEY (post_id, user_id)
     );
+
+    CREATE TABLE IF NOT EXISTS upload_counters (
+        subject          TEXT NOT NULL,
+        window_start     INTEGER NOT NULL,
+        bytes_uploaded   INTEGER NOT NULL DEFAULT 0,
+        uploads          INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (subject, window_start)
+    );
 ";
 
 /// Install the anonymous-account tables on a database that predates them.
-fn create_additive_user_tables(conn: &rusqlite::Connection) -> Result<()> {
-    conn.execute_batch(ADDITIVE_USER_TABLES_SQL)
-        .context("Failed to install anonymous account tables")
+fn create_additive_baseline_tables(conn: &rusqlite::Connection) -> Result<()> {
+    conn.execute_batch(ADDITIVE_BASELINE_TABLES_SQL)
+        .context("Failed to install additive baseline tables")
 }
 
 /// Return whether a missing table is one the additive repair path installs.
-fn is_additive_user_table(name: &str) -> bool {
-    matches!(name, "users" | "user_sessions" | "post_votes")
+fn is_additive_baseline_table(name: &str) -> bool {
+    matches!(
+        name,
+        "users" | "user_sessions" | "post_votes" | "upload_counters"
+    )
 }
 
 /// Columns appended to an existing table after the original release baseline.

@@ -48,7 +48,8 @@ pub fn conversion_action(mime: &str) -> ConversionAction {
         // an <img> tag rather than a <video> player.  The -loop 0 flag in
         // ffmpeg_image_to_webp preserves animation for multi-frame GIFs.
         // Falls back to storing the original GIF if libwebp is unavailable.
-        "image/jpeg" | "image/heic" | "image/heif" | "image/bmp" | "image/tiff" | "image/gif" => {
+        "image/jpeg" | "image/avif" | "image/heic" | "image/heif" | "image/bmp" | "image/tiff"
+        | "image/gif" => {
             ConversionAction::ToWebp
         }
         "image/png" => ConversionAction::ToWebpIfSmaller,
@@ -261,6 +262,7 @@ fn upload_mime_to_static(mime: &str) -> &'static str {
         "image/bmp" => "image/bmp",
         "image/tiff" => "image/tiff",
         "image/webp" => "image/webp",
+        "image/avif" => "image/avif",
         "image/svg+xml" => "image/svg+xml",
         "application/pdf" => "application/pdf",
         "video/webm" => "video/webm",
@@ -321,6 +323,7 @@ fn ext_for_original_mime(path: &Path) -> &'static str {
         Some("bmp") => "bmp",
         Some("tiff" | "tif") => "tiff",
         Some("webp") => "webp",
+        Some("avif") => "avif",
         Some("webm") => "webm",
         Some("mkv") => "mkv",
         Some("svg") => "svg",
@@ -341,6 +344,7 @@ fn ext_to_static_mime(ext: &str) -> &'static str {
         "bmp" => "image/bmp",
         "tiff" | "tif" => "image/tiff",
         "webp" => "image/webp",
+        "avif" => "image/avif",
         "svg" => "image/svg+xml",
         "pdf" => "application/pdf",
         "webm" => "video/webm",
@@ -387,6 +391,14 @@ mod tests {
     #[test]
     fn heic_maps_to_webp() {
         assert_eq!(conversion_action("image/heic"), ConversionAction::ToWebp);
+    }
+
+    #[test]
+    /// AVIF is a still image no browser on the site can be relied on to show
+    /// directly, and it is carried by the same ISO container as HEIC, so it
+    /// takes the same route: converted to WebP on the way in.
+    fn avif_maps_to_webp() {
+        assert_eq!(conversion_action("image/avif"), ConversionAction::ToWebp);
     }
 
     #[test]

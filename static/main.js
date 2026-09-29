@@ -1685,7 +1685,7 @@ window.requestConfirmation = requestConfirmation;
     if (!file) return '';
     var type = file.type || '';
     var ext = fileExtension(file);
-    if (type.indexOf('image/') === 0 || /^(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(ext)) return 'image';
+    if (type.indexOf('image/') === 0 || /^(jpe?g|png|gif|webp|avif|heic|heif|bmp|tiff?)$/i.test(ext)) return 'image';
     if (type.indexOf('video/') === 0 || /^(mp4|webm|mkv)$/i.test(ext)) return 'video';
     return '';
   }

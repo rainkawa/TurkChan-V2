@@ -1095,9 +1095,57 @@ pub async fn run_server(port_override: Option<u16>, chan_net: bool) -> anyhow::R
         });
     }
 
-    // Purge per-IP vote rows for expired polls whose
-    // expiry is older than poll_cleanup_interval_hours, preventing the
-    // poll_votes table from growing indefinitely.
+    // Upload-quota counters are one row per subject per window, so without
+    // this the table grows by the number of distinct posters every window and
+    // goes on answering questions about budgets that closed days ago. It runs
+    // on the same schedule as the poll-vote sweep: both are small, bounded
+    // deletes over a table that only ever grows without them.
+    {
+        let bg = pool.clone();
+        let cancel_clone = worker_cancel.clone();
+        let window_secs = CONFIG.upload_quota_window;
+        let interval_secs = u64::try_from(window_secs.max(1)).unwrap_or(86_400);
+        tokio::spawn(async move {
+            tokio::select! {
+                () = tokio::time::sleep(Duration::from_mins(10)) => {} // initial delay
+                () = cancel_clone.cancelled() => { return; }
+            }
+            let mut iv = tokio::time::interval(Duration::from_secs(interval_secs));
+            loop {
+                tokio::select! {
+                    _ = iv.tick() => {
+                        let bg2 = bg.clone();
+                        let task_result = tokio::task::spawn_blocking(move || {
+                            if let Ok(conn) = bg2.get() {
+                                let now = chrono::Utc::now().timestamp();
+                                if let Err(error) =
+                                    crate::db::prune_upload_counters(&conn, now, window_secs)
+                                {
+                                    tracing::warn!(target: "media", "Upload counter cleanup failed: {error}");
+                                }
+                            }
+                        })
+                        .await;
+                        if let Err(error) = task_result {
+                            tracing::warn!(
+                                target: "media",
+                                error = %error,
+                                "Upload counter cleanup blocking task failed"
+                            );
+                        }
+                    }
+                    () = cancel_clone.cancelled() => {
+                        tracing::debug!(target: "media", "Upload counter cleanup task shutting down");
+                        return;
+                    }
+                }
+            }
+        });
+    }
+
+    // Purge per-IP vote rows for expired polls whose expiry is older than
+    // poll_cleanup_interval_hours, preventing the poll_votes table from
+    // growing indefinitely.
     if CONFIG.poll_cleanup_interval_hours > 0 {
         let bg = pool.clone();
         let interval_secs = CONFIG.poll_cleanup_interval_hours * 3600;

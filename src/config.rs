@@ -888,6 +888,16 @@ pub struct Config {
     pub thumb_size: u32,
     /// Maximum GET requests per IP per `rate_limit_window`.
     pub rate_limit_gets: u32,
+    /// Length of the upload-quota window in seconds.
+    pub upload_quota_window: i64,
+    /// Maximum bytes one account may upload per quota window; 0 disables it.
+    pub upload_quota_account_bytes: i64,
+    /// Maximum uploads one account may make per quota window; 0 disables it.
+    pub upload_quota_account_uploads: i64,
+    /// Maximum bytes one hashed client address may upload per window; 0 disables it.
+    pub upload_quota_address_bytes: i64,
+    /// Maximum uploads one hashed client address may make per window; 0 disables it.
+    pub upload_quota_address_uploads: i64,
     /// Rate-limit window duration in seconds.
     pub rate_limit_window: u64,
     /// Secret used for cookies, CSRF signatures, and privacy-preserving hashes.
@@ -1033,6 +1043,23 @@ impl std::fmt::Debug for Config {
             .field("thumb_size", &self.thumb_size)
             .field("rate_limit_gets", &self.rate_limit_gets)
             .field("rate_limit_window", &self.rate_limit_window)
+            .field("upload_quota_window", &self.upload_quota_window)
+            .field(
+                "upload_quota_account_bytes",
+                &self.upload_quota_account_bytes,
+            )
+            .field(
+                "upload_quota_account_uploads",
+                &self.upload_quota_account_uploads,
+            )
+            .field(
+                "upload_quota_address_bytes",
+                &self.upload_quota_address_bytes,
+            )
+            .field(
+                "upload_quota_address_uploads",
+                &self.upload_quota_address_uploads,
+            )
             .field("cookie_secret", &"[REDACTED]")
             .field("session_duration", &self.session_duration)
             .field("behind_proxy", &self.behind_proxy)
@@ -1306,6 +1333,23 @@ impl Config {
             thumb_size: env_parse("CHAN_THUMB_SIZE", 250),
             rate_limit_gets: env_parse("CHAN_RATE_GETS", 60),
             rate_limit_window: env_parse("CHAN_RATE_WINDOW", 60),
+            upload_quota_window: env_parse("CHAN_UPLOAD_QUOTA_WINDOW", 86_400_i64),
+            upload_quota_account_bytes: bytes_to_quota_count(mebibytes_to_bytes(env_parse(
+                "CHAN_UPLOAD_QUOTA_ACCOUNT_MB",
+                512_u32,
+            ))),
+            upload_quota_account_uploads: i64::from(env_parse(
+                "CHAN_UPLOAD_QUOTA_ACCOUNT_FILES",
+                200_u32,
+            )),
+            upload_quota_address_bytes: bytes_to_quota_count(mebibytes_to_bytes(env_parse(
+                "CHAN_UPLOAD_QUOTA_ADDRESS_MB",
+                1024_u32,
+            ))),
+            upload_quota_address_uploads: i64::from(env_parse(
+                "CHAN_UPLOAD_QUOTA_ADDRESS_FILES",
+                400_u32,
+            )),
             cookie_secret,
             session_duration: env_parse("CHAN_SESSION_SECS", 8 * 3600),
             behind_proxy,
@@ -1488,6 +1532,12 @@ impl Config {
                 "CONFIG ERROR: max_video_size_mb must be between 1 and {} MiB (got {} MiB).",
                 MAX_VIDEO_MIB,
                 self.max_video_size / MIB
+            );
+        }
+        if self.upload_quota_window <= 0 {
+            anyhow::bail!(
+                "CONFIG ERROR: upload_quota_window must be a positive number of seconds (got {}).",
+                self.upload_quota_window
             );
         }
         if self.max_audio_size < MIB || self.max_audio_size > MAX_AUDIO_MIB * MIB {
@@ -2063,6 +2113,16 @@ fn split_list(raw: &str) -> Vec<String> {
         .collect()
 }
 
+/// Narrow a byte count to the signed counter the quota table stores.
+///
+/// A quota larger than `i64::MAX` bytes is not reachable, so the conversion
+/// saturates rather than wrapping a budget into a negative one — which would
+/// read as "already over budget" and refuse every upload instead of allowing
+/// an enormous one.
+fn bytes_to_quota_count(bytes: usize) -> i64 {
+    i64::try_from(bytes).unwrap_or(i64::MAX)
+}
+
 /// Convert a mebibyte setting to the platform's byte-count type without wrapping.
 fn mebibytes_to_bytes(mebibytes: u32) -> usize {
     usize::try_from(mebibytes)
@@ -2415,6 +2475,11 @@ mod tests {
             thumb_size: 250,
             rate_limit_gets: 60,
             rate_limit_window: 60,
+            upload_quota_window: 86_400,
+            upload_quota_account_bytes: bytes_to_quota_count(512 * MIB),
+            upload_quota_account_uploads: 200,
+            upload_quota_address_bytes: bytes_to_quota_count(1024 * MIB),
+            upload_quota_address_uploads: 400,
             cookie_secret: "a".repeat(64),
             session_duration: 8 * 3600,
             behind_proxy: false,

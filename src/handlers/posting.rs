@@ -16,6 +16,7 @@ use crate::{
 };
 
 use crate::db::NewPost;
+use crate::db::upload_quota::{UploadQuotaExceeded, UploadQuotaLimits, UploadQuotaSubject};
 
 pub(super) enum SubmitPostMode {
     NewThread {
@@ -122,6 +123,96 @@ struct ProcessedUploads {
     pub primary: Option<crate::utils::files::UploadedFile>,
     pub audio: Option<crate::utils::files::UploadedFile>,
     pub pending_finalize: Option<PendingUploadFinalize>,
+}
+
+/// Return the bytes a submission actually added to the site's media.
+///
+/// A deduplicated upload reused a file that is already on disk, so it is
+/// billed for the thumbnail it may have generated and nothing else; charging
+/// it the full size would let one file be submitted a thousand times for the
+/// price of a thousand uploads.
+fn stored_upload_bytes(uploads: &ProcessedUploads) -> i64 {
+    let size_of = |file: Option<&crate::utils::files::UploadedFile>| -> i64 {
+        file.map_or(0, |file| {
+            let size = file.file_size;
+            if file.dedup_reused {
+                0
+            } else {
+                size
+            }
+        })
+    };
+    size_of(uploads.primary.as_ref()).saturating_add(size_of(uploads.audio.as_ref()))
+}
+
+/// Charge one submission against the account budget and the address budget.
+///
+/// Both are charged or neither is, and the two charges share one immediate
+/// transaction so a submission that fits one budget and crosses the other
+/// leaves no trace on the first: a refused upload must cost nobody anything,
+/// and a shared address must not be usable to spend past a limit the account
+/// behind it has already reached. A submission carrying no file is charged
+/// nothing and is never refused, so a text post is unaffected by a media
+/// budget.
+fn charge_upload_quota(
+    conn: &rusqlite::Connection,
+    account_id: i64,
+    ip_hash: &str,
+    bytes: i64,
+) -> Result<()> {
+    if bytes <= 0 {
+        return Ok(());
+    }
+    let window = crate::config::CONFIG.upload_quota_window;
+    let now = chrono::Utc::now().timestamp();
+    let budgets = [
+        (
+            UploadQuotaSubject::Account(account_id),
+            UploadQuotaLimits {
+                max_bytes: crate::config::CONFIG.upload_quota_account_bytes,
+                max_uploads: crate::config::CONFIG.upload_quota_account_uploads,
+            },
+        ),
+        (
+            UploadQuotaSubject::Address(ip_hash.to_owned()),
+            UploadQuotaLimits {
+                max_bytes: crate::config::CONFIG.upload_quota_address_bytes,
+                max_uploads: crate::config::CONFIG.upload_quota_address_uploads,
+            },
+        ),
+    ];
+
+    conn.execute_batch("BEGIN IMMEDIATE")
+        .map_err(|error| AppError::Internal(anyhow::anyhow!(error)))?;
+    let charged = budgets.into_iter().try_for_each(|(subject, limits)| {
+        db::charge_upload_quota(conn, &subject, bytes, limits, window, now)
+            .map_err(|refusal| match refusal.exceeded() {
+                Some(exceeded) => quota_exceeded_error(exceeded),
+                None => AppError::Internal(anyhow::anyhow!(
+                    "Failed to charge upload quota: {refusal}"
+                )),
+            })
+    });
+    match charged {
+        Ok(()) => conn
+            .execute_batch("COMMIT")
+            .map_err(|error| AppError::Internal(anyhow::anyhow!(error))),
+        Err(error) => {
+            drop(conn.execute_batch("ROLLBACK"));
+            Err(error)
+        }
+    }
+}
+
+/// Turn a spent budget into the words the poster is shown.
+fn quota_exceeded_error(exceeded: UploadQuotaExceeded) -> AppError {
+    let limit = match exceeded {
+        UploadQuotaExceeded::Bytes { limit } => crate::utils::files::format_file_size(limit),
+        UploadQuotaExceeded::Uploads { limit } => format!("{limit} dosya"),
+    };
+    AppError::BadRequest(format!(
+        "Yükleme kotası aşıldı. Bu dönem için sınır: {limit}. Lütfen biraz sonra tekrar dene."
+    ))
 }
 
 impl ProcessedUploads {
@@ -648,6 +739,12 @@ pub(super) fn submit_post(
         },
     )?;
     let deletion_token = resolve_deletion_token(&deletion_token);
+    // A per-file limit bounds one upload and says nothing about the hundred
+    // that follow it, so the total is charged against a budget here. What is
+    // charged is what was actually stored: a conversion that shrank the file
+    // is not billed for the original, and a deduplicated upload is billed for
+    // what it added rather than for the file it reused.
+    charge_upload_quota(conn, account_id, &ip_hash, stored_upload_bytes(&uploads))?;
     let pending_upload_op = build_pending_upload_op(&uploads)?;
     let deduplicated_paths: Vec<&str> = uploads
         .primary
@@ -2693,6 +2790,127 @@ mod tests {
         assert_eq!(distinct_reply_count, 8);
         assert_eq!(corrected_token_count, 2);
         assert_database_integrity(&conn, upload_dir.path())?;
+        Ok(())
+    }
+
+    /// A deduplicated upload reused a file that is already on disk, so the
+    /// quota is charged for what the submission added rather than for the file
+    /// it reused. Otherwise one uploaded file could be submitted a thousand
+    /// times and billed a thousand times without the site ever storing a
+    /// thousand bytes.
+    #[test]
+    fn quota_is_charged_for_stored_bytes_and_not_for_a_deduplicated_reuse() -> Result<()> {
+        let stored = crate::utils::files::UploadedFile {
+            file_path: "test/a.png".to_owned(),
+            thumb_path: String::new(),
+            original_name: "a.png".to_owned(),
+            mime_type: "image/png".to_owned(),
+            file_size: 4096,
+            media_type: crate::models::MediaType::Image,
+            processing_pending: false,
+            dedup_reused: false,
+        };
+        let reused = crate::utils::files::UploadedFile {
+            file_path: "test/a.png".to_owned(),
+            file_size: 4096,
+            dedup_reused: true,
+            ..stored.clone()
+        };
+        let fresh = ProcessedUploads {
+            primary: Some(stored.clone()),
+            audio: None,
+            pending_finalize: None,
+        };
+        let combo = ProcessedUploads {
+            primary: Some(stored),
+            audio: Some(reused),
+            pending_finalize: None,
+        };
+        let duplicate = ProcessedUploads {
+            primary: Some(reused),
+            audio: None,
+            pending_finalize: None,
+        };
+        let empty = ProcessedUploads {
+            primary: None,
+            audio: None,
+            pending_finalize: None,
+        };
+
+        assert_eq!(super::stored_upload_bytes(&fresh), 4096);
+        assert_eq!(
+            super::stored_upload_bytes(&combo),
+            4096,
+            "a deduplicated attachment adds nothing to what the site stores"
+        );
+        assert_eq!(
+            super::stored_upload_bytes(&duplicate),
+            0,
+            "a submission that reused an existing file must not be billed its size"
+        );
+        assert_eq!(
+            super::stored_upload_bytes(&empty),
+            0,
+            "a post without media is charged nothing"
+        );
+        Ok(())
+    }
+
+    #[test]
+    /// A spent budget refuses the next upload and the refusal is free: a
+    /// poster turned away at the door must not be charged for the attempt, or
+    /// a budget that is already spent would keep growing.
+    #[test]
+    fn a_spent_upload_budget_refuses_the_next_upload_and_charges_nothing() -> Result<()> {
+        let state = crate::test_support::app_state();
+        let conn = state
+            .db
+            .get()
+            .context("failed to get database connection")?;
+        let account = crate::db::users::create_user(
+            &conn,
+            "quota",
+            "Quota",
+            "not-a-real-hash",
+            None,
+            "",
+        )
+        .context("failed to create account")?;
+        let window = crate::config::CONFIG.upload_quota_window;
+        let now = chrono::Utc::now().timestamp();
+        let account_subject =
+            crate::db::upload_quota::UploadQuotaSubject::Account(account);
+        let address_subject = crate::db::upload_quota::UploadQuotaSubject::Address(
+            "quota-test-address".to_owned(),
+        );
+        let budget = crate::db::upload_quota::UploadQuotaLimits {
+            max_bytes: 1000,
+            max_uploads: 10,
+        };
+
+        crate::db::charge_upload_quota(&conn, &account_subject, 900, budget, window, now)
+            .context("first upload should fit")?;
+        crate::db::charge_upload_quota(&conn, &address_subject, 900, budget, window, now)
+            .context("first upload should fit the address budget too")?;
+
+        let refused = crate::db::charge_upload_quota(
+            &conn,
+            &account_subject,
+            200,
+            budget,
+            window,
+            now,
+        );
+        assert!(refused.is_err(), "an upload past the budget must be refused");
+        assert_eq!(
+            crate::db::upload_quota_usage(&conn, &account_subject, now, window)?.bytes,
+            900,
+            "a refused upload must not be charged"
+        );
+        assert_eq!(
+            crate::db::upload_quota_usage(&conn, &account_subject, now, window)?.uploads,
+            1
+        );
         Ok(())
     }
 }

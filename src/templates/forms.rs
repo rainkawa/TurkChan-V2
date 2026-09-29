@@ -66,8 +66,7 @@ const AUDIO_ACCEPT: &str =
 /// MIME types and extensions accepted by the video input.
 const VIDEO_ACCEPT: &str = "video/mp4,video/webm,video/x-matroska,video/matroska,.mp4,.webm,.mkv";
 /// MIME types and extensions accepted by the image input.
-const IMAGE_ACCEPT: &str =
-    "image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif";
+const IMAGE_ACCEPT: &str = "image/jpeg,image/png,image/gif,image/webp,image/avif,image/heic,image/heif,.avif,.heic,.heif";
 /// Maximum number of characters in a poll option.
 const POLL_OPTION_MAX_LENGTH: usize = 200;
 /// Maximum number of options in a poll.
@@ -167,7 +166,7 @@ fn single_upload_accept_and_hint(
 
     if board.allow_images {
         accept_parts.push(IMAGE_ACCEPT);
-        hint_parts.push(format!("jpg/png/gif/webp/heic · en fazla {image_mb} MiB"));
+        hint_parts.push(format!("jpg/png/gif/webp/avif/heic · en fazla {image_mb} MiB"));
     }
     if board.allow_video {
         accept_parts.push(VIDEO_ACCEPT);
@@ -227,7 +226,7 @@ fn render_single_upload_row(board: &Board, audio_image_hint: &str) -> String {
               <div class="upload-secondary-panel">
                 <label class="upload-secondary-label" for="post-form-image-file">isteğe bağlı resim</label>
                 <input type="file" id="post-form-image-file" name="image_file" data-onchange-check-size="1" accept="{IMAGE_ACCEPT}">
-                <span class="form-field-help">{audio_image_hint} · jpg/png/gif/webp/heic · en fazla {image_mb} MiB · büyük resimler otomatik sıkıştırılabilir</span>
+                <span class="form-field-help">{audio_image_hint} · jpg/png/gif/webp/avif/heic · en fazla {image_mb} MiB · büyük resimler otomatik sıkıştırılabilir</span>
               </div>
             </details>"#
         )

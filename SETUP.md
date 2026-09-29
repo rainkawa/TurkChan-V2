@@ -322,6 +322,16 @@ max_image_size_mb = 8
 max_video_size_mb = 50
 max_audio_size_mb = 150
 
+# Upload quotas, counted per window and charged for what was actually stored.
+# A per-file limit bounds one upload and says nothing about the hundred that
+# follow it, so these are what actually bound a poster. Set either pair to 0 to
+# switch that budget off.
+# upload_quota_window = 86400
+# upload_quota_account_mb = 512
+# upload_quota_account_files = 200
+# upload_quota_address_mb = 1024
+# upload_quota_address_files = 400
+
 enable_tor_support = true
 # tor_only = false
 # tor_bootstrap_timeout_secs = 120

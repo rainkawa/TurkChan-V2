@@ -45,13 +45,13 @@ Current version: `1.4.1`. Minimum supported Rust version: `1.91`.
 
 - Multiple boards with their own access, posting, media, cooldown, captcha, and archive settings
 - Threads, replies, catalogs, archives, board search, polls, tripcodes, sage, spoilers, poster IDs, and quote links
-- JPEG, PNG, GIF, WebP, HEIC, HEIF, BMP, TIFF, SVG, MP4, WebM, MP3, OGG, FLAC, WAV, M4A, and AAC uploads
+- JPEG, PNG, GIF, WebP, AVIF, HEIC, HEIF, BMP, TIFF, SVG, MP4, WebM, MP3, OGG, FLAC, WAV, M4A, and AAC uploads
 - Optional PDF and generic file uploads, controlled globally and per board
 - Streaming upload validation, image thumbnails, video thumbnails, audio waveforms, and optional MP4-to-WebM transcoding
 - Browser-based moderation, reports, appeals, bans, themes, banners, favicons, backups, restores, and maintenance
 - Full-site and per-board backups, scheduled backups, integrity checks, repair helpers, and media reconciliation
 - Built-in Arti onion service, optional native TLS, and an optional ChanNet listener
-- Hashed client IPs, Argon2id admin passwords, CSRF protection, secure sessions, rate limiting, and security headers
+- Hashed client IPs, Argon2id admin passwords, CSRF protection, secure sessions, rate limiting, per-account and per-address upload quotas, and security headers
 - Responsive pages with JavaScript enhancements and supported no-JavaScript fallbacks
 
 No Docker, Postgres, or Redis is required.
