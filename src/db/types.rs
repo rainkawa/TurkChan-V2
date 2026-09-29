@@ -47,6 +47,10 @@ pub struct NewPost {
     pub deletion_token: String,
     /// Whether this post opens its thread.
     pub is_op: bool,
+    /// Pixel width of the primary image, when one was stored.
+    pub media_width: Option<i64>,
+    /// Pixel height of the primary image, when one was stored.
+    pub media_height: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

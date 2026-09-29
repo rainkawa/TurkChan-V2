@@ -76,6 +76,8 @@ fn seed_post_password_board(
         audio_mime_type: None,
         deletion_token: "edit-token".to_owned(),
         is_op: true,
+        media_width: None,
+        media_height: None,
     };
     let poll = crate::db::threads::PollInsert {
         question: "pick one",
@@ -186,6 +188,8 @@ fn seed_board_with_thread(
         audio_mime_type: None,
         deletion_token: "token".to_owned(),
         is_op: true,
+        media_width: None,
+        media_height: None,
     };
     let (thread_id, _post_id, _) =
         crate::db::create_thread_with_optional_poll(&conn, board_id, None, &post, "", None, None)
@@ -220,6 +224,8 @@ fn create_thread_on_board(
         audio_mime_type: None,
         deletion_token: "token".to_owned(),
         is_op: true,
+        media_width: None,
+        media_height: None,
     };
     let (thread_id, _post_id, _) =
         crate::db::create_thread_with_optional_poll(&conn, board_id, None, &post, "", None, None)
@@ -255,6 +261,8 @@ fn create_reply_on_thread(
         audio_mime_type: None,
         deletion_token: "token".to_owned(),
         is_op: false,
+        media_width: None,
+        media_height: None,
     };
     crate::db::create_reply_with_thread_update(&conn, &reply, "", true, None)
         .context("create reply")?;
@@ -631,6 +639,8 @@ async fn self_delete_requires_owned_post_cookie() -> anyhow::Result<()> {
         audio_mime_type: None,
         deletion_token: "op-token".to_owned(),
         is_op: true,
+        media_width: None,
+        media_height: None,
     };
     let (thread_id, _op_id, _) =
         crate::db::create_thread_with_optional_poll(&conn, board_id, None, &op, "", None, None)
@@ -656,6 +666,8 @@ async fn self_delete_requires_owned_post_cookie() -> anyhow::Result<()> {
         audio_mime_type: None,
         deletion_token: "reply-token".to_owned(),
         is_op: false,
+        media_width: None,
+        media_height: None,
     };
     let reply_id = crate::db::create_reply_with_thread_update(&conn, &reply, "", false, None)
         .context("create reply")?;
@@ -751,6 +763,8 @@ async fn search_returns_results_without_500() -> anyhow::Result<()> {
             audio_mime_type: None,
             deletion_token: "token".to_owned(),
             is_op: true,
+            media_width: None,
+            media_height: None,
         };
         crate::db::create_thread_with_optional_poll(&conn, board_id, None, &post, "", None, None)
             .context("create thread")?;
@@ -2944,6 +2958,8 @@ async fn duplicate_report_redirects_back_without_500() -> anyhow::Result<()> {
             audio_mime_type: None,
             deletion_token: "token".to_owned(),
             is_op: true,
+            media_width: None,
+            media_height: None,
         };
         let (thread_id, post_id, _) = crate::db::create_thread_with_optional_poll(
             &conn, board_id, None, &post, "", None, None,

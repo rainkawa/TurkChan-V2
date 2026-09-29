@@ -886,6 +886,12 @@ pub struct Config {
     pub upload_dir: String,
     /// Maximum generated thumbnail dimension in pixels.
     pub thumb_size: u32,
+    /// Longest edge a stored full-size image may keep, in pixels.
+    ///
+    /// A camera original is far larger than any screen, and serving it whole
+    /// costs bandwidth nobody benefits from. 0 stores images at their own
+    /// dimensions.
+    pub max_image_dimension: u32,
     /// Maximum GET requests per IP per `rate_limit_window`.
     pub rate_limit_gets: u32,
     /// Length of the upload-quota window in seconds.
@@ -1041,6 +1047,7 @@ impl std::fmt::Debug for Config {
             .field("database_path", &self.database_path)
             .field("upload_dir", &self.upload_dir)
             .field("thumb_size", &self.thumb_size)
+            .field("max_image_dimension", &self.max_image_dimension)
             .field("rate_limit_gets", &self.rate_limit_gets)
             .field("rate_limit_window", &self.rate_limit_window)
             .field("upload_quota_window", &self.upload_quota_window)
@@ -1331,6 +1338,7 @@ impl Config {
             database_path: env_str("CHAN_DB", &default_db),
             upload_dir: env_str("CHAN_UPLOADS", &default_uploads),
             thumb_size: env_parse("CHAN_THUMB_SIZE", 250),
+            max_image_dimension: env_parse("CHAN_MAX_IMAGE_DIMENSION", 2560_u32),
             rate_limit_gets: env_parse("CHAN_RATE_GETS", 60),
             rate_limit_window: env_parse("CHAN_RATE_WINDOW", 60),
             upload_quota_window: env_parse("CHAN_UPLOAD_QUOTA_WINDOW", 86_400_i64),
@@ -2473,6 +2481,7 @@ mod tests {
             database_path: "chan.db".to_owned(),
             upload_dir: "__rustchan_test_uploads_does_not_exist__".to_owned(),
             thumb_size: 250,
+            max_image_dimension: 2560,
             rate_limit_gets: 60,
             rate_limit_window: 60,
             upload_quota_window: 86_400,

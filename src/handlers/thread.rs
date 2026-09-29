@@ -1778,6 +1778,8 @@ mod tests {
                 audio_mime_type: None,
                 deletion_token: "token".to_owned(),
                 is_op: true,
+                media_width: None,
+                media_height: None,
             };
             let (thread_id, _, _) = crate::db::create_thread_with_optional_poll(
                 &conn,
@@ -1872,6 +1874,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "edit-token".to_owned(),
             is_op: true,
+            media_width: None,
+            media_height: None,
         };
         let (thread_id, post_id, _) = crate::db::create_thread_with_optional_poll(
             &conn, board_id, None, &post, "", None, None,
@@ -2252,6 +2256,8 @@ mod tests {
                 audio_mime_type: None,
                 deletion_token: "token".to_owned(),
                 is_op: true,
+                media_width: None,
+                media_height: None,
             };
             let (thread_id, _, _) = crate::db::create_thread_with_optional_poll(
                 &conn,

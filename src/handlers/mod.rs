@@ -1128,6 +1128,8 @@ pub(crate) fn process_primary_upload(
                     media_type: cached_media,
                     processing_pending: false,
                     dedup_reused: true,
+                    media_width: None,
+                    media_height: None,
                 }),
                 None,
             ));

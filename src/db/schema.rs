@@ -85,7 +85,9 @@ const BASE_SCHEMA_SQL: &str = "
         edited_at        INTEGER,
         media_processing_state TEXT NOT NULL DEFAULT '',
         media_processing_error TEXT,
-        user_id          INTEGER
+        user_id          INTEGER,
+        media_width      INTEGER,
+        media_height     INTEGER
     );
 
     CREATE TABLE IF NOT EXISTS file_hashes (
@@ -475,13 +477,18 @@ const DOMAIN_INVARIANTS: &[DomainInvariant] = &[
     },
     DomainInvariant {
         table: "posts",
-        update_columns: "thread_id, board_id, file_size, is_op, media_type, audio_file_size, media_processing_state",
+        update_columns: "thread_id, board_id, file_size, is_op, media_type, audio_file_size, media_processing_state, media_width, media_height",
         invalid_predicate: r"
             typeof(ROW.is_op) <> 'integer' OR ROW.is_op NOT IN (0, 1)
             OR (ROW.file_size IS NOT NULL
                 AND (typeof(ROW.file_size) <> 'integer' OR ROW.file_size < 0))
             OR (ROW.audio_file_size IS NOT NULL
                 AND (typeof(ROW.audio_file_size) <> 'integer' OR ROW.audio_file_size < 0))
+            OR (ROW.media_width IS NOT NULL
+                AND (typeof(ROW.media_width) <> 'integer' OR ROW.media_width <= 0))
+            OR (ROW.media_height IS NOT NULL
+                AND (typeof(ROW.media_height) <> 'integer' OR ROW.media_height <= 0))
+            OR ((ROW.media_width IS NULL) <> (ROW.media_height IS NULL))
             OR (ROW.media_type IS NOT NULL
                 AND ROW.media_type NOT IN ('image', 'video', 'audio', 'pdf', 'other'))
             OR ROW.media_processing_state NOT IN
@@ -1350,7 +1357,7 @@ fn is_additive_baseline_table(name: &str) -> bool {
 /// column, so the additive repair path adds them in place. Each entry is
 /// `(table, column, ALTER statement)`, and the statement must produce a column
 /// definition identical to the baseline one so the shape comparison passes.
-const ADDITIVE_BASELINE_COLUMNS: [(&str, &str, &str); 6] = [
+const ADDITIVE_BASELINE_COLUMNS: [(&str, &str, &str); 8] = [
     (
         "users",
         "bio",
@@ -1380,6 +1387,16 @@ const ADDITIVE_BASELINE_COLUMNS: [(&str, &str, &str); 6] = [
         "users",
         "suspended_until",
         "ALTER TABLE users ADD COLUMN suspended_until INTEGER",
+    ),
+    (
+        "posts",
+        "media_width",
+        "ALTER TABLE posts ADD COLUMN media_width INTEGER",
+    ),
+    (
+        "posts",
+        "media_height",
+        "ALTER TABLE posts ADD COLUMN media_height INTEGER",
     ),
 ];
 

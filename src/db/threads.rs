@@ -18,6 +18,7 @@ pub struct PollInsert<'a> {
 ///   1  `t.board_id`     5  t.locked       9  `op.file_path`  13 op.id (`op_id`)
 ///   2  t.subject      6  t.sticky       10 `op.thumb_path` 14 t.archived
 ///   3  `t.created_at`   7  `t.reply_count`  11 op.name       15 `image_count`
+///   16 `op.media_width`                          17 `op.media_height`
 fn map_thread(row: &rusqlite::Row<'_>) -> rusqlite::Result<Thread> {
     Ok(Thread {
         id: row.get(0)?,
@@ -36,6 +37,8 @@ fn map_thread(row: &rusqlite::Row<'_>) -> rusqlite::Result<Thread> {
         op_id: row.get(13)?,
         archived: row.get::<_, i32>(14)? != 0,
         image_count: row.get(15)?,
+        op_media_width: row.get(16)?,
+        op_media_height: row.get(17)?,
     })
 }
 
@@ -99,6 +102,7 @@ const THREAD_SELECT: &str = "
            t.locked, t.sticky, t.reply_count,
            op.body, op.file_path, op.thumb_path, op.name, op.tripcode, op.id,
            t.archived,
+           op.media_width, op.media_height,
            COUNT(DISTINCT fp.id) AS image_count
     FROM threads t
     JOIN posts op ON op.thread_id = t.id AND op.is_op = 1
@@ -282,6 +286,8 @@ pub(crate) fn create_thread_submission(
             thread_id,
             is_op: true,
             ..post.clone()
+            media_width: None,
+            media_height: None,
         };
         let post_id = super::posts::create_post_inner(conn, &post_with_thread)?;
         let poll_id = poll
@@ -923,6 +929,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "token".to_owned(),
             is_op: true,
+            media_width: None,
+            media_height: None,
         };
         let (thread_id, _, _) =
             create_thread_with_optional_poll(conn, board_id, Some(title), &post, "", None, None)?;
@@ -962,6 +970,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "token".to_owned(),
             is_op: true,
+            media_width: None,
+            media_height: None,
         };
 
         let result = create_thread_submission(
@@ -1004,6 +1014,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "token".to_owned(),
             is_op: false,
+            media_width: None,
+            media_height: None,
         }
     }
 
@@ -1180,6 +1192,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "token".to_owned(),
             is_op: false,
+            media_width: None,
+            media_height: None,
         };
         create_reply_with_thread_update(&conn, &reply, "", false, None)?;
 
@@ -1362,6 +1376,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "token".to_owned(),
             is_op: false,
+            media_width: None,
+            media_height: None,
         };
         create_reply_with_thread_update(&conn, &reply, "", false, None)?;
 

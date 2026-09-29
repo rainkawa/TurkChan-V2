@@ -50,6 +50,15 @@ All notable changes to TurkChan will be documented in this file.
   browser on the site can be relied on to show it directly.
 
 ### Improved
+- Stopped an image upload being kept at the size a camera produced it. A
+  40-megapixel original is far larger than any screen that shows it, so it is
+  scaled down on the way in to a longest edge the operator sets, keeping its
+  aspect ratio. Setting the limit to 0 stores images exactly as they arrived.
+- Reserved the space an image will take before it arrives. The stored pixel
+  dimensions are recorded with the post and written into the page, so a
+  thumbnail and an expanded image no longer push the thread down as they load.
+  A post whose dimensions were never recorded declares none, which is what
+  every image on the site did until now.
 - Redrew the new-thread and reply forms' name field so both tripcode markers are named where they are typed, instead of leaving the secure kind to be discovered.
 - Replaced the profile's join date with a "Hesap Yaşı" tile showing only the day, month, and year the account was created, and placed it beside the score in one centered row.
 - Showed the header account menu on every public page: board index, thread, catalog, hidden threads, archive, and search all carry it now, not just the home page and the profile.

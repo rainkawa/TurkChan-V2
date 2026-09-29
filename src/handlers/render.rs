@@ -331,6 +331,8 @@ mod tests {
             op_thumb: None,
             op_name: Some("anon".into()),
             op_tripcode: None,
+            op_media_width: None,
+            op_media_height: None,
             op_id: Some(1),
         }
     }

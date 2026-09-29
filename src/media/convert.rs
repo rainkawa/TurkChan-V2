@@ -121,8 +121,19 @@ pub fn convert_file(
     }
 }
 
+/// The longest edge a converted full-size image may keep.
+///
+/// A camera original is far larger than any screen that will show it, and
+/// serving it whole costs bandwidth nobody benefits from. An operator who
+/// wants the original kept untouched sets the limit to 0, in which case the
+/// image is stored at the dimensions it was uploaded with.
+fn max_image_dimension() -> u32 {
+    crate::config::CONFIG.max_image_dimension
+}
+
 // Internal conversion helpers
-/// Convert any ffmpeg-readable image to WebP at quality 85.
+/// Convert any ffmpeg-readable image to WebP at quality 85, scaled to fit the
+/// configured longest edge.
 ///
 /// On ffmpeg failure, logs a warning and falls back to copying the original
 /// file unchanged (so the post still succeeds).
@@ -130,7 +141,14 @@ fn convert_to_webp(input: &Path, output_dir: &Path, file_stem: &str) -> Result<C
     let output = output_dir.join(format!("{file_stem}.webp"));
     let tmp_out = temp_sibling(&output);
 
-    match ffmpeg::ffmpeg_image_to_webp(input, &tmp_out) {
+    let limit = max_image_dimension();
+    let converted = if limit == 0 {
+        ffmpeg::ffmpeg_image_to_webp(input, &tmp_out)
+    } else {
+        ffmpeg::ffmpeg_image_to_webp_scaled(input, &tmp_out, limit, limit)
+    };
+
+    match converted {
         Ok(()) => {
             atomic_rename(&tmp_out, &output)?;
             let final_size = file_size(&output)?;
@@ -166,6 +184,11 @@ fn convert_to_webp(input: &Path, output_dir: &Path, file_stem: &str) -> Result<C
 }
 
 /// Attempt PNG → WebP conversion; keep the PNG if WebP is not smaller.
+///
+/// The WebP being weighed is the scaled one, so a large PNG is compared
+/// against a right-sized lossy copy rather than against one that kept every
+/// oversized pixel. A PNG that still wins is stored lossless and unscaled,
+/// which is the point of choosing PNG in the first place.
 fn convert_png_if_smaller(
     input: &Path,
     output_dir: &Path,
@@ -175,7 +198,13 @@ fn convert_png_if_smaller(
     let tmp_webp = temp_sibling(&webp_path);
 
     // Try conversion first
-    match ffmpeg::ffmpeg_image_to_webp(input, &tmp_webp) {
+    let limit = max_image_dimension();
+    let converted = if limit == 0 {
+        ffmpeg::ffmpeg_image_to_webp(input, &tmp_webp)
+    } else {
+        ffmpeg::ffmpeg_image_to_webp_scaled(input, &tmp_webp, limit, limit)
+    };
+    match converted {
         Ok(()) => {
             let original_size = file_size(input)?;
             let webp_size = file_size(&tmp_webp)?;
@@ -364,6 +393,18 @@ fn ext_to_static_mime(ext: &str) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    /// The limit is read from configuration, and an operator who sets it to
+    /// zero has asked for images to be stored at the size they arrived, so
+    /// the number is passed straight through rather than forced to a floor.
+    fn the_stored_size_limit_comes_from_configuration() {
+        assert_eq!(
+            super::max_image_dimension(),
+            crate::config::CONFIG.max_image_dimension,
+            "the conversion must read the limit the operator set, not one of its own"
+        );
+    }
 
     #[test]
     fn jpeg_maps_to_webp() {

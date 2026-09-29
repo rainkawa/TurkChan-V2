@@ -712,6 +712,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "token-op".to_owned(),
             is_op: true,
+            media_width: None,
+            media_height: None,
         };
         let (thread_id, _, _) =
             db::create_thread_with_optional_poll(&conn, board.id, None, &op, "", None, None)
@@ -738,6 +740,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "token-reply".to_owned(),
             is_op: false,
+            media_width: None,
+            media_height: None,
         };
         let reply_id = db::create_reply_with_thread_update(&conn, &reply, "", true, None)
             .context("create reply")?;

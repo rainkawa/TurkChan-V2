@@ -287,6 +287,8 @@ pub fn insert_reply_into_thread(
             audio_mime_type: None,
             deletion_token: Uuid::new_v4().to_string(),
             is_op: false,
+            media_width: None,
+            media_height: None,
         };
         let post_id = super::posts::create_post_inner(conn, &gateway_post)?;
         let updated = conn.execute(

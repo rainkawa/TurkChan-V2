@@ -794,6 +794,8 @@ mod tests {
                 "token-reply".to_owned()
             },
             is_op,
+            media_width: None,
+            media_height: None,
         }
     }
 

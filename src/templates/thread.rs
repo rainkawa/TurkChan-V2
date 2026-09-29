@@ -919,10 +919,25 @@ fn annotate_op_quotelinks(body_html: &str, thread_op_id: Option<i64>) -> String 
 
 /// Number of filename stem characters displayed before truncation.
 const FILE_NAME_STEM_PREFIX_DISPLAY_CHARS: usize = 20;
+/// Longest edge the stylesheet gives a post's own thumbnail, in pixels.
+pub(super) const THUMB_BOX_PX: i64 = 150;
+/// Longest edge the stylesheet gives a reply's thumbnail, in pixels.
+pub(super) const THUMB_REPLY_BOX_PX: i64 = 80;
+/// Longest edge an expanded image may take, in pixels.
+///
+/// Mirrors `max-width`/`max-height` in the stylesheet; only the ratio this
+/// implies is used, so the constant only has to describe the shape.
+const EXPANDED_IMAGE_BOX_PX: i64 = 640;
 /// Marker inserted between a truncated filename stem and its extension.
 const FILE_NAME_TRUNCATION_MARKER: &str = "(...)";
 
 /// Renders a media thumbnail with a client-side fallback.
+///
+/// `dims` carries the `width`/`height` attributes that let the browser reserve
+/// the space the thumbnail will take, so the thread does not jump down once
+/// the image decodes. It is empty for media whose dimensions were never
+/// recorded, which is not an error: the layout is then reserved on arrival
+/// rather than in advance, exactly as it was before.
 fn render_media_thumb(
     img_class: &str,
     fallback_class: &str,
@@ -930,9 +945,10 @@ fn render_media_thumb(
     alt: &str,
     loading: &str,
     fallback_text: &str,
+    dims: &str,
 ) -> String {
     format!(
-        r#"<img class="{img_class}" src="/boards/{src}" loading="{loading}" decoding="async" alt="{alt}" data-media-thumb="1">
+        r#"<img class="{img_class}" src="/boards/{src}" loading="{loading}" decoding="async" alt="{alt}" data-media-thumb="1"{dims}>
 <div class="{fallback_class} media-thumb-fallback" hidden>{fallback_text}</div>"#,
         img_class = escape_html(img_class),
         fallback_class = escape_html(fallback_class),
@@ -940,7 +956,35 @@ fn render_media_thumb(
         loading = escape_html(loading),
         alt = escape_html(alt),
         fallback_text = escape_html(fallback_text),
+        dims = dims,
     )
+}
+
+/// Scale a stored image's dimensions to a display box, preserving aspect.
+///
+/// The attributes exist to carry the shape, not the size: a browser reads them
+/// as an aspect ratio and then lays the image out inside whatever the stylesheet
+/// allows, so scaling here changes nothing about how the image is drawn and
+/// only tells the page how much room to set aside. Dimensions that are missing
+/// or nonsensical produce no attributes at all rather than a wrong guess.
+pub(super) fn scaled_image_dims(width: Option<i64>, height: Option<i64>, box_px: i64) -> String {
+    let (Some(width), Some(height)) = (width, height) else {
+        return String::new();
+    };
+    if width <= 0 || height <= 0 || box_px <= 0 {
+        return String::new();
+    }
+    let long_edge = width.max(height);
+    if long_edge <= box_px {
+        return format!(r#" width="{width}" height="{height}""#);
+    }
+    // One edge keeps the box, the other is rounded so the ratio stays honest.
+    let (scaled_width, scaled_height) = if width >= height {
+        (box_px, ((i128::from(height) * i128::from(box_px)) / i128::from(width)).max(1))
+    } else {
+        (((i128::from(width) * i128::from(box_px)) / i128::from(height)).max(1), box_px)
+    };
+    format!(r#" width="{scaled_width}" height="{scaled_height}""#)
 }
 
 /// Truncates a filename stem without splitting Unicode scalar values.
@@ -1145,6 +1189,20 @@ pub fn render_post(
     let thumb_loading = if post.is_op { "eager" } else { "lazy" };
     let original_pruned =
         post.media_processing_state.as_deref() == Some(crate::db::MEDIA_ORIGINAL_PRUNED);
+    // The thumbnail box the stylesheet gives a post's own image, which the
+    // reply variant halves. Only the shape is carried, so the exact box only
+    // has to be the right shape — but it is read from the post's own image,
+    // never from another post's.
+    let thumb_dims = if post.media_width.is_some() {
+        let reply = !post.is_op;
+        scaled_image_dims(
+            post.media_width,
+            post.media_height,
+            if reply { THUMB_REPLY_BOX_PX } else { THUMB_BOX_PX },
+        )
+    } else {
+        String::new()
+    };
 
     // Image / Video / Audio
     if show_media {
@@ -1164,6 +1222,7 @@ pub fn render_post(
                             "temizlenmiş medya önizlemesi",
                             thumb_loading,
                             "asıl dosya kaldırıldı",
+                            &thumb_dims,
                         )
                     )
                 });
@@ -1233,6 +1292,7 @@ pub fn render_post(
                         "ses",
                         thumb_loading,
                         "önizleme kullanılamıyor",
+                        &thumb_dims,
                     ),
                     orig = escape_html(name_str),
                     sz = escape_html(&size_str),
@@ -1263,6 +1323,7 @@ pub fn render_post(
                         "video küçük resmi",
                         thumb_loading,
                         "önizleme kullanılamıyor",
+                        &thumb_dims,
                     ),
                     sz = escape_html(&size_str),
                     mime = escape_html(mime),
@@ -1291,6 +1352,7 @@ pub fn render_post(
                         "pdf önizlemesi",
                         thumb_loading,
                         "PDF’yi aç",
+                        &thumb_dims,
                     ),
                     sz = escape_html(&size_str),
                     orig = escape_html(name_str)
@@ -1312,7 +1374,7 @@ pub fn render_post(
   <div class="media-expand-overlay">&#x2922;</div>
 </a>
 <img class="media-expanded media-expanded-image" src="" data-src="/boards/{f}" style="display:none"
-     alt="resim" draggable="false">
+     alt="resim" draggable="false"{full_dims}>
 {audio_combo_html}
 </div>"#,
                     combo_class = if combo_audio.is_some() {
@@ -1329,6 +1391,12 @@ pub fn render_post(
                         "resim",
                         thumb_loading,
                         "önizleme kullanılamıyor",
+                        &thumb_dims,
+                    ),
+                    full_dims = scaled_image_dims(
+                        post.media_width,
+                        post.media_height,
+                        EXPANDED_IMAGE_BOX_PX,
                     ),
                     sz = escape_html(&size_str),
                     audio_combo_html = combo_audio.map_or_else(
@@ -1628,9 +1696,65 @@ fn render_edit_overlay(
 mod tests {
     use super::{
         delete_post_page, display_file_name, edit_post_page, render_post, render_vote_controls,
-        thread_page, EditOverlayState, OwnedPostControls, RenderPostOpts,
+        scaled_image_dims, thread_page, EditOverlayState, OwnedPostControls, RenderPostOpts,
     };
     use crate::models::{BoardAccessMode, MediaType, Post, Thread};
+
+    #[test]
+    /// The attributes only have to carry the shape. A large image is scaled to
+    /// the box it will be drawn in, and the ratio it lands on is the ratio the
+    /// browser will apply, so nothing about the drawn size is decided here.
+    fn dimensions_scale_to_the_box_and_keep_their_ratio() {
+        assert_eq!(
+            scaled_image_dims(Some(4000), Some(3000), 150),
+            r#" width="150" height="112""#,
+            "a wide image is capped by its long edge and the short one follows"
+        );
+        assert_eq!(
+            scaled_image_dims(Some(3000), Some(4000), 150),
+            r#" width="112" height="150""#,
+            "a tall image is capped the other way round"
+        );
+        assert_eq!(
+            scaled_image_dims(Some(100), Some(80), 150),
+            r#" width="100" height="80""#,
+            "an image that already fits is left at its own size"
+        );
+    }
+
+    #[test]
+    /// A post written before dimensions were recorded has none, and inventing
+    /// some would reserve the wrong space. So an unknown shape reserves
+    /// nothing at all, and a nonsensical one is treated the same way.
+    fn unknown_or_nonsensical_dimensions_reserve_nothing() {
+        assert_eq!(scaled_image_dims(None, None, 150), "");
+        assert_eq!(
+            scaled_image_dims(Some(100), None, 150),
+            "",
+            "half an answer is not an answer"
+        );
+        assert_eq!(
+            scaled_image_dims(Some(0), Some(100), 150),
+            "",
+            "an image with no width is not an image"
+        );
+        assert_eq!(
+            scaled_image_dims(Some(-10), Some(100), 150),
+            "",
+            "a negative width is not a width"
+        );
+    }
+
+    #[test]
+    /// A very thin sliver rounds to at least one pixel rather than to nothing,
+    /// because a zero height would tell the browser the image is a line and
+    /// reserve no space at all.
+    fn a_sliver_still_reserves_at_least_one_pixel() {
+        assert_eq!(
+            scaled_image_dims(Some(10_000), Some(1), 150),
+            r#" width="150" height="1""#
+        );
+    }
 
     fn sample_post() -> Post {
         Post {
@@ -1660,6 +1784,8 @@ mod tests {
             media_processing_state: None,
             media_processing_error: None,
             user_id: None,
+            media_width: None,
+            media_height: None,
         }
     }
 
@@ -1680,6 +1806,8 @@ mod tests {
             op_thumb: Some("test/thumbs/image.webp".into()),
             op_name: Some("anon".into()),
             op_tripcode: None,
+            op_media_width: None,
+            op_media_height: None,
             op_id: Some(1),
         }
     }
@@ -2190,6 +2318,82 @@ mod tests {
 
         assert!(html.contains("asıl dosya kaldırıldı"));
         assert!(!html.contains(r#"href="/boards/test/archive.zip""#));
+    }
+
+    #[test]
+    /// A recorded image reserves its space on both the thumbnail and the
+    /// expanded view, so the thread does not jump as either one loads.
+    fn a_recorded_image_reserves_its_space_on_the_page() {
+        let mut post = sample_post();
+        post.media_width = Some(4000);
+        post.media_height = Some(3000);
+
+        let html = render_post(
+            &post,
+            "test",
+            "csrf",
+            RenderPostOpts {
+                show_delete: false,
+                is_admin: false,
+                admin_csrf_token: None,
+                show_media: true,
+                allow_editing: false,
+                allow_self_delete: false,
+                owned_post_controls: None,
+                vote: None,
+                share_by: None,
+                show_poster_ids: false,
+                collapse_greentext: true,
+                thread_state: None,
+                thread_op_id: Some(1),
+                video_audio_muted: false,
+            },
+            0,
+        );
+
+        assert!(
+            html.contains(r#"data-media-thumb="1" width="80" height="60""#),
+            "a reply thumbnail must declare the shape it will occupy"
+        );
+        assert!(
+            html.contains(r#"width="640" height="480""#),
+            "the expanded image must declare the shape it will occupy"
+        );
+    }
+
+    #[test]
+    /// A post with no recorded dimensions renders exactly as it did before
+    /// dimensions existed, rather than declaring a shape nobody measured.
+    fn a_post_without_recorded_dimensions_declares_none() {
+        let post = sample_post();
+
+        let html = render_post(
+            &post,
+            "test",
+            "csrf",
+            RenderPostOpts {
+                show_delete: false,
+                is_admin: false,
+                admin_csrf_token: None,
+                show_media: true,
+                allow_editing: false,
+                allow_self_delete: false,
+                owned_post_controls: None,
+                vote: None,
+                share_by: None,
+                show_poster_ids: false,
+                collapse_greentext: true,
+                thread_state: None,
+                thread_op_id: Some(1),
+                video_audio_muted: false,
+            },
+            0,
+        );
+
+        assert!(
+            html.contains(r#"data-media-thumb="1">"#),
+            "an unknown shape must not be invented"
+        );
     }
 
     #[test]

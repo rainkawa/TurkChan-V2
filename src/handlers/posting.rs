@@ -603,6 +603,8 @@ fn build_new_post(
         audio_mime_type: audio.map(|u| u.mime_type.clone()),
         deletion_token,
         is_op,
+        media_width: primary.and_then(|u| u.media_width),
+        media_height: primary.and_then(|u| u.media_height),
     }
 }
 
@@ -1036,6 +1038,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "token".to_owned(),
             is_op,
+            media_width: None,
+            media_height: None,
         }
     }
 
@@ -2111,6 +2115,8 @@ mod tests {
             media_type: crate::models::MediaType::Other,
             processing_pending: false,
             dedup_reused: false,
+            media_width: None,
+            media_height: None,
         };
 
         let payload = super::build_upload_finalize_payload(
@@ -2809,11 +2815,15 @@ mod tests {
             media_type: crate::models::MediaType::Image,
             processing_pending: false,
             dedup_reused: false,
+            media_width: None,
+            media_height: None,
         };
         let reused = crate::utils::files::UploadedFile {
             file_path: "test/a.png".to_owned(),
             file_size: 4096,
             dedup_reused: true,
+            media_width: None,
+            media_height: None,
             ..stored.clone()
         };
         let fresh = ProcessedUploads {

@@ -26,6 +26,14 @@ pub struct UploadedFile {
     pub processing_pending: bool,
     /// Whether an existing deduplicated file satisfied this upload.
     pub dedup_reused: bool,
+    /// Pixel width of the stored image, or `None` for media with no pixels.
+    ///
+    /// Measured from the file that was actually stored, after conversion and
+    /// after EXIF rotation, so it describes what a browser will draw rather
+    /// than what the uploader handed over.
+    pub media_width: Option<i64>,
+    /// Pixel height of the stored image; see [`UploadedFile::media_width`].
+    pub media_height: Option<i64>,
 }
 
 /// Inputs and board policy used while validating and storing an upload.
@@ -215,6 +223,8 @@ pub fn save_audio_with_image_thumb_from_path(
         media_type,
         processing_pending: false,
         dedup_reused: false,
+        media_width: None,
+        media_height: None,
     })
 }
 
@@ -519,6 +529,8 @@ fn save_generic_upload(
         media_type: plan.media_type,
         processing_pending: false,
         dedup_reused: false,
+        media_width: None,
+        media_height: None,
     })
 }
 
@@ -581,6 +593,9 @@ fn save_processed_upload(
         .transpose()?
         .unwrap_or_default();
 
+    let (media_width, media_height) =
+        stored_image_dimensions(&processed.file_path, &processed.mime_type);
+
     Ok(UploadedFile {
         file_path: format!("{}/{filename}", options.board_short),
         thumb_path,
@@ -594,7 +609,37 @@ fn save_processed_upload(
             plan.processing_pending
         },
         dedup_reused: false,
+        media_width,
+        media_height,
     })
+}
+
+/// Read a stored image's pixel dimensions without decoding its pixels.
+///
+/// Only the header is read, so this is cheap enough to run on the upload path
+/// and safe to run on a file that has already passed decode validation. A
+/// format the decoder does not know, or a file that turns out not to be an
+/// image, answers with no dimensions rather than an error: the layout hint is
+/// worth having but is never worth refusing an upload over.
+fn stored_image_dimensions(path: &Path, mime_type: &str) -> (Option<i64>, Option<i64>) {
+    if mime_to_image_format(mime_type).is_none() {
+        return (None, None);
+    }
+    match image::image_dimensions(path) {
+        Ok((width, height)) => (
+            i64::try_from(width).ok().filter(|width| *width > 0),
+            i64::try_from(height).ok().filter(|height| *height > 0),
+        ),
+        Err(error) => {
+            tracing::warn!(
+                target: "media",
+                path = %path.display(),
+                error = %error,
+                "Stored image dimensions could not be read; the layout hint will be omitted"
+            );
+            (None, None)
+        }
+    }
 }
 
 /// Rechecks a processed file's on-disk size against its media-specific limit.

@@ -1441,6 +1441,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "token".to_owned(),
             is_op: true,
+            media_width: None,
+            media_height: None,
         };
 
         let (_, post_id, _) =

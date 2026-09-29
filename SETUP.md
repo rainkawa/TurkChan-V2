@@ -322,6 +322,11 @@ max_image_size_mb = 8
 max_video_size_mb = 50
 max_audio_size_mb = 150
 
+# Longest edge a stored full-size image keeps, in pixels. A camera original is
+# far larger than any screen that shows it, so it is scaled down on the way in
+# while its aspect ratio is kept. Set to 0 to store images untouched.
+max_image_dimension = 2560
+
 # Upload quotas, counted per window and charged for what was actually stored.
 # A per-file limit bounds one upload and says nothing about the hundred that
 # follow it, so these are what actually bound a poster. Set either pair to 0 to

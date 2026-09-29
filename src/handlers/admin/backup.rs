@@ -919,6 +919,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "token".into(),
             is_op,
+            media_width: None,
+            media_height: None,
         }
     }
 
@@ -2197,6 +2199,8 @@ mod tests {
                 audio_mime_type: None,
                 deletion_token: "token".into(),
                 is_op: true,
+                media_width: None,
+                media_height: None,
             };
             crate::db::create_thread_with_optional_poll(
                 &conn,

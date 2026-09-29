@@ -48,6 +48,7 @@ Current version: `1.4.1`. Minimum supported Rust version: `1.91`.
 - JPEG, PNG, GIF, WebP, AVIF, HEIC, HEIF, BMP, TIFF, SVG, MP4, WebM, MP3, OGG, FLAC, WAV, M4A, and AAC uploads
 - Optional PDF and generic file uploads, controlled globally and per board
 - Streaming upload validation, image thumbnails, video thumbnails, audio waveforms, and optional MP4-to-WebM transcoding
+- Oversized images scaled to a configurable longest edge on the way in, and stored dimensions so pages reserve an image's space before it loads
 - Browser-based moderation, reports, appeals, bans, themes, banners, favicons, backups, restores, and maintenance
 - Full-site and per-board backups, scheduled backups, integrity checks, repair helpers, and media reconciliation
 - Built-in Arti onion service, optional native TLS, and an optional ChanNet listener

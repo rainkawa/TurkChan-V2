@@ -505,6 +505,14 @@ pub struct Thread {
     pub op_name: Option<String>,
     /// Opening-post tripcode joined for catalog previews.
     pub op_tripcode: Option<String>,
+    /// Pixel width of the opening post's image, or `None` when it has none or
+    /// its dimensions were never recorded.
+    ///
+    /// Carried on listings so an index row can reserve the same space a
+    /// thread page will, instead of shifting as each thumbnail arrives.
+    pub op_media_width: Option<i64>,
+    /// Pixel height of the opening post's image; see [`Thread::op_media_width`].
+    pub op_media_height: Option<i64>,
     /// Opening-post identifier joined for catalog previews.
     pub op_id: Option<i64>,
 }
@@ -571,6 +579,14 @@ pub struct Post {
     /// column is whatever the poster typed, so it can be anybody's name and is
     /// never read as an identity.
     pub user_id: Option<i64>,
+    /// Pixel width of the stored primary image, or `None` for a post with no
+    /// image or one written before dimensions were recorded.
+    ///
+    /// Recorded so the page can reserve the space an image will take before it
+    /// arrives, instead of jumping the thread down once it decodes.
+    pub media_width: Option<i64>,
+    /// Pixel height of the stored primary image; see [`Post::media_width`].
+    pub media_height: Option<i64>,
 }
 
 /// Admin user record

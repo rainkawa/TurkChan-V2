@@ -2694,6 +2694,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "token".to_owned(),
             is_op: true,
+            media_width: None,
+            media_height: None,
         };
         let (thread_id, post_id, _) =
             create_thread_with_optional_poll(conn, board.id, None, &post, "", None, None)?;
@@ -2726,6 +2728,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "token".to_owned(),
             is_op: true,
+            media_width: None,
+            media_height: None,
         };
         let (_thread_id, post_id, _) =
             create_thread_with_optional_poll(conn, board.id, None, &post, "", None, None)?;
@@ -3659,6 +3663,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "token".to_owned(),
             is_op: true,
+            media_width: None,
+            media_height: None,
         };
         let (thread_id, _post_id, _) =
             create_thread_with_optional_poll(&conn, board_id, None, &op, "", None, None)?;
@@ -3685,6 +3691,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "token".to_owned(),
             is_op: false,
+            media_width: None,
+            media_height: None,
         };
         let reply_id = create_reply_with_thread_update(&conn, &reply, "", false, None)?;
 
@@ -3730,6 +3738,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "token".to_owned(),
             is_op: true,
+            media_width: None,
+            media_height: None,
         };
         let (thread_id, _post_id, _) =
             create_thread_with_optional_poll(&conn, board_id, None, &op, "", None, None)?;
@@ -3755,6 +3765,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "token".to_owned(),
             is_op: false,
+            media_width: None,
+            media_height: None,
         };
         let reply_id = create_reply_with_thread_update(&conn, &reply, "", false, None)?;
 
@@ -3811,6 +3823,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "op-token".to_owned(),
             is_op: true,
+            media_width: None,
+            media_height: None,
         };
         let (thread_id, _post_id, _) =
             create_thread_with_optional_poll(&conn, board_id, None, &op, "", None, None)?;
@@ -3836,6 +3850,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "reply-token".to_owned(),
             is_op: false,
+            media_width: None,
+            media_height: None,
         };
         let reply_id = create_reply_with_thread_update(&conn, &reply, "", false, None)?;
 
@@ -3913,6 +3929,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "op-token".to_owned(),
             is_op: true,
+            media_width: None,
+            media_height: None,
         };
         let (thread_id, op_id, _) =
             create_thread_with_optional_poll(&conn, board_id, None, &op, "", None, None)?;
@@ -3938,6 +3956,8 @@ mod tests {
             audio_mime_type: None,
             deletion_token: "reply-token".to_owned(),
             is_op: false,
+            media_width: None,
+            media_height: None,
         };
         create_reply_with_thread_update(&conn, &reply, "", false, None)?;
         conn.execute(

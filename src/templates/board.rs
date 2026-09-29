@@ -350,11 +350,16 @@ fn preview_text(input: &str, max_chars: usize) -> String {
 }
 
 /// Renders a catalog thumbnail with a text fallback.
+///
+/// `dims` carries the width and height that let the row hold its shape while
+/// the thumbnail is still loading, and is empty when the opening post recorded
+/// no dimensions.
 fn render_catalog_media_thumb(
     class_name: &str,
     src: &str,
     alt: &str,
     fallback_text: &str,
+    dims: &str,
 ) -> String {
     let img_src = if src.starts_with("http://") || src.starts_with("https://") {
         src.to_owned()
@@ -362,18 +367,32 @@ fn render_catalog_media_thumb(
         format!("/boards/{src}")
     };
     format!(
-        r#"<img class="{class_name}" src="{src}" loading="lazy" decoding="async" alt="{alt}" data-media-thumb="1">
+        r#"<img class="{class_name}" src="{src}" loading="lazy" decoding="async" alt="{alt}" data-media-thumb="1"{dims}>
 <div class="catalog-thumb-fallback media-thumb-fallback" hidden>{fallback_text}</div>"#,
         class_name = escape_html(class_name),
         src = escape_html(&img_src),
         alt = escape_html(alt),
         fallback_text = escape_html(fallback_text),
+        dims = dims,
     )
 }
+
+/// Longest edge a catalog thumbnail may take, in pixels.
+///
+/// Mirrors the catalog thumbnail box in the stylesheet; only the ratio this
+/// implies is used.
+const CATALOG_THUMB_BOX_PX: i64 = 150;
 
 /// Renders the media area and state badges for one catalog thread.
 fn render_catalog_thumb(thread: &Thread) -> String {
     let badges = super::thread::render_thread_state_badges(thread.sticky, thread.locked);
+    // An embed thumbnail is somebody else's image and its shape is not
+    // recorded, so only the thread's own upload reserves space.
+    let own_dims = super::thread::scaled_image_dims(
+        thread.op_media_width,
+        thread.op_media_height,
+        CATALOG_THUMB_BOX_PX,
+    );
     let media = thread.op_thumb.as_ref().map_or_else(
         || {
             thread
@@ -388,11 +407,14 @@ fn render_catalog_thumb(thread: &Thread) -> String {
                             &embed_thumb,
                             "video küçük resmi",
                             "resim yok",
+                            "",
                         )
                     },
                 )
         },
-        |thumb| render_catalog_media_thumb("catalog-thumb", thumb, "", "resim yok"),
+        |thumb| {
+            render_catalog_media_thumb("catalog-thumb", thumb, "", "resim yok", &own_dims)
+        },
     );
 
     format!(r#"<div class="catalog-card-media">{media}{badges}</div>"#)
@@ -1060,11 +1082,16 @@ fn render_thread_summary(
     if let (Some(_file), Some(thumb)) = (&t.op_file, &t.op_thumb) {
         let _ = write!(
             html,
-            r#"<div class="file-container thread-summary-thumb-wrap"><a href="/{board}/thread/{tid}"><img class="thumb" src="/boards/{th}" loading="lazy" decoding="async" alt="resim"></a>{badges}</div>"#,
+            r#"<div class="file-container thread-summary-thumb-wrap"><a href="/{board}/thread/{tid}"><img class="thumb" src="/boards/{th}" loading="lazy" decoding="async" alt="resim"{dims}></a>{badges}</div>"#,
             board = escape_html(board_short),
             tid = t.id,
             th = escape_html(thumb),
-            badges = thread_state_badges
+            badges = thread_state_badges,
+            dims = super::thread::scaled_image_dims(
+                t.op_media_width,
+                t.op_media_height,
+                CATALOG_THUMB_BOX_PX,
+            )
         );
     } else if let Some(embed_thumb) = t.op_body.as_deref().and_then(embed_thumb_from_body) {
         let _ = write!(
@@ -1696,6 +1723,8 @@ mod tests {
             op_thumb: Some("test/thumbs/image.webp".into()),
             op_name: Some("anon".into()),
             op_tripcode: None,
+            op_media_width: None,
+            op_media_height: None,
             op_id: Some(87),
         }
     }
