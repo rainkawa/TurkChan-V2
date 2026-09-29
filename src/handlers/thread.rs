@@ -457,9 +457,12 @@ pub(in crate::server) async fn post_reply(
             let db_pool = state.db.clone();
             let current_theme = crate::handlers::board::current_theme_from_jar(&jar);
             // The re-rendered thread still carries the header account menu, so
-            // an error shown in context looks like the page it came from.
-            let (account, account_menu_csrf) = {
-                let (menu, token, _jar) = crate::handlers::auth::account_menu_for_request(
+            // an error shown in context looks like the page it came from. The
+            // jar comes back with the response: the menu's sign-out control
+            // carries a token whose cookie is issued here, and dropping it
+            // would answer that button with 403.
+            let (account, account_menu_csrf, jar) =
+                crate::handlers::auth::account_menu_for_request(
                     &state,
                     jar,
                     crate::handlers::board::should_set_public_secure_cookie(
@@ -467,8 +470,6 @@ pub(in crate::server) async fn post_reply(
                         secure_context,
                     ),
                 )?;
-                (menu, token)
-            };
             let html = tokio::task::spawn_blocking(move || -> Result<String> {
                 let conn = db_pool.get()?;
                 let page_data = render::load_thread_page_data(
@@ -515,7 +516,7 @@ pub(in crate::server) async fn post_reply(
 
             let mut resp = Html(html).into_response();
             *resp.status_mut() = status;
-            return Ok(resp);
+            return Ok((jar, resp).into_response());
         }
     };
 

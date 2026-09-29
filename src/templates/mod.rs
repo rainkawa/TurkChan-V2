@@ -801,6 +801,31 @@ pub fn base_layout_with_account(
     account_menu_html: &str,
 ) -> String {
     let board_links = board_nav_html_for_board(boards, preferences, board_short);
+    // The account menu is rendered only when somebody is signed in, so an
+    // empty one is this layout's record of a signed-out visitor. The bar and the
+    // rail both need it: the notification centre and the message list answer 403
+    // to an anonymous visitor, and the rail's own entry used to point at
+    // `/account/profile`, which is a POST target with no page behind it.
+    let signed_in = !account_menu_html.trim().is_empty();
+    let is_auth_page = current_path.starts_with("/login") || current_path.starts_with("/register");
+    let topbar_account_links = if signed_in {
+        r#"<a class="topbar-action" href="/notifications" title="Bildirimler">Bildirimler</a>
+      <a class="topbar-action" href="/messages" title="Mesajlar">Mesajlar</a>"#
+            .to_owned()
+    } else if is_auth_page {
+        String::new()
+    } else {
+        r#"<a class="topbar-action" href="/login" title="Giriş yap">Giriş Yap</a>
+      <a class="topbar-action" href="/register" title="Kayıt ol">Kayıt Ol</a>"#
+            .to_owned()
+    };
+    let rail_account_link = if signed_in {
+        r#"<a class="rail-link rail-link-muted" href="/account/edit">Profilim</a>"#.to_owned()
+    } else if is_auth_page {
+        String::new()
+    } else {
+        r#"<a class="rail-link rail-link-muted" href="/login">Giriş Yap</a>"#.to_owned()
+    };
     // The administration panel and the setup wizard lay their own panels out
     // across the full width, so they do not take the reading rail.
     let shell_class = if current_path.starts_with("/admin") || current_path.starts_with("/setup") {
@@ -1026,8 +1051,7 @@ pub fn base_layout_with_account(
       <a class="topbar-action" href="/new" title="Yeni konular">Yeni</a>
       <a class="topbar-action" href="/popular" title="Popüler konular">Popüler</a>
       <a class="topbar-action" href="/search" title="Ara">Ara</a>
-      <a class="topbar-action" href="/notifications" title="Bildirimler">Bildirimler</a>
-      <a class="topbar-action" href="/messages" title="Mesajlar">Mesajlar</a>
+      {topbar_account_links}
     </nav>
     {account_menu_html}
     <div class="color-mode-switch" role="group" aria-label="Renk modu">
@@ -1050,7 +1074,7 @@ pub fn base_layout_with_account(
     {board_links}
   </nav>
   <p class="rail-note">{site_tagline}</p>
-  <a class="rail-link rail-link-muted" href="/account/profile">Profilim</a>
+  {rail_account_link}
 </aside>
 <main class="content" id="main-content">
 {body}
@@ -1153,6 +1177,8 @@ pub fn base_layout_with_account(
         shell_class = shell_class,
         search_bar = search_bar,
         board_menu = board_menu,
+        topbar_account_links = topbar_account_links,
+        rail_account_link = rail_account_link,
         account_menu_html = account_menu_html,
         forum_name = escape_html(&live_site_name()),
         site_tagline = {

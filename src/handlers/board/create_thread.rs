@@ -184,14 +184,15 @@ pub(in crate::server) async fn create_thread(
             let current_theme = current_theme.clone();
             // The re-rendered board page still carries the header account menu,
             // so an error shown in context looks like the page it came from.
-            let (account, account_menu_csrf) = {
-                let (menu, token, _jar) = crate::handlers::auth::account_menu_for_request(
+            // The jar comes back with the response: the menu's sign-out control
+            // carries a token whose cookie is issued here, and dropping it
+            // would answer that button with 403.
+            let (account, account_menu_csrf, jar) =
+                crate::handlers::auth::account_menu_for_request(
                     &state,
                     jar,
                     should_set_public_secure_cookie(&req_headers, secure_context),
                 )?;
-                (menu, token)
-            };
             let html = tokio::task::spawn_blocking(move || -> Result<String> {
                 let conn = pool.get()?;
                 let page_data = render::load_board_page_data(
@@ -245,7 +246,7 @@ pub(in crate::server) async fn create_thread(
 
             let mut resp = Html(html).into_response();
             *resp.status_mut() = status;
-            return Ok(resp);
+            return Ok((jar, resp).into_response());
         }
     };
 

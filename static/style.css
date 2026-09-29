@@ -9459,16 +9459,26 @@ body {
   margin: 0 auto;
   padding: 0 1rem;
   min-height: 56px;
+  /* The bar carries the brand, the search box, the navigation, the account
+     menu, and the colour switch. Letting it wrap is what keeps a phone from
+     pushing the last of them off the right edge instead of shortening them. */
+  flex-wrap: wrap;
 }
 
 .topbar-brand {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
   color: var(--text);
   font-weight: 800;
   font-size: 1.15rem;
   letter-spacing: -0.02em;
+}
+/* A long forum name shortens with an ellipsis rather than widening the bar. */
+.topbar-brand .site-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .topbar-brand:hover { color: var(--text); text-decoration: none; }
@@ -9526,7 +9536,15 @@ body {
   align-items: center;
   gap: 0.1rem;
   margin-left: auto;
+  /* The links do not shrink below their own text, so without this the row
+     would set the bar's minimum width and drag the account menu and the
+     colour switch off the side of a narrow screen. */
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.topbar-actions::-webkit-scrollbar { display: none; }
 .topbar-action {
   padding: 0.45rem 0.7rem;
   border-radius: var(--radius-sm);
@@ -9546,6 +9564,24 @@ body {
 .color-mode-btn { width: 32px; height: 32px; }
 .color-mode-btn[aria-pressed='true'] { background: var(--primary-soft); color: var(--primary); }
 
+/* The account menu used to be pinned to the header's corner with a reserved
+   gutter in the header's own padding. Inside the bar it is one more control in
+   the row, so it takes its place in the flow rather than sitting on top of the
+   colour switch. */
+.account-menu { position: static; margin-left: 0; }
+.account-menu-panel { max-width: calc(100vw - 1.5rem); }
+.account-avatar {
+  border-color: var(--border);
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-family: var(--font);
+}
+.account-menu-button:hover .account-avatar,
+.account-menu-button:focus-visible .account-avatar {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-ring);
+}
+
 /* Shell: rail, then content. The rail is the site's table of contents. */
 .shell {
   display: grid;
@@ -9555,6 +9591,10 @@ body {
   max-width: 1560px;
   margin: 0 auto;
   padding: 1.25rem 1rem 4rem;
+  /* The shell is a grid item of `body` and a grid container itself. Without
+     this on both, one wide descendant anywhere in the column sets the width of
+     the whole page and every other row is dragged off the screen with it. */
+  min-width: 0;
 }
 
 .rail {
@@ -9614,6 +9654,19 @@ body {
     max-height: calc(100dvh - 96px);
     overflow-y: auto;
     padding-right: 0.25rem;
+  }
+  /* The old header hid the board list on any coarse pointer, which is right
+     for the top bar and wrong here: on a tablet the rail is the only place
+     the boards are listed, and without this it showed the heading over an
+     empty column. */
+  .rail-boards.board-list {
+    display: flex !important;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.1rem;
+    width: auto;
+    padding-top: 0;
   }
 }
 .shell.is-wide .rail { display: none; }
@@ -9894,7 +9947,9 @@ main.content {
 
 .board-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  /* `min()` keeps the track from demanding 240px on a screen that has fewer
+     pixels than that, which is what pushed the last card off the side. */
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
   gap: 0.75rem;
 }
 .board-card {
@@ -10555,17 +10610,98 @@ textarea { resize: vertical; }
   text-align: left;
 }
 
+/* ── Fitting the column ─────────────────────────────────────────────────── */
+
+/* `body` is a grid, so the header, the shell, and the footer are grid items
+   whose automatic minimum size is their content's. A single wide descendant
+   anywhere below would otherwise widen all three and scroll the whole page
+   sideways, which is what the mobile `overflow-x: hidden` used to hide rather
+   than fix. */
+.site-header,
+.shell,
+.site-footer { min-width: 0; }
+
+/* Long unbroken text — a URL, a file name, an onion address, a quoted post —
+   is the other way a column outgrows a phone. */
+.post-body,
+.post-card-title,
+.post-card-preview,
+.subject,
+.side-card,
+.side-card-list,
+.rail-note,
+.sub-name,
+.sub-desc,
+.profile-bio,
+.onion-addr,
+.message-list-preview { overflow-wrap: anywhere; }
+
+/* Embedded media and code scroll inside their own box instead of pushing the
+   page wider than the screen. */
+.post-body img,
+.post-body video,
+.post-body iframe,
+.post-body embed,
+.post-body object,
+.post-body audio { max-width: 100%; }
+
+/* A preformatted block breaks inside itself; inline code stays inline and only
+   wraps, because turning it into a block would break the sentence around it. */
+pre,
+.post-body pre {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.post-body pre code { display: inline; white-space: inherit; }
+code,
+.post-body code { overflow-wrap: anywhere; }
+
+table { display: block; max-width: 100%; overflow-x: auto; }
+
+input,
+select,
+textarea,
+button { max-width: 100%; }
+
 /* ── Mobile ─────────────────────────────────────────────────────────────── */
 
 @media (max-width: 999px) {
   .shell { padding: 0.75rem 0.75rem 3rem; gap: 0.75rem; }
   .rail { display: none; }
-  .topbar { flex-wrap: wrap; gap: 0.5rem; padding: 0.5rem 0.75rem; }
+  .topbar { gap: 0.5rem; padding: 0.5rem 0.75rem; }
   .topbar-search { order: 3; flex-basis: 100%; max-width: none; }
-  .topbar-actions { overflow-x: auto; }
   .post-card-media { flex-basis: 56px; width: 56px; height: 56px; }
   .sub-header-body { flex-wrap: wrap; }
   .home-hero { padding: 1rem; }
+}
+
+/* On a phone the bar has the brand, the search box, the navigation, and the
+   colour switch left after the account menu collapses into the brand row. The
+   navigation gives up its labels before anything is allowed to overflow. */
+@media (max-width: 700px) {
+  .topbar { gap: 0.4rem; padding: 0.4rem 0.6rem; }
+  .topbar-brand { font-size: 1rem; }
+  .topbar-action { padding: 0.4rem 0.45rem; font-size: 0.78rem; }
+  .topbar-actions { margin-left: auto; }
+  .color-mode-btn { width: 28px; height: 28px; }
+  .post-header,
+  .thread,
+  .post,
+  .post-card { padding: 0.6rem; }
+  .sub-header-body { padding: 0.75rem; gap: 0.6rem; }
+  .sub-title { font-size: 1.2rem; }
+  .home-columns { gap: 0.75rem; }
+}
+
+@media (max-width: 420px) {
+  /* Below this the labels themselves are the overflow, so the navigation keeps
+     only the words that name a place and drops the rest to an icon-free short
+     form rather than sliding off the edge. */
+  .topbar-action { padding: 0.4rem 0.35rem; font-size: 0.74rem; }
+  .topbar .site-name { font-size: 0.95rem; }
 }
 
 @media (hover: none) and (pointer: coarse) {

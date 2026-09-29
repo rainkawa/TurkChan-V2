@@ -870,6 +870,16 @@ pub fn index_page<S: std::hash::BuildHasher>(
         )
     };
 
+    // A signed-out visitor has no way into an account from anywhere else in the
+    // page, so the column that explains the site also offers the two doors.
+    let account_cta = if account.is_some() {
+        String::new()
+    } else {
+        r#"<a class="btn btn-primary btn-block" href="/login">Giris Yap</a>
+<a class="btn btn-block" href="/register">Kayit Ol</a>"#
+            .to_owned()
+    };
+
     let body = format!(
         r#"<div class="home" data-activity-page="home">
 <div class="home-columns">
@@ -895,6 +905,7 @@ pub fn index_page<S: std::hash::BuildHasher>(
     <p class="side-card-text">{subtitle}</p>
     <a class="btn btn-primary btn-block" href="/new">+ Gonderi Olustur</a>
     <a class="btn btn-block" href="/popular">Populer akis</a>
+    {account_cta}
   </section>
   {stats}
   {onion}
@@ -904,6 +915,7 @@ pub fn index_page<S: std::hash::BuildHasher>(
 </div>"#,
         name = escape_html(&live_site_name()),
         subtitle = escape_html(&live_site_subtitle()),
+        account_cta = account_cta,
         registration_notice_html = registration_notice_html,
         home_banner_html = home_banner_html,
         home_feed = home_feed,
