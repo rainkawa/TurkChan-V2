@@ -118,6 +118,9 @@ async fn render_feed(
             is_admin: identity.is_admin,
         }
     });
+    // The token in the account menu is only useful if its cookie reaches the
+    // browser, so the jar that carries it goes back out with the page rather
+    // than being dropped here.
     let (jar, menu_csrf) = if account.is_some() {
         crate::handlers::auth::account_menu_csrf(
             jar,
@@ -128,7 +131,7 @@ async fn render_feed(
     };
 
     let pagination = crate::models::Pagination::new(page, FEED_PER_PAGE, total);
-    Ok(Html(templates::board::feed_page(
+    let response = Html(templates::board::feed_page(
         kind,
         &threads,
         &boards,
@@ -138,7 +141,8 @@ async fn render_feed(
         account.as_ref(),
         &menu_csrf,
     ))
-    .into_response())
+    .into_response();
+    Ok((jar, response).into_response())
 }
 
 type HomePageLoadResult = (
