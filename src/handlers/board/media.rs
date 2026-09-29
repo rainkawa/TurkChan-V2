@@ -295,6 +295,10 @@ pub(in crate::server) async fn api_post_preview(
                 None => Ok(None),
                 Some(p) => {
                     let thread_id = p.thread_id;
+                    // The preview shows the same share line the thread page
+                    // does, so the account behind the post is resolved here
+                    // rather than left out until a full page load.
+                    let authors = db::post_share_authors(&conn, &[p.id])?;
                     let html = templates::render_post(
                         &p,
                         &board_short,
@@ -313,10 +317,10 @@ pub(in crate::server) async fn api_post_preview(
                             thread_op_id: None,
                             video_audio_muted: user_preferences.video_audio_muted,
                             // This is a read-only preview fetched as JSON: the
-                            // reader's own vote and the share attribution are
+                            // reader's own vote needs an account and is
                             // resolved on the thread page, not here.
                             vote: None,
-                            share_by: None,
+                            share_by: authors.get(&p.id).cloned(),
                         },
                         0, // no edit window
                     );

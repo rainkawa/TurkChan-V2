@@ -1233,8 +1233,8 @@ fn render_thread_summary(
                 video_audio_muted: user_preferences.video_audio_muted,
                 // A board index lists threads, not posts a reader is meant to
                 // act on: the score and the press buttons would make it look
-                // like a place to vote, and a board page is where a reader
-                // chooses a thread rather than answers one.
+                // like a place to vote, and the share line belongs to the
+                // thread a reader opens rather than to a preview of it.
                 vote: None,
                 share_by: None,
             },
@@ -1550,8 +1550,9 @@ pub fn search_page(
                     thread_op_id: None,
                     video_audio_muted: user_preferences.video_audio_muted,
                     // A search result is a line a reader matched on, not a post
-                    // they opened. Voting and sharing happen on the thread, and
-                    // only once there is an account behind them.
+                    // they opened. Voting and sharing happen on the thread page,
+                    // where the score and the account behind the post are both
+                    // resolved.
                     vote: None,
                     share_by: None,
                 },
@@ -1734,6 +1735,7 @@ mod tests {
             deletion_token: "token".into(),
             is_op: false,
             edited_at: None,
+            user_id: None,
         }
     }
 

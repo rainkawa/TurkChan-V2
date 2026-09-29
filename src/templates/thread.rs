@@ -301,6 +301,7 @@ pub fn thread_page(
     posts: &[Post],
     owned_post_controls: &BTreeMap<i64, OwnedPostControls>,
     post_votes: &BTreeMap<i64, crate::db::PostVoteView>,
+    share_authors: &BTreeMap<i64, String>,
     csrf_token: &str,
     boards: &[Board],
     is_admin: bool,
@@ -319,12 +320,12 @@ pub fn thread_page(
 ) -> String {
     let mut body = String::new();
     let admin_form_csrf = admin_csrf_token.unwrap_or(csrf_token);
-    // A share is attributed to the account that made it, and voting needs one
-    // too. With neither there is nothing to draw under a post header, so the
-    // scores are not even read for this page.
-    let share_by = account.map(|menu| menu.username.clone());
+    // A share is named after the account behind the post, not after the reader,
+    // and voting needs the reader to have an account of their own. With no
+    // account there is nothing to press, so the scores are not even read for
+    // this page.
     let no_votes = BTreeMap::new();
-    let votes = if share_by.is_some() {
+    let votes = if account.is_some() {
         post_votes
     } else {
         &no_votes
@@ -474,7 +475,7 @@ pub fn thread_page(
                     owned_post_controls.get(&post.id).cloned()
                 },
                 vote: votes.get(&post.id).copied(),
-                share_by: share_by.clone(),
+                share_by: share_authors.get(&post.id).cloned(),
                 show_poster_ids: board.show_poster_ids,
                 collapse_greentext: board.collapse_greentext,
                 thread_state: Some((thread.sticky, thread.locked, thread.archived)),
@@ -722,7 +723,10 @@ pub struct RenderPostOpts {
     pub video_audio_muted: bool,
     /// The post's score and the viewer's own vote, when voting is available.
     pub vote: Option<crate::db::PostVoteView>,
-    /// Name the page attributes a share to, when the viewer is signed in.
+    /// Login name of the account the post belongs to, when it belongs to one.
+    ///
+    /// A share is attributed to that account rather than to the name in the
+    /// form, so a share can only ever be published by the person it names.
     pub share_by: Option<String>,
 }
 
@@ -784,13 +788,20 @@ fn render_vote_controls(
     )
 }
 
-/// Render the share control for one post, for the account that is sharing it.
+/// Render the share control for one post, naming the account behind it.
 ///
 /// The permalink is shown as text rather than hidden behind a button: a board
 /// is shared by copying a line, and the name beside it is who shared it.
-/// `None` means the visitor is not signed in, and there is no control at all
-/// for them: a share is a claim that somebody passed this on, and there is no
-/// somebody to name behind a visitor who has not said who they are.
+/// `None` means the post belongs to no account — written before accounts
+/// existed, posted without signing in, or posted anonymously — and there is
+/// no control at all for it: a share is a claim that somebody passed this on,
+/// and there is no somebody to name.
+///
+/// The name is the account's own login name, read from `posts.user_id`, and it
+/// links to that profile. It is deliberately not the name typed into the form:
+/// that field is free text, so treating it as an identity would let anyone
+/// publish a share in another account's name, and the link would then point at
+/// somebody else's profile while claiming to be theirs.
 ///
 /// An opening post is what a thread is shared by, so it is stated as a share
 /// rather than as a link: the reader is told who passed it on before being
@@ -799,7 +810,11 @@ fn render_share_control(share_by: Option<&str>, permalink: &str, is_op: bool) ->
     let Some(name) = share_by else {
         return String::new();
     };
-    let attribution = format!("<strong>@{name}</strong> paylaştı", name = escape_html(name));
+    let attribution = format!(
+        r#"<a class="post-share-author" href="/u/{username}"><strong>@{name}</strong></a> paylaştı"#,
+        username = escape_html(name),
+        name = escape_html(name),
+    );
     if is_op {
         return format!(
             r#"<div class="post-share post-share-op"><span class="post-share-label">konu paylaşımı</span><span class="post-share-by">{attribution}</span><a class="post-share-link" href="{permalink}">{permalink}</a><button type="button" class="post-share-copy" data-action="copy-share-link" data-share-link="{permalink}" data-default-label="kopyala" title="Bağlantıyı kopyala">kopyala</button></div>"#,
@@ -1644,6 +1659,7 @@ mod tests {
             edited_at: None,
             media_processing_state: None,
             media_processing_error: None,
+            user_id: None,
         }
     }
 
@@ -1681,6 +1697,7 @@ mod tests {
         &board,
         &thread,
         &posts,
+            &std::collections::BTreeMap::new(),
             &std::collections::BTreeMap::new(),
             &std::collections::BTreeMap::new(),
             "csrf",
@@ -1727,6 +1744,7 @@ mod tests {
         &posts,
             &std::collections::BTreeMap::new(),
             &std::collections::BTreeMap::new(),
+            &std::collections::BTreeMap::new(),
             "csrf",
             std::slice::from_ref(&board),
             false,
@@ -1766,6 +1784,7 @@ mod tests {
         &board,
         &thread,
         &posts,
+            &std::collections::BTreeMap::new(),
             &std::collections::BTreeMap::new(),
             &std::collections::BTreeMap::new(),
             "public-csrf",
@@ -2365,6 +2384,7 @@ mod tests {
         &posts,
             &std::collections::BTreeMap::new(),
             &std::collections::BTreeMap::new(),
+            &std::collections::BTreeMap::new(),
             "csrf",
             std::slice::from_ref(&board),
             false,
@@ -2405,6 +2425,7 @@ mod tests {
         std::slice::from_ref(&post),
             &owned,
             &std::collections::BTreeMap::new(),
+            &std::collections::BTreeMap::new(),
             "csrf",
             std::slice::from_ref(&board),
             false,
@@ -2443,6 +2464,7 @@ mod tests {
         std::slice::from_ref(&post),
             &std::collections::BTreeMap::new(),
             &std::collections::BTreeMap::new(),
+            &std::collections::BTreeMap::new(),
             "csrf",
             std::slice::from_ref(&board),
             true,
@@ -2468,6 +2490,7 @@ mod tests {
         &board,
         &sample_thread(),
         std::slice::from_ref(&post),
+            &std::collections::BTreeMap::new(),
             &std::collections::BTreeMap::new(),
             &std::collections::BTreeMap::new(),
             "csrf",
@@ -2508,6 +2531,7 @@ mod tests {
                     expires_at: i64::MAX,
                 },
             )]),
+            &std::collections::BTreeMap::new(),
             &std::collections::BTreeMap::new(),
             "csrf",
             std::slice::from_ref(&board),
@@ -2586,6 +2610,7 @@ mod tests {
             &thread,
             std::slice::from_ref(&post),
                 &controls,
+                &std::collections::BTreeMap::new(),
                 &std::collections::BTreeMap::new(),
                 "csrf",
                 std::slice::from_ref(&board),
@@ -2677,6 +2702,7 @@ mod tests {
                 },
             )]),
             &std::collections::BTreeMap::new(),
+            &std::collections::BTreeMap::new(),
             "csrf",
             std::slice::from_ref(&board),
             false,
@@ -2727,6 +2753,7 @@ mod tests {
             &posts,
             &std::collections::BTreeMap::new(),
             &votes,
+            &std::collections::BTreeMap::new(),
             "csrf",
             std::slice::from_ref(&board),
             false,
@@ -2767,6 +2794,7 @@ mod tests {
             &posts,
             &std::collections::BTreeMap::new(),
             &votes,
+            &std::collections::BTreeMap::new(),
             "csrf",
             std::slice::from_ref(&board),
             false,
@@ -2794,12 +2822,11 @@ mod tests {
     }
 
     #[test]
-    /// A share is attributed to the account that made it, and the link is shown
-    /// as text rather than hidden behind a button, because a board is shared by
-    /// copying a line. A reader with no account is shown no share at all: there
-    /// is nobody to attribute it to, and an "anonymous share" line would be a
-    /// claim on the page that no person on the page stands behind.
-    fn a_share_names_the_account_that_made_it() {
+    /// A share is named after the account behind the post, and the link is
+    /// shown as text rather than hidden behind a button, because a board is
+    /// shared by copying a line. The name links to that account's profile, so
+    /// the reader can get from a share to the account that made it.
+    fn a_share_names_the_account_behind_the_post_and_links_to_its_profile() {
         let board = crate::test_fixtures::sample_board();
         let mut op = sample_post();
         op.is_op = true;
@@ -2808,11 +2835,10 @@ mod tests {
         reply.id = 2;
         reply.thread_id = 87;
         let posts = vec![op, reply];
-        let account = crate::templates::auth::AccountMenu {
-            display_name: "Rain".to_owned(),
-            username: "rainkawa".to_owned(),
-            is_admin: false,
-        };
+        let authors = std::collections::BTreeMap::from([
+            (1, "rainkawa".to_owned()),
+            (2, "rainkawa".to_owned()),
+        ]);
 
         let html = thread_page((
             &board,
@@ -2820,6 +2846,7 @@ mod tests {
             &posts,
             &std::collections::BTreeMap::new(),
             &std::collections::BTreeMap::new(),
+            &authors,
             "csrf",
             std::slice::from_ref(&board),
             false,
@@ -2833,13 +2860,15 @@ mod tests {
             false,
             true,
             crate::templates::UserPreferences::default(),
-            Some(&account),
+            None,
             "",
         ));
 
         assert!(
-            html.contains("<strong>@rainkawa</strong> paylaştı"),
-            "a share must name the account that made it: {html}"
+            html.contains(
+                r#"<a class="post-share-author" href="/u/rainkawa"><strong>@rainkawa</strong></a> paylaştı"#
+            ),
+            "a share must name the account behind the post and link to it: {html}"
         );
         assert!(
             html.contains(r#"class="post-share-link" href="/test/thread/87#p1">"#),
@@ -2849,11 +2878,73 @@ mod tests {
             html.contains("post-share-op"),
             "the opening post carries the thread's share, so it is marked apart"
         );
+    }
 
-        let anonymous = thread_page((
+    #[test]
+    /// A post that belongs to no account gets no share line at all. A share is
+    /// a claim that a person passed this on, and there is no person to name
+    /// behind a post written before accounts existed, posted without signing
+    /// in, or posted anonymously — so an "anonymous share" would be a claim on
+    /// the page that nobody on the page stands behind.
+    fn a_post_belonging_to_no_account_is_shown_no_share() {
+        let board = crate::test_fixtures::sample_board();
+        let mut op = sample_post();
+        op.is_op = true;
+        op.thread_id = 87;
+        let posts = vec![op];
+
+        let html = thread_page((
             &board,
             &sample_thread(),
             &posts,
+            &std::collections::BTreeMap::new(),
+            &std::collections::BTreeMap::new(),
+            &std::collections::BTreeMap::new(),
+            "csrf",
+            std::slice::from_ref(&board),
+            false,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            false,
+            true,
+            crate::templates::UserPreferences::default(),
+            None,
+            "",
+        ));
+
+        assert!(
+            !html.contains("post-share"),
+            "a post with no account behind it is shown no share control: {html}"
+        );
+        assert!(
+            !html.contains("anonim"),
+            "a share is never attributed to nobody in particular: {html}"
+        );
+    }
+
+    #[test]
+    /// The name typed into the form is free text, so a share is never read
+    /// from it. A post whose name field spells out somebody else's account is
+    /// shown no share at all when that post belongs to no account, and the
+    /// account it does belong to is the one named — not the name in the field.
+    fn a_typed_name_cannot_claim_a_share_in_another_account_name() {
+        let board = crate::test_fixtures::sample_board();
+        let mut op = sample_post();
+        op.is_op = true;
+        op.thread_id = 87;
+        op.name = "Rainkawa".into();
+        let posts = vec![op];
+
+        let unlinked = thread_page((
+            &board,
+            &sample_thread(),
+            &posts,
+            &std::collections::BTreeMap::new(),
             &std::collections::BTreeMap::new(),
             &std::collections::BTreeMap::new(),
             "csrf",
@@ -2873,12 +2964,41 @@ mod tests {
             "",
         ));
         assert!(
-            !anonymous.contains("post-share"),
-            "a reader with no account must be shown no share control: {anonymous}"
+            !unlinked.contains("paylaştı"),
+            "a typed name must not produce a share in that name: {unlinked}"
+        );
+
+        let authors = std::collections::BTreeMap::from([(1, "baskasi".to_owned())]);
+        let linked = thread_page((
+            &board,
+            &sample_thread(),
+            &posts,
+            &std::collections::BTreeMap::new(),
+            &std::collections::BTreeMap::new(),
+            &authors,
+            "csrf",
+            std::slice::from_ref(&board),
+            false,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            false,
+            true,
+            crate::templates::UserPreferences::default(),
+            None,
+            "",
+        ));
+        assert!(
+            linked.contains("baskasi</strong></a> paylaştı"),
+            "a share names the account behind the post, not the name in the form: {linked}"
         );
         assert!(
-            !anonymous.contains("anonim"),
-            "a share is never attributed to nobody in particular: {anonymous}"
+            !linked.contains("@Rainkawa</strong></a>"),
+            "the typed name must not be linked as an account: {linked}"
         );
     }
 }

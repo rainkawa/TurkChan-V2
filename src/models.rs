@@ -563,6 +563,14 @@ pub struct Post {
     pub media_processing_state: Option<String>,
     /// Human-readable detail for failed async media processing.
     pub media_processing_error: Option<String>,
+    /// Account that wrote the post, or `None` for a post that belongs to
+    /// nobody: one written before accounts existed, one posted without signing
+    /// in, or one the poster asked to keep off their profile.
+    ///
+    /// This is the only thing on a post that says who wrote it. The `name`
+    /// column is whatever the poster typed, so it can be anybody's name and is
+    /// never read as an identity.
+    pub user_id: Option<i64>,
 }
 
 /// Admin user record

@@ -2152,6 +2152,7 @@ mod tests {
             edited_at: None,
             media_processing_state: None,
             media_processing_error: None,
+            user_id: None,
         }
     }
 

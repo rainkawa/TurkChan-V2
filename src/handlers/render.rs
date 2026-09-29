@@ -23,6 +23,8 @@ pub(super) struct ThreadPageData {
     pub is_admin: bool,
     pub owned_post_controls: std::collections::BTreeMap<i64, templates::thread::OwnedPostControls>,
     pub votes: std::collections::BTreeMap<i64, db::PostVoteView>,
+    /// Login name of the account behind each account-linked post, by post id.
+    pub share_authors: std::collections::BTreeMap<i64, String>,
 }
 
 #[must_use]
@@ -54,6 +56,13 @@ pub(super) fn thread_page_etag_signature(data: &ThreadPageData) -> String {
     for (post_id, vote) in &data.votes {
         update_sig_field(&mut hasher, &post_id.to_string());
         update_sig_field(&mut hasher, &vote.score.to_string());
+    }
+    // A share is named after the account behind the post, so the name in it is
+    // part of the page: a cached body has to stop answering once a post is
+    // attributed to an account it was not attributed to before.
+    for (post_id, username) in &data.share_authors {
+        update_sig_field(&mut hasher, &post_id.to_string());
+        update_sig_field(&mut hasher, username);
     }
     if let Some(poll) = &data.poll {
         update_poll_signature(&mut hasher, poll);
@@ -215,8 +224,14 @@ pub(super) fn load_thread_page_data(
     let post_ids = posts.iter().map(|post| post.id).collect::<Vec<_>>();
     let vote_map = db::post_vote_views(conn, &post_ids, account_id)?;
     let votes = post_ids
+        .iter()
+        .map(|id| (*id, vote_map.get(id).copied().unwrap_or_default()))
+        .collect();
+    // One query names every share on the page. It reads `posts.user_id` rather
+    // than the name in the form, so a share belongs to the account that wrote
+    // the post and cannot be claimed by typing somebody else's name.
+    let share_authors = db::post_share_authors(conn, &post_ids)?
         .into_iter()
-        .map(|id| (id, vote_map.get(&id).copied().unwrap_or_default()))
         .collect();
     Ok(ThreadPageData {
         board,
@@ -226,6 +241,7 @@ pub(super) fn load_thread_page_data(
         is_admin,
         owned_post_controls: std::collections::BTreeMap::new(),
         votes,
+        share_authors,
     })
 }
 
@@ -254,6 +270,7 @@ pub(super) fn render_thread_page(
         &data.posts,
         &data.owned_post_controls,
         &data.votes,
+        &data.share_authors,
         csrf_token,
         boards.as_ref(),
         data.is_admin,
@@ -345,6 +362,7 @@ mod tests {
             edited_at: None,
             media_processing_state: None,
             media_processing_error: None,
+            user_id: None,
         }
     }
 
@@ -390,6 +408,7 @@ mod tests {
             is_admin: false,
             owned_post_controls: std::collections::BTreeMap::new(),
             votes: Default::default(),
+            share_authors: Default::default(),
         };
         let after = ThreadPageData {
             board,
@@ -399,6 +418,7 @@ mod tests {
             is_admin: false,
             owned_post_controls: std::collections::BTreeMap::new(),
             votes: Default::default(),
+            share_authors: Default::default(),
         };
 
         assert_ne!(
@@ -424,6 +444,7 @@ mod tests {
             is_admin: false,
             owned_post_controls: std::collections::BTreeMap::new(),
             votes: Default::default(),
+            share_authors: Default::default(),
         };
 
         pending_post.file_path = Some("test/clip.webm".into());
@@ -438,6 +459,7 @@ mod tests {
             is_admin: false,
             owned_post_controls: std::collections::BTreeMap::new(),
             votes: Default::default(),
+            share_authors: Default::default(),
         };
 
         assert_ne!(
@@ -457,6 +479,7 @@ mod tests {
             is_admin: false,
             owned_post_controls: std::collections::BTreeMap::new(),
             votes: Default::default(),
+            share_authors: Default::default(),
         };
         let after = ThreadPageData {
             board,
@@ -466,6 +489,7 @@ mod tests {
             is_admin: false,
             owned_post_controls: std::collections::BTreeMap::new(),
             votes: Default::default(),
+            share_authors: Default::default(),
         };
 
         assert_ne!(
@@ -485,6 +509,7 @@ mod tests {
             is_admin: false,
             owned_post_controls: std::collections::BTreeMap::new(),
             votes: Default::default(),
+            share_authors: Default::default(),
         };
         let after = ThreadPageData {
             board,
@@ -494,6 +519,7 @@ mod tests {
             is_admin: false,
             owned_post_controls: std::collections::BTreeMap::new(),
             votes: Default::default(),
+            share_authors: Default::default(),
         };
 
         assert_ne!(
@@ -584,6 +610,7 @@ mod tests {
             is_admin: false,
             owned_post_controls: std::collections::BTreeMap::new(),
             votes: std::collections::BTreeMap::from([(1, PostVoteView::default())]),
+            share_authors: Default::default(),
         };
         let after = ThreadPageData {
             board,
@@ -599,6 +626,7 @@ mod tests {
                     my_vote: 1,
                 },
             )]),
+            share_authors: Default::default(),
         };
 
         assert_ne!(

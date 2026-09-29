@@ -1430,6 +1430,13 @@ pub(in crate::server) async fn thread_updates(
             let last_id = posts.iter().map(|p| p.id).max().unwrap_or(since);
             let count = posts.len();
 
+            // Appended posts carry the same share line a full page load would
+            // draw, so the account behind each post is resolved here too.
+            let share_authors = db::post_share_authors(
+                &conn,
+                &posts.iter().map(|post| post.id).collect::<Vec<_>>(),
+            )?;
+
             let mut html = String::new();
             for post in &posts {
                 // show_delete=false, is_admin=false — no user controls in
@@ -1455,45 +1462,49 @@ pub(in crate::server) async fn thread_updates(
                         // full reload restores them along with the viewer's
                         // own score and pressed arrow.
                         vote: None,
-                        share_by: None,
+                        share_by: share_authors.get(&post.id).cloned(),
                     },
                     0,
                 ));
             }
 
-            let refreshed_posts =
-                db::get_posts_by_ids_in_thread(&conn, board.id, thread_id, &refresh_post_ids)?
-                    .into_iter()
-                    .map(|post| RefreshedPostPayload {
-                        id: post.id,
-                        html: crate::templates::render_post(
-                            &post,
-                            &board_short,
-                            "",
-                            crate::templates::thread::RenderPostOpts {
-                                show_delete: false,
-                                is_admin: false,
-                                admin_csrf_token: None,
-                                show_media: true,
-                                allow_editing: false,
-                                allow_self_delete: false,
-                                owned_post_controls: None,
-                                show_poster_ids: thread.board_id == board.id
-                                    && board.show_poster_ids,
-                                collapse_greentext: board.collapse_greentext,
-                                thread_state: Some((thread.sticky, thread.locked, thread.archived)),
-                                thread_op_id: thread.op_id,
-                                video_audio_muted: user_preferences.video_audio_muted,
-                                // No user controls in auto-appended HTML, and a
-                                // full reload restores them along with the
-                                // viewer's own score and pressed arrow.
-                                vote: None,
-                                share_by: None,
-                            },
-                            0,
-                        ),
-                    })
-                    .collect::<Vec<_>>();
+            let refreshed =
+                db::get_posts_by_ids_in_thread(&conn, board.id, thread_id, &refresh_post_ids)?;
+            let refreshed_authors = db::post_share_authors(
+                &conn,
+                &refreshed.iter().map(|post| post.id).collect::<Vec<_>>(),
+            )?;
+            let refreshed_posts = refreshed
+                .into_iter()
+                .map(|post| RefreshedPostPayload {
+                    id: post.id,
+                    html: crate::templates::render_post(
+                        &post,
+                        &board_short,
+                        "",
+                        crate::templates::thread::RenderPostOpts {
+                            show_delete: false,
+                            is_admin: false,
+                            admin_csrf_token: None,
+                            show_media: true,
+                            allow_editing: false,
+                            allow_self_delete: false,
+                            owned_post_controls: None,
+                            show_poster_ids: thread.board_id == board.id && board.show_poster_ids,
+                            collapse_greentext: board.collapse_greentext,
+                            thread_state: Some((thread.sticky, thread.locked, thread.archived)),
+                            thread_op_id: thread.op_id,
+                            video_audio_muted: user_preferences.video_audio_muted,
+                            // No user controls in auto-appended HTML, and a
+                            // full reload restores them along with the
+                            // viewer's own score and pressed arrow.
+                            vote: None,
+                            share_by: refreshed_authors.get(&post.id).cloned(),
+                        },
+                        0,
+                    ),
+                })
+                .collect::<Vec<_>>();
 
             Ok(ThreadUpdatesRender {
                 html,

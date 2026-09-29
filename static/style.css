@@ -1528,11 +1528,31 @@ html:not([data-theme]) .profile-name { text-shadow: 0 0 10px rgba(0,255,65,0.4);
   white-space: nowrap;
 }
 
-/* The share control is drawn only for a signed-in reader, so the strip under a
-   post header belongs to them entirely and is not competing with anything. */
+/* The name in a share is the account behind the post rather than the reader's
+   own, so the strip under a post header is public and has to read like the rest
+   of the page. */
 
 .post-share-by strong {
   color: var(--text);
+}
+
+/* The name is a link to that account's profile, so it is underlined and
+   coloured like every other link on the page and keeps the share's own weight
+   rather than falling back to the link style. */
+.post-share-author {
+  color: inherit;
+  text-decoration-color: var(--border);
+  transition: color .12s ease, text-decoration-color .12s ease;
+}
+
+.post-share-author strong {
+  color: var(--green);
+}
+
+.post-share-author:hover,
+.post-share-author:focus-visible {
+  color: var(--green-bright);
+  text-decoration-color: var(--green);
 }
 
 /* An opening post is what a thread is shared by, so its share line is stated

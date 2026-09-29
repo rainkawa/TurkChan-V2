@@ -10,14 +10,14 @@ const MAX_JOB_ATTEMPTS: i64 = 3;
 const POST_SELECT_COLUMNS: &str = "id, thread_id, board_id, name, tripcode, subject, body, \
     body_html, ip_hash, file_path, file_name, file_size, thumb_path, mime_type, created_at, \
     deletion_token, is_op, media_type, audio_file_path, audio_file_name, audio_file_size, \
-    audio_mime_type, edited_at, media_processing_state, media_processing_error";
+    audio_mime_type, edited_at, media_processing_state, media_processing_error, user_id";
 /// Shared projection used to decode a complete post selected with alias `p`.
 const POST_SELECT_COLUMNS_WITH_P_ALIAS: &str =
     "p.id, p.thread_id, p.board_id, p.name, p.tripcode, p.subject, p.body, p.body_html, \
     p.ip_hash, p.file_path, p.file_name, p.file_size, p.thumb_path, p.mime_type, p.created_at, \
     p.deletion_token, p.is_op, p.media_type, p.audio_file_path, p.audio_file_name, \
     p.audio_file_size, p.audio_mime_type, p.edited_at, p.media_processing_state, \
-    p.media_processing_error";
+    p.media_processing_error, p.user_id";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// State assigned after recording a background-job failure.
@@ -105,7 +105,7 @@ pub struct RecentBackgroundJob {
 }
 
 // Row mapper
-/// Map a full post row (25 columns, selected in the canonical order used
+/// Map a full post row (26 columns, selected in the canonical order used
 /// throughout this module) into a Post struct.
 ///
 /// The expected column count is asserted here so any future change
@@ -122,6 +122,7 @@ pub struct RecentBackgroundJob {
 ///   6  body          14 `created_at`     22 `edited_at`
 ///   7  `body_html`     15 `deletion_token` 23 `media_processing_state`
 ///                                           24 `media_processing_error`
+///                                           25 `user_id`
 ///
 /// # Errors
 /// Returns an error if the database operation fails.
@@ -163,6 +164,7 @@ pub(super) fn map_post(row: &rusqlite::Row<'_>) -> rusqlite::Result<Post> {
         edited_at: row.get(22)?,
         media_processing_state,
         media_processing_error,
+        user_id: row.get(25)?,
     })
 }
 
@@ -916,7 +918,8 @@ pub fn search_posts(
                 posts.mime_type, posts.created_at, posts.deletion_token, posts.is_op,
                 posts.media_type, posts.audio_file_path, posts.audio_file_name,
                 posts.audio_file_size, posts.audio_mime_type, posts.edited_at,
-                posts.media_processing_state, posts.media_processing_error
+                posts.media_processing_state, posts.media_processing_error,
+                posts.user_id
          FROM posts
          JOIN posts_fts ON posts_fts.rowid = posts.id
          WHERE posts.board_id = ?1 AND posts_fts MATCH ?2

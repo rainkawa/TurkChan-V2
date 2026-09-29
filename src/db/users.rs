@@ -164,6 +164,48 @@ pub fn find_user_by_id(conn: &rusqlite::Connection, user_id: i64) -> Result<Opti
         .context("Failed to look up user account")?)
 }
 
+/// Map each of the given posts to the login name of the account that wrote it.
+///
+/// Only a post linked to an account appears in the result. A post written
+/// before accounts existed, one posted without signing in, and one whose poster
+/// asked to keep it off their profile all carry no `user_id`, and a share is
+/// named after the account behind the post rather than after the name typed
+/// into the form: a name is free text, so reading it as an identity would let
+/// anyone publish a share in somebody else's name.
+///
+/// # Errors
+/// Returns an error if the database query fails.
+pub fn post_share_authors(
+    conn: &rusqlite::Connection,
+    post_ids: &[i64],
+) -> Result<HashMap<i64, String>> {
+    if post_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let placeholders = post_ids
+        .iter()
+        .enumerate()
+        .map(|(index, _)| format!("?{}", index + 1))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let sql = format!(
+        "SELECT p.id, u.username
+         FROM posts p
+         JOIN users u ON u.id = p.user_id
+         WHERE p.id IN ({placeholders})"
+    );
+    let mut stmt = conn.prepare_cached(&sql)?;
+    let rows = stmt.query_map(rusqlite::params_from_iter(post_ids.iter().copied()), |row| {
+        Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+    })?;
+    let mut authors = HashMap::with_capacity(post_ids.len());
+    for row in rows {
+        let (post_id, username) = row?;
+        authors.insert(post_id, username);
+    }
+    Ok(authors)
+}
+
 /// Count the registered accounts.
 ///
 /// # Errors
@@ -1224,6 +1266,62 @@ mod tests {
             "a search matches the username as well as the display name"
         );
         assert!(search_users(&conn, "yok-boyle-bir-hesap", 25)?.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    #[expect(
+        clippy::panic_in_result_fn,
+        reason = "test assertions intentionally panic on failure"
+    )]
+    /// A share is named after the account the post is linked to, and a post
+    /// that belongs to nobody is named after nobody. The name typed into the
+    /// form is free text and is not read here at all, so it cannot put a share
+    /// in another account's name — which is the whole point: a share is a
+    /// claim about who posted, and only the account row can support one.
+    fn a_share_is_named_after_the_account_behind_the_post() -> Result<()> {
+        let conn = pre_account_database()?;
+        normalize_database_schema_version(&conn)?;
+        let hash = crate::utils::crypto::hash_password("Hunter2Hunter2")?;
+        let user_id = create_user(&conn, "anon", "Anonim", &hash, None, "")?;
+        let other_id = create_user(&conn, "komsu", "Komsu", &hash, None, "")?;
+        let thread_id: i64 = conn.query_row("SELECT id FROM threads", [], |row| row.get(0))?;
+
+        let insert = |name: &str| -> Result<i64> {
+            Ok(conn.query_row(
+                "INSERT INTO posts (thread_id, board_id, name, body, body_html, deletion_token)
+                 VALUES (?1, 1, ?2, 'gonderi', '<p>gonderi</p>', 'token') RETURNING id",
+                params![thread_id, name],
+                |row| row.get(0),
+            )?)
+        };
+        // The typed name spells out somebody else's account, and the post
+        // belongs to nobody: nothing may be claimed from that name.
+        let unlinked = insert("Komsu")?;
+        let linked = insert("Komsu")?;
+        let neighbour = insert("anon")?;
+        super::link_post_to_account(&conn, linked, user_id)?;
+        super::link_post_to_account(&conn, neighbour, other_id)?;
+
+        let authors = super::post_share_authors(&conn, &[unlinked, linked, neighbour])?;
+        assert!(
+            !authors.contains_key(&unlinked),
+            "a post that belongs to no account has nobody to attribute a share to"
+        );
+        assert_eq!(
+            authors.get(&linked).map(String::as_str),
+            Some("anon"),
+            "a share is named after the account behind the post, not the typed name"
+        );
+        assert_eq!(
+            authors.get(&neighbour).map(String::as_str),
+            Some("komsu"),
+            "each post is named after its own account"
+        );
+        assert!(
+            super::post_share_authors(&conn, &[])?.is_empty(),
+            "a page with no posts asks for no names"
+        );
         Ok(())
     }
 
