@@ -161,11 +161,75 @@ pub fn record_notification(conn: &rusqlite::Connection, notification: &NewNotifi
     Ok(())
 }
 
-/// Return the reader's notifications, newest first.
+/// The columns both notification reads select, in the order the row reader
+/// expects.
 ///
-/// A row whose kind this build does not know is left out of the list rather
-/// than shown as something unrecognised: a skipped line is better than a line
-/// that lies about what happened.
+/// Written once because the two reads differ only in their ordering and their
+/// cursor, and a projection written twice is a projection that will drift: the
+/// reader below would be indexing a column that the other query no longer
+/// selects, and the row would come back as somebody else's notification.
+const NOTIFICATION_COLUMNS: &str = "n.id, n.kind, u.username, n.summary, n.post_id, \
+     n.thread_id, n.board_id, b.short_name, n.message_id, n.created_at, n.read_at";
+
+/// A notification row before its kind has been accepted.
+struct NotificationRow {
+    id: i64,
+    kind: Option<NotificationKind>,
+    actor_username: Option<String>,
+    summary: String,
+    post_id: Option<i64>,
+    thread_id: Option<i64>,
+    board_id: Option<i64>,
+    board_short: Option<String>,
+    message_id: Option<i64>,
+    created_at: i64,
+    read_at: Option<i64>,
+}
+
+impl NotificationRow {
+    /// Turn a row into a notification, or into nothing at all.
+    ///
+    /// A kind this build has never heard of yields no notification rather
+    /// than a stand-in one. A line skipped is better than a line that says
+    /// something other than what happened, and a list that silently drops an
+    /// unrecognised row keeps working where a list that showed it as an
+    /// older kind would be lying.
+    fn into_notification(self) -> Option<Notification> {
+        Some(Notification {
+            id: self.id,
+            kind: self.kind?,
+            actor_username: self.actor_username,
+            summary: self.summary,
+            post_id: self.post_id,
+            thread_id: self.thread_id,
+            board_id: self.board_id,
+            board_short: self.board_short,
+            message_id: self.message_id,
+            created_at: self.created_at,
+            is_read: self.read_at.is_some(),
+        })
+    }
+}
+
+/// Read one notification row.
+fn map_notification_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<NotificationRow> {
+    let kind: String = row.get(1)?;
+    Ok(NotificationRow {
+        id: row.get(0)?,
+        kind: NotificationKind::from_db_str(&kind),
+        actor_username: row.get(2)?,
+        summary: row.get(3)?,
+        post_id: row.get(4)?,
+        thread_id: row.get(5)?,
+        board_id: row.get(6)?,
+        board_short: row.get(7)?,
+        message_id: row.get(8)?,
+        created_at: row.get(9)?,
+        read_at: row.get(10)?,
+    })
+}
+
+/// Return the reader's notifications, newest first.
 ///
 /// # Errors
 /// Returns an error if the list cannot be read.
@@ -175,47 +239,25 @@ pub fn list_notifications(
     limit: i64,
     offset: i64,
 ) -> Result<Vec<Notification>> {
+    let sql = format!(
+        "SELECT {NOTIFICATION_COLUMNS}
+         FROM notifications AS n
+         LEFT JOIN users AS u ON u.id = n.actor_id
+         LEFT JOIN boards AS b ON b.id = n.board_id
+         WHERE n.user_id = ?1
+         ORDER BY n.id DESC
+         LIMIT ?2 OFFSET ?3"
+    );
     let mut stmt = conn
-        .prepare_cached(
-            "SELECT n.id, n.kind, u.username, n.summary, n.post_id, n.thread_id,
-                    n.board_id, b.short_name, n.created_at, n.read_at
-             FROM notifications AS n
-             LEFT JOIN users AS u ON u.id = n.actor_id
-             LEFT JOIN boards AS b ON b.id = n.board_id
-             WHERE n.user_id = ?1
-             ORDER BY n.id DESC
-             LIMIT ?2 OFFSET ?3",
-        )
+        .prepare_cached(&sql)
         .context("Failed to prepare the notification list")?;
     let rows = stmt
-        .query_map(params![user_id, limit, offset], |row| {
-            let kind: String = row.get(1).ok()?;
-            let read_at: Option<i64> = row.get(10).ok()?;
-            // An unknown kind maps to no row at all rather than to a stand-in,
-            // so a newer build's notification cannot be shown as an older one.
-            let kind = NotificationKind::from_db_str(&kind)?;
-            Ok(Some(Notification {
-                id: row.get(0).ok()?,
-                kind,
-                actor_username: row.get(2).ok()?,
-                summary: row.get(3).ok()?,
-                post_id: row.get(4).ok()?,
-                thread_id: row.get(5).ok()?,
-                board_id: row.get(6).ok()?,
-                board_short: row.get(7).ok()?,
-                message_id: row.get(8).ok()?,
-                created_at: row.get(9).ok()?,
-                is_read: read_at.is_some(),
-            }))
-        })
+        .query_map(params![user_id, limit, offset], map_notification_row)
         .context("Failed to read the notification list")?;
-    // A row whose kind this build has never heard of is left out of the list
-    // rather than shown as something unrecognised: a skipped line is better
-    // than a line that lies about what happened.
     Ok(rows
         .collect::<rusqlite::Result<Vec<_>>>()?
         .into_iter()
-        .flatten()
+        .filter_map(NotificationRow::into_notification)
         .collect())
 }
 
@@ -308,47 +350,25 @@ pub fn notifications_since(
     after_id: i64,
     limit: i64,
 ) -> Result<Vec<Notification>> {
+    let sql = format!(
+        "SELECT {NOTIFICATION_COLUMNS}
+         FROM notifications AS n
+         LEFT JOIN users AS u ON u.id = n.actor_id
+         LEFT JOIN boards AS b ON b.id = n.board_id
+         WHERE n.user_id = ?1 AND n.id > ?2
+         ORDER BY n.id ASC
+         LIMIT ?3"
+    );
     let mut stmt = conn
-        .prepare_cached(
-            "SELECT n.id, n.kind, u.username, n.summary, n.post_id, n.thread_id,
-                    n.board_id, b.short_name, n.created_at, n.read_at
-             FROM notifications AS n
-             LEFT JOIN users AS u ON u.id = n.actor_id
-             LEFT JOIN boards AS b ON b.id = n.board_id
-             WHERE n.user_id = ?1 AND n.id > ?2
-             ORDER BY n.id ASC
-             LIMIT ?3",
-        )
+        .prepare_cached(&sql)
         .context("Failed to prepare the notification poll")?;
     let rows = stmt
-        .query_map(params![user_id, after_id, limit], |row| {
-            let kind: String = row.get(1).ok()?;
-            let read_at: Option<i64> = row.get(10).ok()?;
-            // An unknown kind maps to no row at all rather than to a stand-in,
-            // so a newer build's notification cannot be shown as an older one.
-            let kind = NotificationKind::from_db_str(&kind)?;
-            Ok(Some(Notification {
-                id: row.get(0).ok()?,
-                kind,
-                actor_username: row.get(2).ok()?,
-                summary: row.get(3).ok()?,
-                post_id: row.get(4).ok()?,
-                thread_id: row.get(5).ok()?,
-                board_id: row.get(6).ok()?,
-                board_short: row.get(7).ok()?,
-                message_id: row.get(8).ok()?,
-                created_at: row.get(9).ok()?,
-                is_read: read_at.is_some(),
-            }))
-        })
+        .query_map(params![user_id, after_id, limit], map_notification_row)
         .context("Failed to read the notification poll")?;
-    // A row whose kind this build has never heard of is left out of the list
-    // rather than shown as something unrecognised: a skipped line is better
-    // than a line that lies about what happened.
     Ok(rows
         .collect::<rusqlite::Result<Vec<_>>>()?
         .into_iter()
-        .flatten()
+        .filter_map(NotificationRow::into_notification)
         .collect())
 }
 
