@@ -443,6 +443,10 @@ impl AccountSettingsNotice {
 /// because it is one file and one submit, while the password keeps its own
 /// form so a mistyped current password never costs the visitor the rest of the
 /// form.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the screen renders the saved account, the shared layout context, and the notice together"
+)]
 #[must_use]
 pub fn account_settings_page(
     settings: &AccountSettings,
@@ -450,7 +454,8 @@ pub fn account_settings_page(
     current_theme: Option<&str>,
     preferences: UserPreferences,
     tokens: &AccountSettingsTokens,
-    account_menu_html: &str,
+    account: Option<&AccountMenu>,
+    account_menu_csrf: &str,
     notice: &AccountSettingsNotice,
 ) -> String {
     let notice_html = if notice.message.is_empty() {
@@ -566,7 +571,8 @@ pub fn account_settings_page(
         false,
         "/account/edit",
         preferences,
-        account_menu_html,
+        account,
+        account_menu_csrf,
     )
 }
 
@@ -602,6 +608,7 @@ mod tests {
                 layout: "layout-token".to_owned(),
                 form: "form-token".to_owned(),
             },
+            None,
             "",
             notice,
         )

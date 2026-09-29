@@ -219,7 +219,8 @@ pub(in crate::server) async fn profile(
         current_theme.as_deref(),
         user_preferences,
         &csrf,
-        &crate::templates::auth::account_menu_html(account_menu, &menu_csrf),
+        account_menu,
+        &menu_csrf,
     );
 
     let mut response = Html(html).into_response();

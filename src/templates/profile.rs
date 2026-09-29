@@ -14,6 +14,7 @@
 use std::collections::HashMap;
 
 use crate::models::{Board, Pagination, ProfilePost, ProfileStats, ProfileThread, User};
+use crate::templates::auth::{account_initial, avatar_version, AccountMenu};
 use crate::templates::{fmt_ts_short, UserPreferences};
 use crate::utils::sanitize::{escape_html, render_post_excerpt};
 use chrono::{Datelike as _, TimeZone as _};
@@ -137,7 +138,12 @@ fn fmt_account_age(ts: i64) -> String {
     };
     let now = chrono::Local::now();
     let mut years = now.year() - created.year();
-    let mut months = i32::from(now.month()) - i32::from(created.month());
+    // `month()` hands back a `u32` and the count is compared with an `i32`,
+    // so the two are converted rather than cast: a month never reaches the
+    // range that does not fit, and a calendar field is not a number to guess
+    // about with `as`.
+    let mut months = i32::try_from(now.month()).unwrap_or(0)
+        - i32::try_from(created.month()).unwrap_or(0);
     // The day of the month is what decides the last, partial month: an account
     // born on the 30th is a month old on the 28th of the next month only if
     // that month is long enough, and borrowing thirty days is close enough for
@@ -196,16 +202,14 @@ fn render_avatar(account: &User) -> String {
         return format!(
             r#"<img class="profile-avatar" src="/auth/avatar/{user_id}?v={version}" width="104" height="104" alt="{alt}">"#,
             user_id = account.id,
-            version = escape_html(&crate::templates::auth::avatar_version(
-                account.avatar_file.as_deref(),
-            )),
+            version = escape_html(&avatar_version(account.avatar_file.as_deref())),
             alt = escape_html(&account.display_name),
         );
     }
     format!(
         r#"<span class="profile-avatar profile-avatar-letter" role="img" aria-label="{alt}">{initial}</span>"#,
         alt = escape_html(&account.display_name),
-        initial = escape_html(&crate::templates::auth::account_initial(
+        initial = escape_html(&account_initial(
             &account.display_name,
             &account.username,
         )),
@@ -360,8 +364,9 @@ fn render_empty(tab: ProfileTab) -> String {
 /// Renders a public account profile.
 ///
 /// `referenced_boards` resolves the `>>N` references inside the listed excerpts
-/// to the board that owns the referenced post, and `account_menu_html` is the
-/// pre-rendered header menu the shared layout embeds.
+/// to the board that owns the referenced post. `viewer` is the identity the
+/// page is being rendered for — the reader's own, not the profile's — and the
+/// shared layout draws both the header menu and the bottom navigation from it.
 #[must_use]
 pub fn profile_page(
     account: &User,
@@ -375,7 +380,8 @@ pub fn profile_page(
     current_theme: Option<&str>,
     user_preferences: UserPreferences,
     csrf_token: &str,
-    account_menu_html: &str,
+    viewer: Option<&AccountMenu>,
+    account_menu_csrf: &str,
 ) -> String {
     let mut feed = String::new();
     match tab {
@@ -420,7 +426,8 @@ pub fn profile_page(
         false,
         &format!("/u/{}", account.username),
         user_preferences,
-        account_menu_html,
+        viewer,
+        account_menu_csrf,
     )
 }
 
@@ -499,6 +506,7 @@ mod tests {
             None,
             UserPreferences::default(),
             "csrf",
+            None,
             "",
         );
 
@@ -530,6 +538,7 @@ mod tests {
             None,
             UserPreferences::default(),
             "csrf",
+            None,
             "",
         )
     }
@@ -575,6 +584,7 @@ mod tests {
             None,
             UserPreferences::default(),
             "csrf",
+            None,
             "",
         );
 
@@ -604,6 +614,7 @@ mod tests {
             None,
             UserPreferences::default(),
             "csrf",
+            None,
             "",
         );
         assert!(posts_html.contains("1 yanıt"));
@@ -624,6 +635,7 @@ mod tests {
             None,
             UserPreferences::default(),
             "csrf",
+            None,
             "",
         );
         assert!(empty_html.contains("henüz yorum yazmamış."));
@@ -646,6 +658,7 @@ mod tests {
             None,
             UserPreferences::default(),
             "csrf",
+            None,
             "",
         );
 
@@ -733,6 +746,7 @@ mod tests {
             None,
             UserPreferences::default(),
             "csrf",
+            None,
             "",
         )
     }

@@ -812,7 +812,7 @@ const TAB_NOTIFICATIONS: &str = r##"<svg viewBox="0 0 24 24" aria-hidden="true" 
 /// the bar at the top of the feed, and from the board it belongs to — because a
 /// bar with a create button in it has nowhere to put the five places a reader
 /// actually goes.
-fn tab_bar_html(current_path: &str, account: Option<&crate::templates::auth::AccountMenu>) -> String {
+fn tab_bar_html(current_path: &str, account: Option<&AccountMenu>) -> String {
     // The sign-in and registration screens are the one place a signed-out
     // visitor lands, and every slot but "home" answers a signed-out visitor
     // with a refusal. A bar of five doors where four are locked is not a
@@ -836,11 +836,9 @@ fn tab_bar_html(current_path: &str, account: Option<&crate::templates::auth::Acc
     let profile_face = account.map_or_else(String::new, |account| match (account.user_id, &account.avatar_file) {
         (Some(user_id), Some(_)) => format!(
             r#"<img src="/auth/avatar/{user_id}?v={version}" alt="" width="24" height="24" loading="lazy" decoding="async">"#,
-            version = escape_html(&crate::templates::auth::avatar_version(
-                account.avatar_file.as_deref(),
-            )),
+            version = escape_html(&avatar_version(account.avatar_file.as_deref())),
         ),
-        _ => escape_html(&crate::templates::auth::account_initial(
+        _ => escape_html(&account_initial(
             &account.display_name,
             &account.username,
         )),
@@ -891,10 +889,10 @@ pub fn base_layout_with_account(
     collapse_greentext: bool,
     current_path: &str,
     preferences: UserPreferences,
-    account: Option<&crate::templates::auth::AccountMenu>,
+    account: Option<&AccountMenu>,
     account_menu_csrf: &str,
 ) -> String {
-    let account_menu_html = crate::templates::auth::account_menu_html(account, account_menu_csrf);
+    let account_menu_markup = account_menu_html(account, account_menu_csrf);
     let board_links = board_nav_html_for_board(boards, preferences, board_short);
     // The account menu is rendered only when somebody is signed in, so an
     // empty one is this layout's record of a signed-out visitor. The bar and the
@@ -998,6 +996,10 @@ pub fn base_layout_with_account(
     };
     let active_theme_value_attr = format!(r#" data-active-theme="{}""#, escape_html(&active_theme));
     let stylesheet_href = static_asset_url("/static/style.css");
+    // The social layer is loaded last so it overrides the board's own layer
+    // rather than the other way round: the two disagree on almost everything,
+    // and which one wins must not depend on the order this file was written in.
+    let social_stylesheet_href = static_asset_url("/static/social.css");
     let admin_stylesheet_href = static_asset_url("/static/admin.css");
     let theme_init_src = static_asset_url("/static/theme-init.js");
     let main_js_src = static_asset_url("/static/main.js");
@@ -1101,6 +1103,7 @@ pub fn base_layout_with_account(
         title = escape_html(title),
         favicon_head = crate::favicon::favicon_head_html(board_short),
         stylesheet_href = stylesheet_href,
+        social_stylesheet_href = social_stylesheet_href,
         admin_stylesheet_link = admin_stylesheet_link,
         theme_stylesheet_link = theme_stylesheet_link,
         theme_init_src = theme_init_src,
@@ -1114,7 +1117,7 @@ pub fn base_layout_with_account(
         search_icon = ICON_SEARCH,
         topbar_account_links = topbar_account_links,
         rail_account_link = rail_account_link,
-        account_menu_html = account_menu_html,
+        account_menu_html = account_menu_markup,
         forum_name = escape_html(&live_site_name()),
         site_tagline = {
             // An empty configured subtitle would leave a stray line of space in

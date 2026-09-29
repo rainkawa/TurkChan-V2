@@ -1817,7 +1817,6 @@ async fn render_account_edit(
     let (jar, layout_csrf) =
         crate::handlers::board::ensure_csrf_for_request(jar, headers, secure_context);
     let (jar, form_csrf) = ensure_user_csrf(jar, secure, ACCOUNT_CSRF_SCOPE);
-    let account_menu = templates::auth::account_menu_html(menu.as_ref(), &menu_csrf);
 
     let settings = AccountSettings {
         display_name: page.display_name,
@@ -1837,7 +1836,8 @@ async fn render_account_edit(
             layout: layout_csrf,
             form: form_csrf,
         },
-        &account_menu,
+        menu.as_ref(),
+        &menu_csrf,
         &notice,
     );
     Ok((jar, Html(html)).into_response())
