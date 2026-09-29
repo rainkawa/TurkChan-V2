@@ -105,7 +105,7 @@ async fn render_feed(
         let pool = state.db.clone();
         move || -> Result<Vec<crate::models::Board>> {
             let conn = pool.get()?;
-            db::get_all_boards(&conn)
+            Ok(db::get_all_boards(&conn)?)
         }
     })
     .await
