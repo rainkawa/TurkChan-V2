@@ -9,7 +9,8 @@ mod routes;
 
 use super::{
     assets::{
-        serve_admin_css, serve_admin_js, serve_auth_js, serve_css, serve_main_js, serve_theme_init_js,
+        serve_admin_css, serve_admin_js, serve_auth_js, serve_css, serve_main_js, serve_social_css,
+        serve_theme_init_js,
     },
     headers::{
         admin_cache_middleware, hsts_middleware_with_mode, public_cache_middleware,
@@ -28,6 +29,7 @@ pub(super) fn build_router(state: AppState, direct_https: bool) -> Router {
     Router::new()
         .fallback(|| async { crate::error::AppError::NotFound("Sayfa bulunamadı.".into()) })
         .route("/static/style.css", get(serve_css))
+        .route("/static/social.css", get(serve_social_css))
         .route("/static/main.js", get(serve_main_js))
         .route("/static/auth.js", get(serve_auth_js))
         .route("/static/admin.css", get(serve_admin_css))
@@ -370,7 +372,12 @@ mod tests {
     async fn built_in_static_assets_use_versioned_cache_policy() -> TestResult {
         let router = build_router(crate::test_support::app_state(), false);
 
-        for uri in ["/static/style.css", "/static/main.js", "/static/admin.css"] {
+        for uri in [
+            "/static/style.css",
+            "/static/social.css",
+            "/static/main.js",
+            "/static/admin.css",
+        ] {
             let response = router
                 .clone()
                 .oneshot(Request::builder().uri(uri).body(Body::empty())?)

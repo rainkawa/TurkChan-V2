@@ -1466,6 +1466,19 @@ mod tests {
     }
 
     #[test]
+    /// The social layer is linked from the shared layout, after the board's own
+    /// stylesheet, because it is an override and an override loaded first is an
+    /// override that never applies.
+    fn the_layout_links_the_social_layer_after_the_board_stylesheet() {
+        let html = base_layout("Home", None, "<p>body</p>", "", &[], None, None, false, "/");
+
+        let board_sheet = html.find("/static/style.css").unwrap_or(usize::MAX);
+        let social_sheet = html.find("/static/social.css").unwrap_or(0);
+        assert!(social_sheet > board_sheet, "the layer has to come second: {html}");
+        assert!(html.contains("/static/social.css?v="));
+    }
+
+    #[test]
     fn base_layout_hides_nsfw_nav_and_uses_index_links_when_requested() {
         let sfw = Board {
             short_name: "tech".into(),

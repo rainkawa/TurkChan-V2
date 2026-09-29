@@ -7,6 +7,15 @@ use axum::{
 
 /// Embedded public stylesheet.
 static STYLE_CSS: &str = include_str!("../../../static/style.css");
+/// Embedded social design layer.
+///
+/// A second stylesheet rather than a rewrite: the board's own sheet still owns
+/// the themes, the thread markup, and the administration panels, and this one
+/// is loaded after it to give the reading surfaces the shape a phone needs.
+/// It has to be served from its own route — a stylesheet nobody routes is a
+/// stylesheet nobody ever sees, which is the difference between a design and
+/// a file.
+static SOCIAL_CSS: &str = include_str!("../../../static/social.css");
 /// Embedded public JavaScript bundle.
 static MAIN_JS: &str = include_str!("../../../static/main.js");
 /// Embedded registration-wizard JavaScript enhancement.
@@ -62,6 +71,11 @@ pub(super) async fn serve_main_js(req: axum::extract::Request) -> impl IntoRespo
     static_asset_response(&req, MAIN_JS, "application/javascript; charset=utf-8")
 }
 
+/// Serve the social design layer.
+pub(super) async fn serve_social_css(req: axum::extract::Request) -> impl IntoResponse {
+    static_asset_response(&req, SOCIAL_CSS, "text/css; charset=utf-8")
+}
+
 /// Serve the registration-wizard JavaScript enhancement.
 pub(super) async fn serve_auth_js(req: axum::extract::Request) -> impl IntoResponse {
     static_asset_response(&req, AUTH_JS, "application/javascript; charset=utf-8")
@@ -85,7 +99,34 @@ pub(super) async fn serve_theme_init_js(req: axum::extract::Request) -> impl Int
 #[cfg(test)]
 /// Embedded asset contract tests.
 mod tests {
-    use super::{MAIN_JS, STYLE_CSS};
+    use super::{MAIN_JS, SOCIAL_CSS, STYLE_CSS};
+
+    #[test]
+    /// The social layer carries the shell the reading surfaces are built from.
+    ///
+    /// Every selector here was in a file the layout linked but nothing served,
+    /// so the whole design was absent while every test still passed. The layer
+    /// is now routed, and this pins the pieces that make it a phone rather
+    /// than a wide board with a strip under it.
+    fn social_layer_carries_the_shell_the_layout_links() {
+        for expected in [
+            ".tabbar {\n",
+            "grid-template-columns: repeat(5, 1fr);",
+            "position: fixed;",
+            "env(safe-area-inset-bottom, 0px)",
+            ".post-card {\n",
+            ".profile-cover {",
+            ".profile-metrics {",
+            "grid-template-columns: repeat(3, 1fr);",
+            "@media (max-width: 400px)",
+            "@media (prefers-reduced-motion: reduce)",
+        ] {
+            assert!(
+                SOCIAL_CSS.contains(expected),
+                "the social layer should contain {expected:?}"
+            );
+        }
+    }
 
     #[test]
     /// Keeps the mobile preferences sheet within the viewport.
