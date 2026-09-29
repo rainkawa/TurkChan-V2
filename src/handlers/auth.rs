@@ -168,6 +168,11 @@ async fn issue_admin_session(
     let pool = state.db.clone();
     let username = username.to_owned();
     let password = password.to_owned();
+    // Two blocking calls need the name: the first looks the operator up in
+    // `admin_users` under the spelling they typed, the second provisions the
+    // board profile that every page outside the panel asks for. The copy is
+    // taken before the first call consumes the value.
+    let operator_name = username.clone();
     let verified = tokio::task::spawn_blocking(move || -> Result<Option<i64>> {
         let conn = pool.get()?;
         let Some(admin) = db::get_admin_by_username(&conn, &username)? else {
@@ -196,7 +201,6 @@ async fn issue_admin_session(
     // page they had already signed in to.
     let user_session_id = new_session_id();
     let user_sid = user_session_id.clone();
-    let operator_name = username.clone();
     tokio::task::spawn_blocking({
         let pool = state.db.clone();
         move || -> Result<i64> {
