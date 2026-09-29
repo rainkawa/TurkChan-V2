@@ -64,6 +64,7 @@ fn render_post_preview(
             owned_post_controls: None,
             vote: None,
             share_by: None,
+            author: None,
             show_poster_ids: false,
             collapse_greentext: true,
             thread_state: None,
@@ -302,6 +303,8 @@ pub fn thread_page(
     owned_post_controls: &BTreeMap<i64, OwnedPostControls>,
     post_votes: &BTreeMap<i64, crate::db::PostVoteView>,
     share_authors: &BTreeMap<i64, String>,
+    /// The account behind each post, for the identity line in its header.
+    author_profiles: &BTreeMap<i64, crate::db::PostAuthorProfile>,
     csrf_token: &str,
     boards: &[Board],
     is_admin: bool,
@@ -476,6 +479,9 @@ pub fn thread_page(
                 },
                 vote: votes.get(&post.id).copied(),
                 share_by: share_authors.get(&post.id).cloned(),
+                author: author_profiles.get(&post.id).cloned(),
+                author: author_profiles.get(&post.id).cloned(),
+                author: author_profiles.get(&post.id).cloned(),
                 show_poster_ids: board.show_poster_ids,
                 collapse_greentext: board.collapse_greentext,
                 thread_state: Some((thread.sticky, thread.locked, thread.archived)),
@@ -728,6 +734,12 @@ pub struct RenderPostOpts {
     /// A share is attributed to that account rather than to the name in the
     /// form, so a share can only ever be published by the person it names.
     pub share_by: Option<String>,
+    /// The account behind the post, for the identity shown in its header.
+    ///
+    /// Read from the join rather than from the post: the name in a post is free
+    /// text, so a role or an avatar taken from it would be a claim the reader
+    /// could not check.
+    pub author: Option<crate::db::PostAuthorProfile>,
 }
 
 /// Render one stored tripcode for display.
@@ -1103,6 +1115,7 @@ pub fn render_post(
         video_audio_muted,
         vote,
         share_by,
+        author,
     } = opts;
     let poster_id = render_poster_id(post, show_poster_ids);
     let poster_id_html = poster_id.as_ref().map_or_else(String::new, |poster_id| {
@@ -1163,13 +1176,61 @@ pub fn render_post(
         .map(|state| format!(r#" data-media-processing-state="{}""#, escape_html(state)))
         .unwrap_or_default();
 
+    // An account-backed post is identified by its account, not by the free text
+    // in the form: the name links to the profile, the role is shown because a
+    // moderator's word should read differently, and the avatar comes from the
+    // account. A post written without one falls back to the typed name.
+    let (avatar_html, name_html, role_html) = author.as_ref().map_or_else(
+        || {
+            (
+                format!(
+                    r#"<span class="post-avatar" aria-hidden="true">{initial}</span>"#,
+                    initial = avatar_initial(&post.name),
+                ),
+                format!(r#"<strong class="name">{name}</strong>"#, name = escape_html(&post.name)),
+                String::new(),
+            )
+        },
+        |profile| {
+            let avatar = match profile.avatar_file.as_deref() {
+                Some(file) if !file.trim().is_empty() => format!(
+                    r#"<a class="post-avatar" href="/u/{username}" aria-label="{label} profili"><img src="{file}" alt="" loading="lazy" decoding="async"></a>"#,
+                    username = escape_html(&profile.username),
+                    label = escape_html(&profile.display_name),
+                    file = escape_html(file),
+                ),
+                _ => format!(
+                    r#"<a class="post-avatar is-initial" href="/u/{username}" aria-label="{label} profili">{initial}</a>"#,
+                    username = escape_html(&profile.username),
+                    label = escape_html(&profile.display_name),
+                    initial = avatar_initial(&profile.display_name),
+                ),
+            };
+            let role = if profile.role == crate::roles::UserRole::User {
+                String::new()
+            } else {
+                format!(
+                    r#"<span class="post-role" data-role="{role}">{role_label}</span>"#,
+                    role = escape_html(profile.role.as_str()),
+                    role_label = escape_html(profile.role.label()),
+                )
+            };
+            let name = format!(
+                r#"<a class="name" href="/u/{username}">{display}</a>"#,
+                username = escape_html(&profile.username),
+                display = escape_html(&profile.display_name),
+            );
+            (avatar, name, role)
+        },
+    );
+
     let mut html = format!(
         r##"<div class="post{op_class}" id="p{id}" data-thread-id="{thread_id}"{poster_attr}{media_processing_state_attr}>
 <div class="post-head">
-<span class="post-avatar" aria-hidden="true">{initial}</span>
+{avatar_html}
 <div class="post-head-main">
   <div class="post-head-line">
-    <strong class="name">{name}</strong>{tripcode}{poster_id_html}
+    {name_html}{role_html}{tripcode}{poster_id_html}
     <a class="post-num" href="#p{id}" data-action="append-reply" data-id="{id}">No.{id}</a>{post_state_badges}{media_processing_badge}
   </div>
   <div class="post-head-line post-head-sub">
@@ -1184,8 +1245,9 @@ pub fn render_post(
         thread_id = post.thread_id,
         poster_attr = poster_attr,
         media_processing_state_attr = media_processing_state_attr,
-        initial = avatar_initial(&post.name),
-        name = escape_html(&post.name),
+        avatar_html = avatar_html,
+        name_html = name_html,
+        role_html = role_html,
         tripcode = tripcode_html,
         poster_id_html = poster_id_html,
         ts = post.created_at,
@@ -1988,6 +2050,9 @@ mod tests {
                 owned_post_controls: None,
                 vote: None,
                 share_by: None,
+                author: None,
+                author: None,
+                author: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -2032,6 +2097,9 @@ mod tests {
                 owned_post_controls: None,
                 vote: None,
                 share_by: None,
+                author: None,
+                author: None,
+                author: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -2071,6 +2139,9 @@ mod tests {
                 owned_post_controls: None,
                 vote: None,
                 share_by: None,
+                author: None,
+                author: None,
+                author: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -2107,6 +2178,9 @@ mod tests {
                 owned_post_controls: None,
                 vote: None,
                 share_by: None,
+                author: None,
+                author: None,
+                author: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -2149,6 +2223,9 @@ mod tests {
                 owned_post_controls: None,
                 vote: None,
                 share_by: None,
+                author: None,
+                author: None,
+                author: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -2197,6 +2274,9 @@ mod tests {
                 owned_post_controls: None,
                 vote: None,
                 share_by: None,
+                author: None,
+                author: None,
+                author: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -2229,6 +2309,9 @@ mod tests {
                 owned_post_controls: None,
                 vote: None,
                 share_by: None,
+                author: None,
+                author: None,
+                author: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: Some((true, true, true)),
@@ -2264,6 +2347,9 @@ mod tests {
                 owned_post_controls: None,
                 vote: None,
                 share_by: None,
+                author: None,
+                author: None,
+                author: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -2298,6 +2384,9 @@ mod tests {
                 owned_post_controls: None,
                 vote: None,
                 share_by: None,
+                author: None,
+                author: None,
+                author: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -2338,6 +2427,9 @@ mod tests {
                 owned_post_controls: None,
                 vote: None,
                 share_by: None,
+                author: None,
+                author: None,
+                author: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -2373,6 +2465,9 @@ mod tests {
                 owned_post_controls: None,
                 vote: None,
                 share_by: None,
+                author: None,
+                author: None,
+                author: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -2412,6 +2507,9 @@ mod tests {
                 owned_post_controls: None,
                 vote: None,
                 share_by: None,
+                author: None,
+                author: None,
+                author: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -2445,6 +2543,9 @@ mod tests {
                 owned_post_controls: None,
                 vote: None,
                 share_by: None,
+                author: None,
+                author: None,
+                author: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -2477,6 +2578,9 @@ mod tests {
                 owned_post_controls: None,
                 vote: None,
                 share_by: None,
+                author: None,
+                author: None,
+                author: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -2501,6 +2605,9 @@ mod tests {
                 owned_post_controls: None,
                 vote: None,
                 share_by: None,
+                author: None,
+                author: None,
+                author: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,
@@ -2535,6 +2642,9 @@ mod tests {
                 owned_post_controls: None,
                 vote: None,
                 share_by: None,
+                author: None,
+                author: None,
+                author: None,
                 show_poster_ids: false,
                 collapse_greentext: true,
                 thread_state: None,

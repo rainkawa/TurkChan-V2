@@ -206,6 +206,73 @@ pub fn post_share_authors(
     Ok(authors)
 }
 
+/// The account a post belongs to, as a thread page needs to show it.
+///
+/// Posts carry the name that was typed into the form, which is free text, so
+/// the account behind a post is read from the join rather than from the post.
+/// The avatar is optional because an account may not have chosen one, and the
+/// role is carried because a moderator's post should read differently from an
+/// ordinary one without the reader having to know who wrote it.
+#[derive(Debug, Clone)]
+pub struct PostAuthorProfile {
+    /// Login name, used for the profile link.
+    pub username: String,
+    /// Name shown next to the avatar.
+    pub display_name: String,
+    /// Account role, rendered as a badge.
+    pub role: crate::roles::UserRole,
+    /// Stored avatar file, when the account has chosen one.
+    pub avatar_file: Option<String>,
+}
+
+/// Load the account behind each of the given posts.
+///
+/// One query for the whole page: a post carries a nullable `user_id`, so the
+/// join drops the ones written before accounts existed, which is correct
+/// because there is no account to describe.
+///
+/// # Errors
+/// Returns an error if the database query fails.
+pub fn post_author_profiles(
+    conn: &rusqlite::Connection,
+    post_ids: &[i64],
+) -> Result<HashMap<i64, PostAuthorProfile>> {
+    if post_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let placeholders = post_ids
+        .iter()
+        .enumerate()
+        .map(|(index, _)| format!("?{}", index + 1))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let sql = format!(
+        "SELECT p.id, u.username, u.display_name, u.role, u.avatar_file
+         FROM posts p
+         JOIN users u ON u.id = p.user_id
+         WHERE p.id IN ({placeholders})"
+    );
+    let mut stmt = conn.prepare_cached(&sql)?;
+    let rows = stmt.query_map(rusqlite::params_from_iter(post_ids.iter().copied()), |row| {
+        let role: String = row.get(3)?;
+        Ok((
+            row.get::<_, i64>(0)?,
+            PostAuthorProfile {
+                username: row.get(1)?,
+                display_name: row.get(2)?,
+                role: crate::roles::UserRole::from_stored(&role),
+                avatar_file: row.get(4)?,
+            },
+        ))
+    })?;
+    let mut profiles = HashMap::with_capacity(post_ids.len());
+    for row in rows {
+        let (post_id, profile) = row?;
+        profiles.insert(post_id, profile);
+    }
+    Ok(profiles)
+}
+
 /// Count the registered accounts.
 ///
 /// # Errors

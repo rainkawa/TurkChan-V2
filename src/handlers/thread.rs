@@ -1432,10 +1432,9 @@ pub(in crate::server) async fn thread_updates(
 
             // Appended posts carry the same share line a full page load would
             // draw, so the account behind each post is resolved here too.
-            let share_authors = db::post_share_authors(
-                &conn,
-                &posts.iter().map(|post| post.id).collect::<Vec<_>>(),
-            )?;
+            let post_ids = posts.iter().map(|post| post.id).collect::<Vec<_>>();
+            let share_authors = db::post_share_authors(&conn, &post_ids)?;
+            let author_profiles = db::post_author_profiles(&conn, &post_ids)?;
 
             let mut html = String::new();
             for post in &posts {
@@ -1463,6 +1462,7 @@ pub(in crate::server) async fn thread_updates(
                         // own score and pressed arrow.
                         vote: None,
                         share_by: share_authors.get(&post.id).cloned(),
+                        author: author_profiles.get(&post.id).cloned(),
                     },
                     0,
                 ));
@@ -1470,10 +1470,9 @@ pub(in crate::server) async fn thread_updates(
 
             let refreshed =
                 db::get_posts_by_ids_in_thread(&conn, board.id, thread_id, &refresh_post_ids)?;
-            let refreshed_authors = db::post_share_authors(
-                &conn,
-                &refreshed.iter().map(|post| post.id).collect::<Vec<_>>(),
-            )?;
+            let refreshed_post_ids = refreshed.iter().map(|post| post.id).collect::<Vec<_>>();
+            let refreshed_authors = db::post_share_authors(&conn, &refreshed_post_ids)?;
+            let refreshed_profiles = db::post_author_profiles(&conn, &refreshed_post_ids)?;
             let refreshed_posts = refreshed
                 .into_iter()
                 .map(|post| RefreshedPostPayload {
@@ -1500,6 +1499,7 @@ pub(in crate::server) async fn thread_updates(
                             // viewer's own score and pressed arrow.
                             vote: None,
                             share_by: refreshed_authors.get(&post.id).cloned(),
+                            author: refreshed_profiles.get(&post.id).cloned(),
                         },
                         0,
                     ),

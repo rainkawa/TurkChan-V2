@@ -299,6 +299,7 @@ pub(in crate::server) async fn api_post_preview(
                     // does, so the account behind the post is resolved here
                     // rather than left out until a full page load.
                     let authors = db::post_share_authors(&conn, &[p.id])?;
+                    let author_profiles = db::post_author_profiles(&conn, &[p.id])?;
                     let html = templates::render_post(
                         &p,
                         &board_short,
@@ -321,6 +322,7 @@ pub(in crate::server) async fn api_post_preview(
                             // resolved on the thread page, not here.
                             vote: None,
                             share_by: authors.get(&p.id).cloned(),
+                            author: author_profiles.get(&p.id).cloned(),
                         },
                         0, // no edit window
                     );

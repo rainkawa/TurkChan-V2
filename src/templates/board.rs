@@ -1274,6 +1274,7 @@ fn render_thread_summary(
                 // thread a reader opens rather than to a preview of it.
                 vote: None,
                 share_by: None,
+                author: None,
             },
             0,
         ));
@@ -1770,6 +1771,7 @@ pub fn search_page(
                     // resolved.
                     vote: None,
                     share_by: None,
+                    author: None,
                 },
                 0,
             ));
