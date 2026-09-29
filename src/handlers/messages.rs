@@ -73,8 +73,6 @@ pub(in crate::server) struct DeleteMessageForm {
 /// Form fields submitted by the leave control.
 #[derive(Debug, Deserialize)]
 pub(in crate::server) struct LeaveConversationForm {
-    /// The conversation being left.
-    conversation_id: i64,
     /// Where the press happened.
     return_to: Option<String>,
     #[serde(rename = "_csrf")]
