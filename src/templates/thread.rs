@@ -303,7 +303,8 @@ pub fn thread_page(
     owned_post_controls: &BTreeMap<i64, OwnedPostControls>,
     post_votes: &BTreeMap<i64, crate::db::PostVoteView>,
     share_authors: &BTreeMap<i64, String>,
-    /// The account behind each post, for the identity line in its header.
+    // `author_profiles` carries the account behind each post, read for the
+    // identity line in that post's header.
     author_profiles: &BTreeMap<i64, crate::db::PostAuthorProfile>,
     csrf_token: &str,
     boards: &[Board],

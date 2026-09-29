@@ -107,6 +107,14 @@ QUALIFIED = re.compile(
 )
 MODULE_HEAD = re.compile(r"^[ \t]*(?:pub(?:\([^)]*\))?[ \t]+)?mod[ \t]+([a-z_][A-Za-z0-9_]*)[ \t]*\{", re.M)
 USE_STMT = re.compile(r"^[ \t]*(?:pub(?:[ \t]+(?:crate|super|self|in))?[ \t]+)?use[ \t]+", re.M)
+# `r"`, `r#"`, `r##"`: the opening delimiter, captured with its hashes.
+RAW_STRING_OPEN = re.compile(r"(?:^|[^\w])(r(#*))\"")
+# What a raw string looks like after it has been cut short by an accidental
+# terminator: the rest of the markup, not the rest of a Rust expression.
+HTML_TAIL = re.compile(r"<[A-Za-z/][A-Za-z0-9-]*[\s/>]")
+# A raw string is followed by punctuation that ends the expression it is part
+# of. Anything else means the literal ended somewhere it should not have.
+RUST_AFTER_STRING = (',', ')', ';', ']', '}', '.')
 
 # How many braces deep a field list may nest. A literal that closes deeper than
 # this is a match pattern reaching past its own arm, not something to judge.
@@ -468,9 +476,52 @@ def find_over_qualified(paths, texts, bindings):
     return problems
 
 
+def find_unbalanced_raw_strings(paths, raw_texts):
+    """Report a raw string that never closes, or that closes too early.
+
+    A raw string is written `r#"..."#` and is closed by the first `"#` it meets.
+    An HTML fragment such as `href="#top"` contains that pair, so the literal
+    ends in the middle of the markup and every word after it is read as Rust —
+    which the compiler then reports one unknown prefix at a time, hundreds of
+    lines deep from the cause.
+
+    A literal that ends where it should is followed by punctuation or by the
+    next argument. A literal that was cut short is followed by the rest of the
+    markup, which is what the two checks below look for.
+    """
+    problems = []
+    for path in paths:
+        text = raw_texts[path]
+        for m in RAW_STRING_OPEN.finditer(text):
+            # Prose about raw strings quotes the delimiters, so a match that
+            # sits in a comment is a mention rather than a literal.
+            line_start = text.rfind('\n', 0, m.start()) + 1
+            prefix = text[line_start:m.start()]
+            if prefix.lstrip().startswith(('//', '/*', '*')):
+                continue
+            hashes = m.group(2)
+            closer = '"' + hashes
+            end = text.find(closer, m.end())
+            line = text[:m.start()].count('\n') + 1
+            if end < 0:
+                problems.append('%s:%d: raw string `r%s"` is never closed'
+                                % (path, line, hashes))
+                continue
+            tail = text[end + len(closer):end + len(closer) + 400]
+            if tail.lstrip(' \t\r\n')[:1] in RUST_AFTER_STRING:
+                continue
+            if HTML_TAIL.search(tail):
+                problems.append('%s:%d: raw string `r%s"` ends at an accidental '
+                                '`%s` inside its markup, so the rest of the '
+                                'literal is read as Rust — give the literal more '
+                                'hashes' % (path, line, hashes, closer))
+    return problems
+
+
 def main(argv):
     paths = sorted(p for p in argv if p.endswith('.rs'))
-    texts = {p: strip_noise(open(p, encoding='utf-8').read()) for p in paths}
+    raw_texts = {p: open(p, encoding='utf-8').read() for p in paths}
+    texts = {p: strip_noise(text) for p, text in raw_texts.items()}
     by_stem = {}
     for p in paths:
         by_stem.setdefault(p.split('/')[-1][:-3], p)
@@ -478,6 +529,7 @@ def main(argv):
     problems = find_missing_fields(paths, texts, read_structs(texts), read_variants(texts))
     problems += find_glob_collisions(paths, texts, by_stem)
     problems += find_over_qualified(paths, texts, read_bindings(paths, texts))
+    problems += find_unbalanced_raw_strings(paths, raw_texts)
     for problem in problems:
         print(problem)
     return 1 if problems else 0

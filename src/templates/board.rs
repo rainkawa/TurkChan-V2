@@ -851,7 +851,7 @@ pub fn index_page<S: std::hash::BuildHasher>(
     let board_shorts = board_stats
         .iter()
         .map(|stats| (stats.board.id, stats.board.short_name.clone()))
-        .collect::<std::collections::HashMap<_, _>>();
+        .collect::<HashMap<_, _>>();
     let home_rows = home_threads
         .iter()
         .filter_map(|thread| {
@@ -1007,7 +1007,7 @@ pub fn board_page<S: std::hash::BuildHasher>(
         };
         let _ = write!(
             body,
-            r#"<div class="sub-header" data-activity-page="board-index">
+            r##"<div class="sub-header" data-activity-page="board-index">
 {board_banner_html}
 <div class="sub-header-body">
   <div class="sub-avatar" aria-hidden="true">{initial}</div>
@@ -1023,10 +1023,10 @@ pub fn board_page<S: std::hash::BuildHasher>(
   <a class="sub-tab" href="/{short}/catalog">Katalog</a>
   {nav_archive}
 </nav>
-</div>"#,
+</div>"##,
             initial = escape_html(&initial),
             create_button = if can_post {
-                r#"<a class="btn btn-primary" href="#post-form-wrap" data-action="toggle-post-form">+ Yeni Konu</a>"#.to_owned()
+                r##"<a class="btn btn-primary" href="#post-form-wrap" data-action="toggle-post-form">+ Yeni Konu</a>"##.to_owned()
             } else {
                 String::new()
             }
@@ -1504,7 +1504,7 @@ pub fn feed_page(
     kind: FeedKind,
     threads: &[Thread],
     boards: &[Board],
-    pagination: &crate::models::Pagination,
+    pagination: &Pagination,
     current_theme: Option<&str>,
     user_preferences: crate::templates::UserPreferences,
     account: Option<&crate::templates::auth::AccountMenu>,
@@ -1513,7 +1513,7 @@ pub fn feed_page(
     let shorts = boards
         .iter()
         .map(|board| (board.id, board.short_name.clone()))
-        .collect::<std::collections::HashMap<_, _>>();
+        .collect::<HashMap<_, _>>();
 
     let rows = threads
         .iter()

@@ -997,7 +997,7 @@ pub fn base_layout_with_account(
     };
 
     format!(
-        r#"<!DOCTYPE html>
+        r##"<!DOCTYPE html>
 <html lang="tr" class="no-js" data-theme-css-slugs="{custom_theme_slugs}"{default_theme_attr}{theme_slugs_attr}{active_theme_value_attr}{active_theme_attr}>
 <head>
 <meta charset="utf-8">
@@ -1142,7 +1142,7 @@ pub fn base_layout_with_account(
 <script src="{main_js_src}" defer></script>
 {admin_script_tag}
 </body>
-</html>"#,
+</html>"##,
         title = escape_html(title),
         favicon_head = crate::favicon::favicon_head_html(board_short),
         stylesheet_href = stylesheet_href,

@@ -838,7 +838,6 @@ html[data-theme="{slug}"] .error {{
         shadow_soft = shadow_soft,
         shadow_panel = shadow_panel,
         shadow_lift = shadow_lift,
-        button_text = config.button_text_color,
         marker_property = BUILDER_DATA_PROPERTY,
         marker_hex = builder_marker_hex(config),
         background = config.background_color,

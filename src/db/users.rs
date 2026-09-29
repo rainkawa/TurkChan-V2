@@ -220,7 +220,7 @@ pub struct PostAuthorProfile {
     /// Name shown next to the avatar.
     pub display_name: String,
     /// Account role, rendered as a badge.
-    pub role: crate::roles::UserRole,
+    pub role: UserRole,
     /// Stored avatar file, when the account has chosen one.
     pub avatar_file: Option<String>,
 }
@@ -260,7 +260,7 @@ pub fn post_author_profiles(
             PostAuthorProfile {
                 username: row.get(1)?,
                 display_name: row.get(2)?,
-                role: crate::roles::UserRole::from_stored(&role),
+                role: UserRole::from_stored(&role),
                 avatar_file: row.get(4)?,
             },
         ))
