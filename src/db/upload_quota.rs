@@ -77,9 +77,15 @@ impl UploadQuotaLimits {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UploadQuotaExceeded {
     /// The subject's byte budget for this window is spent.
-    Bytes { limit: i64 },
+    Bytes {
+        /// The byte budget that was reached, in bytes.
+        limit: i64,
+    },
     /// The subject's upload-count budget for this window is spent.
-    Uploads { limit: i64 },
+    Uploads {
+        /// The number of uploads allowed before the refusal.
+        limit: i64,
+    },
 }
 
 /// Why a subject's counter was not moved.
