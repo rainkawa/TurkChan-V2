@@ -372,16 +372,19 @@ def find_missing_fields(paths, texts, structs, variants):
 
 def read_exports(texts):
     """Map each file to the public item names it declares, which is what a glob
-    re-exports. A private item is not re-exported and cannot collide."""
+    re-exports. A private item is not re-exported and cannot collide.
+
+    An enum contributes its own name and not its variants: a variant is reached
+    through the enum (`Kind::Reply`), is scoped to it, and is never re-exported
+    by `pub use module::*`. Counting variants here reported a collision
+    between two modules that merely happened to have an `Image` or a `Reply`
+    between them, which the compiler has never once complained about.
+    """
     exports = {}
     for path, text in texts.items():
         names = set(PUB_FN.findall(text)) | set(PUB_STRUCT.findall(text))
         for m in ENUM.finditer(text):
-            end = body_end(text, m.end() - 1)
-            if end < 0:
-                continue
             names.add(m.group(1))
-            names |= set(VARIANT.findall(text[m.end():end]))
         exports[path] = names
     return exports
 

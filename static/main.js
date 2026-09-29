@@ -4435,3 +4435,66 @@ document.addEventListener('click', function (e) {
     }
   }, 3000);
 })();
+
+// Live notifications and unread badges.
+//
+// The page opens one event stream and lets the server push the count down, so
+// the badge is right without the reader refreshing anything. EventSource
+// reconnects on its own, and the stream is scoped to whoever the session says
+// they are: there is no token in the URL to leak and nothing to revoke.
+//
+// With scripting off the badges simply stay at zero, and the notification
+// centre is still a complete page: the live part is a convenience, not the
+// only way to find out what happened.
+(function () {
+  if (typeof window.EventSource !== 'function') return;
+
+  var badge = document.getElementById('unread-notifications-badge');
+  var messageBadge = document.getElementById('unread-messages-badge');
+  if (!badge && !messageBadge) return;
+
+  function showTotal(total) {
+    var value = parseInt(total, 10);
+    if (isNaN(value) || value < 0) return;
+    // The two badges share one number because the server answers with the
+    // total: splitting it again on this side would mean guessing which of the
+    // two grew, and a badge that guesses is worse than one that does not move.
+    if (badge) {
+      badge.textContent = String(value);
+      badge.dataset.unread = String(value);
+      badge.hidden = value === 0;
+    }
+    if (messageBadge) {
+      messageBadge.textContent = String(value);
+      messageBadge.dataset.unread = String(value);
+      messageBadge.hidden = value === 0;
+    }
+  }
+
+  // A reader who was away when something happened sees the same number as one
+  // who was watching, so the count is asked for once on load rather than only
+  // waiting for the next event.
+  fetch('/notifications/unread', { credentials: 'same-origin', headers: { 'Accept': 'text/plain' } })
+    .then(function (response) { return response.ok ? response.text() : '0'; })
+    .then(showTotal)
+    .catch(function () { /* a badge that cannot load simply stays at zero */ });
+
+  var source;
+  try {
+    source = new EventSource('/notifications/stream', { withCredentials: true });
+  } catch (err) {
+    return;
+  }
+  source.addEventListener('unread', function (event) {
+    showTotal(event.data);
+  });
+  source.addEventListener('notification', function (event) {
+    try {
+      var payload = JSON.parse(event.data);
+      if (payload && typeof payload.unread === 'number') showTotal(payload.unread);
+    } catch (err) {
+      // A malformed frame must not tear down a connection that is otherwise
+      // fine; the next poll will bring the count back.
+    }
+  });
+})();

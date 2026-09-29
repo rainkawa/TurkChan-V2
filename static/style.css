@@ -8035,3 +8035,111 @@ html:not([data-theme]) .thread-nav-btn.active { text-shadow: 0 0 8px rgba(0,255,
   color: var(--text-dim);
   font-size: 0.8rem;
 }
+
+/* Direct messages and notifications */
+.account-badge {
+  display: inline-block;
+  min-width: 1.4em;
+  margin-left: 0.35em;
+  padding: 0 0.35em;
+  border-radius: 999px;
+  background: var(--border-glow);
+  color: var(--bg);
+  font-size: 0.75rem;
+  text-align: center;
+  vertical-align: middle;
+}
+.account-badge[hidden] {
+  display: none;
+}
+
+.message-list,
+.message-block-list,
+.notification-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.message-list-item,
+.message-block-item,
+.notification-item {
+  border-bottom: 1px solid var(--border);
+}
+.message-list-link,
+.notification-link {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6em;
+  align-items: baseline;
+  padding: 0.5em 0.25em;
+  color: inherit;
+  text-decoration: none;
+}
+.message-list-item-unread .message-list-name,
+.notification-item-unread .notification-summary {
+  font-weight: 700;
+}
+.notification-item-read {
+  opacity: 0.65;
+}
+.message-list-name,
+.notification-kind {
+  min-width: 8em;
+  font-weight: 600;
+}
+.message-list-preview,
+.notification-summary {
+  flex: 1 1 12em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.message-list-when,
+.notification-when,
+.message-meta {
+  color: var(--text-dim);
+  font-size: 0.85em;
+}
+.message-unread,
+.message-closed {
+  padding: 0 0.4em;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.75em;
+}
+
+.message-thread-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  margin: 0.75em 0;
+}
+.message-bubble {
+  max-width: 80%;
+  padding: 0.5em 0.75em;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.message-bubble-mine {
+  align-self: flex-end;
+  background: var(--bg-input);
+}
+.message-bubble-theirs {
+  align-self: flex-start;
+}
+.message-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.message-delete-form {
+  margin-top: 0.25em;
+  text-align: right;
+}
+.message-compose textarea {
+  width: 100%;
+  font-family: inherit;
+}
+.message-closed-note,
+.messages-empty {
+  color: var(--text-dim);
+}

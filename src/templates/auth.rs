@@ -333,6 +333,8 @@ pub fn account_menu_html(account: Option<&AccountMenu>, csrf_token: &str) -> Str
 <div class="account-menu-panel" id="account-menu-panel">
 <p class="account-menu-identity"><span class="account-menu-name">{display_name}</span><span class="account-menu-handle">@{username}</span></p>
 {profile_item}
+<a class="account-menu-item" href="/messages">Mesajlar <span class="account-badge" id="unread-messages-badge" data-unread="0" hidden>0</span></a>
+<a class="account-menu-item" href="/notifications">Bildirimler <span class="account-badge" id="unread-notifications-badge" data-unread="0" hidden>0</span></a>
 <a class="account-menu-item" href="/account/edit">Profili Düzenle</a>
 {admin_item}
 <form class="account-menu-form" method="POST" action="/logout">

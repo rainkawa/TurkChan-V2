@@ -115,6 +115,54 @@ pub(super) fn public_routes() -> Router<AppState> {
                 .layer(DefaultBodyLimit::max(65_536)),
         )
         .route("/u/{username}", get(crate::handlers::board::profile))
+        // Signed-in private routes. These sit with the other static segments
+        // rather than under a board, because a message belongs to an account
+        // and not to any one board.
+        .route(
+            "/messages",
+            get(crate::handlers::messages::conversations_page),
+        )
+        .route(
+            "/messages/{id}",
+            get(crate::handlers::messages::conversation_page),
+        )
+        .route(
+            "/messages",
+            post(crate::handlers::messages::send_message)
+                .layer(DefaultBodyLimit::max(65_536)),
+        )
+        .route(
+            "/messages/delete",
+            post(crate::handlers::messages::delete_message)
+                .layer(DefaultBodyLimit::max(65_536)),
+        )
+        .route(
+            "/messages/leave/{id}",
+            post(crate::handlers::messages::leave_conversation)
+                .layer(DefaultBodyLimit::max(65_536)),
+        )
+        .route(
+            "/messages/block",
+            post(crate::handlers::messages::set_block)
+                .layer(DefaultBodyLimit::max(65_536)),
+        )
+        .route(
+            "/notifications",
+            get(crate::handlers::messages::notifications_page),
+        )
+        .route(
+            "/notifications/read",
+            post(crate::handlers::messages::mark_read).layer(DefaultBodyLimit::max(65_536)),
+        )
+        .route(
+            "/notifications/unread",
+            get(crate::handlers::messages::unread_count),
+        )
+        .route(
+            "/notifications/stream",
+            get(crate::handlers::messages::notification_stream),
+        )
+        .route("/search", get(crate::handlers::search::global_search))
         .route("/setup", get(crate::handlers::setup::setup_get))
         .route("/setup/review", post(crate::handlers::setup::setup_review))
         .route("/setup/finish", post(crate::handlers::setup::setup_finish))

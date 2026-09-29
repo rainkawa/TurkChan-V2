@@ -8,9 +8,13 @@ pub(crate) mod auth;
 pub(crate) mod banner;
 pub(crate) mod board;
 pub(crate) mod captcha;
+/// Direct messages, notifications, and the live connection.
+pub(crate) mod messages;
 pub(crate) mod favicon;
 pub(crate) mod posting;
 pub(crate) mod render;
+/// Global search.
+pub(crate) mod search;
 pub(crate) mod setup;
 pub(crate) mod thread;
 pub(crate) mod votes;

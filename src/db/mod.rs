@@ -15,6 +15,8 @@ pub mod boards;
 pub mod chan_net;
 /// Durable filesystem-operation records.
 mod fs_ops;
+/// Direct messages, conversations, and account blocks.
+pub mod messages;
 /// Database schema-version bookkeeping.
 mod migrations;
 /// `SQLite` connection-pool creation and startup checks.
@@ -23,6 +25,8 @@ mod pool;
 pub mod posts;
 /// Baseline schema installation, repair, and verification.
 mod schema;
+/// Global search across posts, threads, boards, and accounts.
+pub mod search;
 /// First-run setup state and completion markers.
 pub mod setup;
 /// Built-in and custom theme persistence.
@@ -31,6 +35,8 @@ pub mod themes;
 pub mod threads;
 /// Anonymous board-account persistence and session management.
 pub mod users;
+/// What an account is told about, and what it has read.
+pub mod notifications;
 /// Shared database input and output types.
 mod types;
 /// Anonymous per-thread display preferences.
@@ -50,7 +56,10 @@ pub use admin::*;
 pub use banners::*;
 pub use boards::*;
 pub use fs_ops::*;
+pub use messages::*;
+pub use notifications::*;
 pub use posts::*;
+pub use search::*;
 pub use setup::*;
 pub use themes::*;
 pub use threads::*;

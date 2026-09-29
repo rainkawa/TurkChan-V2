@@ -2,7 +2,7 @@
 
 All notable changes to TurkChan will be documented in this file.
 
-## TurkChan 2.2.1
+## TurkChan 2.2.2
 
 ### Added
 

@@ -19,6 +19,12 @@ pub mod auth;
 pub mod board;
 /// New-thread and reply form fragments.
 pub mod forms;
+/// Direct-message pages.
+pub mod messages;
+/// The notification centre.
+pub mod notifications;
+/// The global search page.
+pub mod search;
 /// Public account profile page.
 pub mod profile;
 /// Thread, post, poll, and self-service action templates.
@@ -769,16 +775,31 @@ pub fn base_layout_with_account(
         )
     };
 
-    let search_bar = board_short.map_or_else(String::new, |b| {
-        format!(
-            r#"<form class="search-form" method="GET" action="/{b}/search">
-<input type="text" name="q" aria-label="/{b}/ içinde ara" placeholder="/{b}/ içinde ara…" maxlength="{max_len}">
+    // Inside a board the box searches that board, where the reader already is.
+    // Anywhere else it searches everything, because a reader who is not
+    // standing in a board has not said which one they meant.
+    let search_bar = board_short.map_or_else(
+        || {
+            format!(
+                r#"<form class="search-form" method="GET" action="/search">
+<input type="text" name="q" aria-label="Sitede ara" placeholder="sitede ara…" maxlength="{max_len}">
 <button type="submit">git</button>
 </form>"#,
-            b = escape_html(b),
-            max_len = SEARCH_QUERY_MAX_CHARS
-        )
-    });
+                max_len = SEARCH_QUERY_MAX_CHARS
+            )
+        },
+        |b| {
+            format!(
+                r#"<form class="search-form" method="GET" action="/{b}/search">
+<input type="text" name="q" aria-label="/{b}/ içinde ara" placeholder="/{b}/ içinde ara…" maxlength="{max_len}">
+<button type="submit" formaction="/search">genel ara</button>
+<button type="submit">git</button>
+</form>"#,
+                b = escape_html(b),
+                max_len = SEARCH_QUERY_MAX_CHARS
+            )
+        },
+    );
 
     let enabled_themes = live_themes();
     let enabled_theme_slugs = enabled_themes

@@ -148,6 +148,48 @@ const BASE_SCHEMA_SQL: &str = "
         PRIMARY KEY (post_id, user_id)
     );
 
+    CREATE TABLE IF NOT EXISTS user_blocks (
+        blocker_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        blocked_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+        PRIMARY KEY (blocker_id, blocked_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS conversations (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+
+    CREATE TABLE IF NOT EXISTS conversation_members (
+        conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        last_read_at    INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (conversation_id, user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS direct_messages (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        sender_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        body            TEXT NOT NULL,
+        created_at      INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+
+    CREATE TABLE IF NOT EXISTS notifications (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        kind        TEXT NOT NULL,
+        actor_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        post_id     INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+        thread_id   INTEGER REFERENCES threads(id) ON DELETE CASCADE,
+        board_id    INTEGER REFERENCES boards(id) ON DELETE CASCADE,
+        message_id  INTEGER REFERENCES direct_messages(id) ON DELETE CASCADE,
+        summary     TEXT NOT NULL DEFAULT '',
+        read_at      INTEGER,
+        created_at  INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+
     CREATE TABLE IF NOT EXISTS bans (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         ip_hash    TEXT NOT NULL,
@@ -377,12 +419,24 @@ const INDEX_SCHEMA_SQL: &str = "
         ON post_submissions(created_at ASC);
     CREATE INDEX IF NOT EXISTS idx_upload_counters_window
         ON upload_counters(window_start ASC);
+    CREATE INDEX IF NOT EXISTS idx_user_blocks_blocked
+        ON user_blocks(blocked_id);
+    CREATE INDEX IF NOT EXISTS idx_conversation_members_user
+        ON conversation_members(user_id);
+    CREATE INDEX IF NOT EXISTS idx_conversation_members_conversation
+        ON conversation_members(conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_direct_messages_conversation
+        ON direct_messages(conversation_id, id);
+    CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
+        ON notifications(user_id, read_at, id DESC);
+    CREATE INDEX IF NOT EXISTS idx_notifications_user_recent
+        ON notifications(user_id, id DESC);
 ";
 
 /// Obsolete theme index accepted only during the known legacy repair path.
 const LEGACY_THEME_SORT_INDEX: &str = "idx_themes_enabled_sort";
 /// Additive indexes introduced after the first package-version baseline.
-const ADDITIVE_BASELINE_INDEXES: [&str; 14] = [
+const ADDITIVE_BASELINE_INDEXES: [&str; 20] = [
     "idx_user_sessions_expires",
     "idx_user_sessions_user",
     "idx_posts_user",
@@ -397,6 +451,12 @@ const ADDITIVE_BASELINE_INDEXES: [&str; 14] = [
     "idx_ban_appeals_ip_created",
     "idx_post_votes_user",
     "idx_upload_counters_window",
+    "idx_user_blocks_blocked",
+    "idx_conversation_members_user",
+    "idx_conversation_members_conversation",
+    "idx_direct_messages_conversation",
+    "idx_notifications_user_unread",
+    "idx_notifications_user_recent",
 ];
 /// Redundant indexes removed when the additive index set is installed.
 const REDUNDANT_LEGACY_INDEXES: [&str; 2] = ["idx_file_hashes", "idx_posts_thread_id"];
@@ -640,6 +700,59 @@ const DOMAIN_INVARIANTS: &[DomainInvariant] = &[
         error: "post_submissions row does not match its post",
     },
     DomainInvariant {
+        table: "notifications",
+        update_columns: "user_id, kind, actor_id, summary, read_at",
+        invalid_predicate: r"
+            typeof(ROW.user_id) <> 'integer'
+            OR ROW.kind NOT IN (
+                'reply', 'mention', 'upvote', 'downvote', 'direct_message',
+                'moderation', 'system'
+            )
+            OR ROW.summary IS NULL OR typeof(ROW.summary) <> 'text'
+            OR (ROW.read_at IS NOT NULL
+                AND (typeof(ROW.read_at) <> 'integer' OR ROW.read_at < 0))
+            OR (ROW.actor_id IS NOT NULL AND ROW.actor_id = ROW.user_id)
+        ",
+        error: "notification row must name a kind and never notify its own recipient",
+    },
+    DomainInvariant {
+        table: "direct_messages",
+        update_columns: "conversation_id, sender_id, body",
+        invalid_predicate: r"
+            typeof(ROW.conversation_id) <> 'integer'
+            OR typeof(ROW.sender_id) <> 'integer'
+            OR typeof(ROW.body) <> 'text' OR length(ROW.body) = 0
+            OR ROW.body <> trim(ROW.body)
+            OR length(ROW.body) > 4000
+            OR NOT EXISTS (
+                SELECT 1 FROM conversation_members AS member
+                WHERE member.conversation_id = ROW.conversation_id
+                  AND member.user_id = ROW.sender_id
+            )
+        ",
+        error: "direct message row must be non-empty and sent by a conversation member",
+    },
+    DomainInvariant {
+        table: "conversation_members",
+        update_columns: "conversation_id, user_id, last_read_at",
+        invalid_predicate: r"
+            typeof(ROW.conversation_id) <> 'integer'
+            OR typeof(ROW.user_id) <> 'integer'
+            OR typeof(ROW.last_read_at) <> 'integer' OR ROW.last_read_at < 0
+        ",
+        error: "conversation member row must hold a non-negative read cursor",
+    },
+    DomainInvariant {
+        table: "user_blocks",
+        update_columns: "blocker_id, blocked_id",
+        invalid_predicate: r"
+            typeof(ROW.blocker_id) <> 'integer'
+            OR typeof(ROW.blocked_id) <> 'integer'
+            OR ROW.blocker_id = ROW.blocked_id
+        ",
+        error: "a block must name two different accounts",
+    },
+    DomainInvariant {
         table: "upload_counters",
         update_columns: "window_start, bytes_uploaded, uploads",
         invalid_predicate: r"
@@ -774,22 +887,56 @@ fn create_indexes(conn: &rusqlite::Connection) -> Result<()> {
 
 /// Create and synchronize the posts full-text-search index.
 fn ensure_posts_search_index(conn: &rusqlite::Connection) -> Result<()> {
+    // A subject and a name are what a reader types when they remember a post by
+    // what it was called rather than by what it said, so both are indexed
+    // alongside the body. A reader who only knew the words still finds it.
+    const INDEX_COLUMNS: &str = "subject, body, name";
+    let indexed: String = conn
+        .query_row(
+            "SELECT COALESCE(group_concat(name, ','), '')
+             FROM pragma_table_info('posts_fts')
+             WHERE name NOT IN ('rowid', 'rank')",
+            [],
+            |row| row.get(0),
+        )
+        .context("Failed to inspect the search index")?;
+    if indexed != INDEX_COLUMNS {
+        // The index is derived from the posts and holds nothing of its own, so
+        // replacing it costs a scan and loses nothing. It has to be replaced
+        // rather than altered: SQLite cannot add a column to an existing
+        // virtual table, and a reader searching by subject would silently find
+        // nothing without this.
+        conn.execute_batch(
+            r"
+            DROP TRIGGER IF EXISTS posts_ai;
+            DROP TRIGGER IF EXISTS posts_ad;
+            DROP TRIGGER IF EXISTS posts_au;
+            DROP TABLE IF EXISTS posts_fts;
+            ",
+        )
+        .context("Failed to replace the search index")?;
+    }
+
     conn.execute_batch(
         r"
         CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts
-        USING fts5(body, content='posts', content_rowid='id', tokenize='unicode61');
+        USING fts5(subject, body, name, content='posts', content_rowid='id', tokenize='unicode61');
 
         CREATE TRIGGER IF NOT EXISTS posts_ai AFTER INSERT ON posts BEGIN
-            INSERT INTO posts_fts(rowid, body) VALUES (new.id, new.body);
+            INSERT INTO posts_fts(rowid, subject, body, name)
+            VALUES (new.id, COALESCE(new.subject, ''), new.body, new.name);
         END;
 
         CREATE TRIGGER IF NOT EXISTS posts_ad AFTER DELETE ON posts BEGIN
-            INSERT INTO posts_fts(posts_fts, rowid, body) VALUES('delete', old.id, old.body);
+            INSERT INTO posts_fts(posts_fts, rowid, subject, body, name)
+            VALUES('delete', old.id, COALESCE(old.subject, ''), old.body, old.name);
         END;
 
-        CREATE TRIGGER IF NOT EXISTS posts_au AFTER UPDATE OF body ON posts BEGIN
-            INSERT INTO posts_fts(posts_fts, rowid, body) VALUES('delete', old.id, old.body);
-            INSERT INTO posts_fts(rowid, body) VALUES (new.id, new.body);
+        CREATE TRIGGER IF NOT EXISTS posts_au AFTER UPDATE OF subject, body, name ON posts BEGIN
+            INSERT INTO posts_fts(posts_fts, rowid, subject, body, name)
+            VALUES('delete', old.id, COALESCE(old.subject, ''), old.body, old.name);
+            INSERT INTO posts_fts(rowid, subject, body, name)
+            VALUES (new.id, COALESCE(new.subject, ''), new.body, new.name);
         END;
         ",
     )
@@ -1072,7 +1219,10 @@ fn table_exists(conn: &rusqlite::Connection, table: &str) -> Result<bool> {
 
 /// Return whether a recorded version belongs to a recognized repairable baseline.
 fn is_known_legacy_schema_version(version: Option<&str>) -> bool {
-    if matches!(version, None | Some("1.3.0" | "1.4.0" | "1.4.1"))
+    if matches!(
+        version,
+        None | Some("1.3.0" | "1.4.0" | "1.4.1" | "2.2.1")
+    )
         || version == Some(BASELINE_SCHEMA_VERSION)
     {
         return true;
@@ -1299,6 +1449,48 @@ fn apply_additive_schema_repairs_in_transaction(conn: &rusqlite::Connection) -> 
 /// The definition is kept identical to the baseline SQL above; a fresh
 /// database gets the same shape through `install_baseline_schema_in_transaction`.
 const ADDITIVE_BASELINE_TABLES_SQL: &str = "
+    CREATE TABLE IF NOT EXISTS user_blocks (
+        blocker_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        blocked_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+        PRIMARY KEY (blocker_id, blocked_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS conversations (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+
+    CREATE TABLE IF NOT EXISTS conversation_members (
+        conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        last_read_at    INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (conversation_id, user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS direct_messages (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        sender_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        body            TEXT NOT NULL,
+        created_at      INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+
+    CREATE TABLE IF NOT EXISTS notifications (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        kind        TEXT NOT NULL,
+        actor_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        post_id     INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+        thread_id   INTEGER REFERENCES threads(id) ON DELETE CASCADE,
+        board_id    INTEGER REFERENCES boards(id) ON DELETE CASCADE,
+        message_id  INTEGER REFERENCES direct_messages(id) ON DELETE CASCADE,
+        summary     TEXT NOT NULL DEFAULT '',
+        read_at      INTEGER,
+        created_at  INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+
     CREATE TABLE IF NOT EXISTS users (
         id              INTEGER PRIMARY KEY AUTOINCREMENT,
         username        TEXT NOT NULL UNIQUE,
@@ -1347,7 +1539,15 @@ fn create_additive_baseline_tables(conn: &rusqlite::Connection) -> Result<()> {
 fn is_additive_baseline_table(name: &str) -> bool {
     matches!(
         name,
-        "users" | "user_sessions" | "post_votes" | "upload_counters"
+        "users"
+            | "user_sessions"
+            | "post_votes"
+            | "upload_counters"
+            | "user_blocks"
+            | "conversations"
+            | "conversation_members"
+            | "direct_messages"
+            | "notifications"
     )
 }
 

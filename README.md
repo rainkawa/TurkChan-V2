@@ -12,7 +12,7 @@ A self-hosted imageboard written in Rust.
 
 TurkChan gives you boards, threads, replies, media uploads, moderation, backups, themes, and an admin panel without requiring a stack of services. It runs as one binary, uses bundled SQLite, and keeps its runtime files in one data directory.
 
-Current version: `2.2.1`. Minimum supported Rust version: `1.91`.
+Current version: `2.2.2`. Minimum supported Rust version: `1.91`.
 
 ## Screenshots
 
@@ -49,6 +49,9 @@ Current version: `2.2.1`. Minimum supported Rust version: `1.91`.
 - Optional PDF and generic file uploads, controlled globally and per board
 - Streaming upload validation, image thumbnails, video thumbnails, audio waveforms, and optional MP4-to-WebM transcoding
 - Oversized images scaled to a configurable longest edge on the way in, and stored dimensions so pages reserve an image's space before it loads
+- Direct messages between accounts, with blocking that closes a line in both directions
+- A notification centre for replies, mentions, votes, direct messages, and moderation, with live unread counts over Server-Sent Events
+- Global search across posts, threads, boards, and accounts, with optional board, author, date, media, score, and thread-kind filters
 - Browser-based moderation, reports, appeals, bans, themes, banners, favicons, backups, restores, and maintenance
 - Full-site and per-board backups, scheduled backups, integrity checks, repair helpers, and media reconciliation
 - Built-in Arti onion service, optional native TLS, and an optional ChanNet listener
