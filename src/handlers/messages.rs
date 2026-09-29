@@ -10,7 +10,7 @@
 
 use crate::db;
 use crate::error::{AppError, Result};
-use crate::middleware::AppState;
+use crate::middleware::{AppState, SecureCookieContext};
 use axum::extract::{Form, Path, Query, State};
 use axum::http::HeaderMap;
 use axum::response::sse::{Event as SseEvent, KeepAlive, Sse};
@@ -126,7 +126,7 @@ pub(in crate::server) async fn conversations_page(
     let (jar, csrf) = crate::handlers::board::ensure_csrf_for_request(
         jar,
         &headers,
-        crate::handlers::board::optional_connect_info_peer(None),
+        SecureCookieContext::default(),
     );
 
     let html = tokio::task::spawn_blocking({
@@ -160,9 +160,9 @@ pub(in crate::server) async fn conversation_page(
     let (jar, csrf) = crate::handlers::board::ensure_csrf_for_request(
         jar,
         &headers,
-        crate::handlers::board::optional_connect_info_peer(None),
+        SecureCookieContext::default(),
     );
-    let page = q.page.max(1);
+    let page = q.page.unwrap_or(1).max(1);
 
     let html = tokio::task::spawn_blocking({
         let pool = state.db.clone();
@@ -342,9 +342,9 @@ pub(in crate::server) async fn notifications_page(
     let (jar, csrf) = crate::handlers::board::ensure_csrf_for_request(
         jar,
         &headers,
-        crate::handlers::board::optional_connect_info_peer(None),
+        SecureCookieContext::default(),
     );
-    let page = q.page.max(1);
+    let page = q.page.unwrap_or(1).max(1);
 
     let html = tokio::task::spawn_blocking({
         let pool = state.db.clone();
@@ -483,15 +483,11 @@ fn notification_events(
     futures::stream::unfold(
         (pool, account_id, StreamCursor::opening()),
         |(pool, account_id, mut cursor)| async move {
-            let count = read_unread_total(&pool, account_id).await;
-            let batch = read_new_notifications(&pool, account_id, &mut cursor).await;
-            let event = if batch.is_empty() {
-                // A keep-alive, so a proxy in the middle does not close a
-                // connection that is simply quiet.
-                SseEvent::default().comment("keep-alive")
-            } else {
-                batch
-            };
+            // A poll that found nothing new answers with a keep-alive comment
+            // rather than silence, so a proxy in the middle does not close a
+            // connection that is simply quiet. The row reader already makes
+            // that choice and reports the unread count alongside the rows.
+            let event = read_new_notifications(&pool, account_id, &mut cursor).await;
             tokio::time::sleep(STREAM_POLL_INTERVAL).await;
             Some((Ok(event), (pool, account_id, cursor)))
         },
@@ -526,10 +522,16 @@ async fn read_unread_total(pool: &db::DbPool, account_id: i64) -> i64 {
         let Ok(conn) = pool.get() else {
             return 0;
         };
-        match (
+        // The pair is bound to a local rather than written in the scrutinee. A
+        // temporary in this tail expression would be dropped before `conn`
+        // under the Rust 2024 tail-expression rules this workspace denies,
+        // handing the connection back while the errors it produced are still
+        // alive.
+        let counts = (
             db::unread_notification_count(&conn, account_id),
             db::unread_message_count(&conn, account_id),
-        ) {
+        );
+        match counts {
             (Ok(notifications), Ok(messages)) => notifications.saturating_add(messages),
             _ => 0,
         }
@@ -561,7 +563,7 @@ async fn read_new_notifications(
     for row in &rows {
         cursor.last_sent = cursor.last_sent.max(row.id);
     }
-    let unread = read_unread_total(pool, account_id).await;
+    let unread = read_unread_total(&pool, account_id).await;
     SseEvent::default()
         .event("unread")
         .data(unread.to_string())

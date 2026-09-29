@@ -90,7 +90,7 @@ pub(in crate::server) async fn global_search(
     let (jar, _csrf) = crate::handlers::board::ensure_csrf_for_request(
         jar,
         &headers,
-        crate::handlers::board::optional_connect_info_peer(None),
+        crate::middleware::SecureCookieContext::default(),
     );
     let page = q.page.unwrap_or(1).max(1);
     let query = q.q.clone().unwrap_or_default();
