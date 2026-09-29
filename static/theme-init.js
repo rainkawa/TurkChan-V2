@@ -9,7 +9,7 @@
 (function () {
   var COOKIE = 'rustchan_color_mode';
   var MODES = ['dark', 'light', 'system'];
-  var DEFAULT_MODE = 'dark';
+  var DEFAULT_MODE = 'light';
 
   function stored() {
     var match = document.cookie.match(

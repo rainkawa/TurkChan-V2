@@ -682,6 +682,7 @@ fn board_cards<S: std::hash::BuildHasher>(
 /// Renders the site homepage and board directory.
 pub fn index_page<S: std::hash::BuildHasher>(
     board_stats: &[crate::models::BoardStats],
+    home_threads: &[Thread],
     site_stats: Option<&crate::models::SiteStats>,
     csrf_token: &str,
     admin_csrf_token: Option<&str>,
@@ -731,10 +732,10 @@ pub fn index_page<S: std::hash::BuildHasher>(
 
     let stats_sec = site_stats.map_or_else(
         || {
-            r#"<div class="index-section index-stats-section">
-<h2 class="index-section-title">İstatistikler</h2>
+            r#"<section class="side-card">
+<h2 class="side-card-title">İstatistikler</h2>
 <p class="index-stats-unavailable">site istatistikleri geçici olarak kullanılamıyor.</p>
-</div>"#.to_owned()
+</section>"#.to_owned()
         },
         |site_stats| {
             const GIB: i64 = 1024 * 1024 * 1024;
@@ -748,20 +749,22 @@ pub fn index_page<S: std::hash::BuildHasher>(
             let active_gb_whole = active_gb_hundredths / 100;
             let active_gb_fraction = active_gb_hundredths % 100;
             format!(
-                r#"<div class="index-section index-stats-section">
-<h2 class="index-section-title">İstatistikler</h2>
-<div class="index-stats-grid">
-  <div class="index-stat"><span class="index-stat-value">{tp}</span><span class="index-stat-label">toplam gönderi</span></div>
-  <div class="index-stat"><span class="index-stat-value">{ti}</span><span class="index-stat-label">yüklenen resim</span></div>
-  <div class="index-stat"><span class="index-stat-value">{tv}</span><span class="index-stat-label">yüklenen video</span></div>
-  <div class="index-stat"><span class="index-stat-value">{ta}</span><span class="index-stat-label">yüklenen ses dosyası</span></div>
-  <div class="index-stat"><span class="index-stat-value">{active_gb_whole}.{active_gb_fraction:02} GB</span><span class="index-stat-label">aktif içerik</span></div>
-</div>
-</div>"#,
+                r#"<section class="side-card">
+<h2 class="side-card-title">İstatistikler</h2>
+<ul class="side-card-list">
+  <li><strong>{tp}</strong> toplam gönderi</li>
+  <li><strong>{ti}</strong> yüklenen resim</li>
+  <li><strong>{tv}</strong> yüklenen video</li>
+  <li><strong>{ta}</strong> yüklenen ses dosyası</li>
+  <li><strong>{active_gb_whole}.{active_gb_fraction:02} GB</strong> aktif içerik</li>
+  <li><strong>{boards}</strong> topluluk</li>
+</ul>
+</section>"#,
                 tp = site_stats.total_posts,
                 ti = site_stats.total_images,
                 tv = site_stats.total_videos,
                 ta = site_stats.total_audio,
+                boards = board_stats.len(),
                 active_gb_whole = active_gb_whole,
                 active_gb_fraction = active_gb_fraction,
             )
@@ -842,28 +845,68 @@ pub fn index_page<S: std::hash::BuildHasher>(
         )
     };
 
+    // The homepage feed crosses every board, so a thread is rendered the same
+    // way it is in `/new` and `/popular` — one card shape the reader learns
+    // once and then meets again on every list.
+    let board_shorts = board_stats
+        .iter()
+        .map(|stats| (stats.board.id, stats.board.short_name.clone()))
+        .collect::<std::collections::HashMap<_, _>>();
+    let home_rows = home_threads
+        .iter()
+        .filter_map(|thread| {
+            board_shorts
+                .get(&thread.board_id)
+                .map(|short| feed_row(FeedKind::New, thread, short))
+        })
+        .collect::<String>();
+    let home_feed = if home_rows.is_empty() {
+        r#"<div class="feed-empty"><p class="feed-empty-title">Henuz gonderi yok</p><p class="feed-empty-text">Ilk konuyu sen ac.</p></div>"#.to_owned()
+    } else {
+        format!(
+            r#"<div class="feed-list">{home_rows}</div>
+<a class="feed-more" href="/new">Daha fazla goster</a>"#,
+            home_rows = home_rows
+        )
+    };
+
     let body = format!(
         r#"<div class="home" data-activity-page="home">
+<div class="home-columns">
+<div class="home-main">
 <header class="home-hero">
   <h1 class="home-title">{name}</h1>
   <p class="home-subtitle">{subtitle}</p>
-  <nav class="home-quick" aria-label="Hizli gezinme">
-    <a class="home-quick-link" href="/new">Yeni</a>
-    <a class="home-quick-link" href="/popular">Populer</a>
-    <a class="home-quick-link" href="/search">Ara</a>
-    <a class="home-quick-link" href="/notifications">Bildirimler</a>
-    <a class="home-quick-link" href="/messages">Mesajlar</a>
-    <a class="home-quick-link" href="/account/profile">Profil</a>
-  </nav>
 </header>
 {registration_notice_html}
 {home_banner_html}
-{sfw}{nsfw}{empty}{stats}{onion}{nsfw_overlay}
+<div class="feed-sortbar" role="tablist" aria-label="Akis siralamasi">
+  <a class="feed-sort is-active" href="/">Sicak</a>
+  <a class="feed-sort" href="/new">Yeni</a>
+  <a class="feed-sort" href="/popular">Populer</a>
+  <a class="feed-sort" href="/search">Ara</a>
+</div>
+{home_feed}
+{sfw}{nsfw}{empty}
+</div>
+<aside class="home-side">
+  <section class="side-card side-card-about">
+    <h2 class="side-card-title">{name} Hakkinda</h2>
+    <p class="side-card-text">{subtitle}</p>
+    <a class="btn btn-primary btn-block" href="/new">+ Gonderi Olustur</a>
+    <a class="btn btn-block" href="/popular">Populer akis</a>
+  </section>
+  {stats}
+  {onion}
+</aside>
+</div>
+{nsfw_overlay}
 </div>"#,
         name = escape_html(&live_site_name()),
         subtitle = escape_html(&live_site_subtitle()),
         registration_notice_html = registration_notice_html,
         home_banner_html = home_banner_html,
+        home_feed = home_feed,
         sfw = sfw_sec,
         nsfw = nsfw_sec,
         empty = empty,
@@ -951,16 +994,42 @@ pub fn board_page<S: std::hash::BuildHasher>(
         let name = escape_html(&board.name);
         let desc = escape_html(&board.description);
         let access_badge = board_access_badge(board);
+        let initial = board
+            .short_name
+            .chars()
+            .next()
+            .map(|c| c.to_uppercase().to_string())
+            .unwrap_or_else(|| "?".to_owned());
         let nav_archive = if board.allow_archive {
-            format!(r#"<a class="board-nav-link" href="/{short}/archive">[Arşiv]</a>"#)
+            format!(r#"<a class="sub-tab" href="/{short}/archive">Arsiv</a>"#)
         } else {
             String::new()
         };
         let _ = write!(
             body,
-            r#"<div class="board-header board-index-header" data-activity-page="board-index"><h1>/{short}/  — {name}{access_badge}</h1><p class="board-desc">{desc}</p></div>
+            r#"<div class="sub-header" data-activity-page="board-index">
 {board_banner_html}
-<div class="board-nav"><a class="board-nav-link active" href="/{short}">[Liste]</a><a class="board-nav-link" href="/{short}/catalog">[Katalog]</a>{nav_archive}</div>"#
+<div class="sub-header-body">
+  <div class="sub-avatar" aria-hidden="true">{initial}</div>
+  <div class="sub-header-main">
+    <h1 class="sub-title">r/{short}{access_badge}</h1>
+    <p class="sub-name">{name}</p>
+    <p class="sub-desc">{desc}</p>
+  </div>
+  {create_button}
+</div>
+<nav class="sub-tabs" aria-label="Board gorunumu">
+  <a class="sub-tab is-active" href="/{short}">Liste</a>
+  <a class="sub-tab" href="/{short}/catalog">Katalog</a>
+  {nav_archive}
+</nav>
+</div>"#,
+            initial = escape_html(&initial),
+            create_button = if can_post {
+                r#"<a class="btn btn-primary" href="#post-form-wrap" data-action="toggle-post-form">+ Yeni Konu</a>"#.to_owned()
+            } else {
+                String::new()
+            }
         );
     }
 
@@ -968,10 +1037,7 @@ pub fn board_page<S: std::hash::BuildHasher>(
         let show_post_form = error.is_some() || new_thread_prefill.is_some();
         let _ = write!(
             body,
-            r##"<div class="post-toggle-bar centered catalog-toggle-bar">
-  <a class="post-toggle-btn" href="#post-form-wrap" data-action="toggle-post-form">[ Yeni Konu Aç ]</a>
-</div>
-<div class="{post_form_class}" id="post-form-wrap" style="{post_form_style}">
+            r##"<div class="{post_form_class}" id="post-form-wrap" style="{post_form_style}">
   {}
 </div>"##,
             super::forms::new_thread_form(
@@ -1346,7 +1412,11 @@ impl FeedKind {
 /// Threads shown on one page of a cross-board feed.
 const FEED_PER_PAGE: i64 = 40;
 
-/// Render one thread as a row in a cross-board feed.
+/// Render one thread as a post card in a feed.
+///
+/// The card is the same shape everywhere a list of threads is shown — the
+/// homepage, `/new`, and `/popular` — so a reader recognises a thread by the
+/// same thumbnail, title, and meta line in every one of them.
 fn feed_row(kind: FeedKind, thread: &Thread, board_short: &str) -> String {
     let subject = thread
         .subject
@@ -1362,35 +1432,62 @@ fn feed_row(kind: FeedKind, thread: &Thread, board_short: &str) -> String {
         .find(|line| !line.is_empty())
         .unwrap_or("")
         .chars()
-        .take(140)
+        .take(180)
         .collect();
 
     let media = thread.op_thumb.as_ref().map_or_else(String::new, |thumb| {
         format!(
-            r#"<div class="feed-row-media"><img src="/boards/{}" alt="" loading="lazy" decoding="async"></div>"#,
-            escape_html(thumb),
+            r#"<div class="post-card-media"><img src="/boards/{thumb}" alt="" loading="lazy" decoding="async"></div>"#,
+            thumb = escape_html(thumb),
         )
     });
 
+    let flags = {
+        let mut flags = String::new();
+        if thread.sticky {
+            flags.push_str(r#"<span class="tag sticky">SABİT</span>"#);
+        }
+        if thread.locked {
+            flags.push_str(r#"<span class="tag locked">KİLİTLİ</span>"#);
+        }
+        flags
+    };
+
+    let author = thread
+        .op_name
+        .as_deref()
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .unwrap_or("Anonim");
+
     format!(
-        r#"<a class="feed-row" href="/{board}/thread/{thread_id}">
+        r#"<article class="post-card">
   {media}
-  <div class="feed-row-info">
-    <span class="feed-row-subject">{subject}</span>
-    <span class="feed-row-preview">{preview}</span>
-    <span class="feed-row-meta">
-      <span class="feed-row-board">/{board}</span>
-      <span class="feed-row-no">No.{thread_id}</span>
-      <span class="feed-row-replies">{replies} {reply_label}</span>
-      <time class="feed-row-time" datetime="{bumped_iso}">{bumped}</time>
-    </span>
+  <div class="post-card-main">
+    <a class="post-card-title" href="/{board}/thread/{thread_id}">{subject}</a>
+    {preview_html}
+    <div class="post-card-meta">
+      {flags}
+      <a class="post-card-board" href="/{board}">r/{board}</a>
+      <span class="post-card-author">u/{author}</span>
+      <span class="post-card-no">No.{op_id}</span>
+      <time class="post-card-time" datetime="{bumped_iso}">{bumped}</time>
+      <a class="post-card-comments" href="/{board}/thread/{thread_id}">{replies} {reply_label}</a>
+    </div>
   </div>
-</a>"#,
+</article>"#,
         board = escape_html(board_short),
         thread_id = thread.id,
         media = media,
         subject = escape_html(&subject),
-        preview = escape_html(&preview),
+        preview_html = if preview.is_empty() {
+            String::new()
+        } else {
+            format!(r#"<p class="post-card-preview">{preview}</p>"#, preview = escape_html(&preview))
+        },
+        flags = flags,
+        author = escape_html(author),
+        op_id = thread.op_id.unwrap_or(thread.id),
         replies = thread.reply_count,
         reply_label = kind.reply_label(),
         bumped_iso = crate::templates::iso_timestamp(thread.bumped_at),
@@ -1437,9 +1534,9 @@ pub fn feed_page(
 
     let body = format!(
         r#"<div class="feed">
-<header class="feed-head">
-  <h1 class="feed-title">{title}</h1>
-  <p class="feed-lede">{lede}</p>
+<header class="page-head">
+  <h1 class="page-title">{title}</h1>
+  <p class="page-lede">{lede}</p>
 </header>
 <div class="feed-list">{rows}{empty}</div>
 {pager}
@@ -2086,6 +2183,7 @@ mod tests {
 
         let html = index_page(
             &[],
+            &[],
             None,
             "csrf",
             None,
@@ -2124,6 +2222,7 @@ mod tests {
 
         let html = index_page(
             &[],
+            &[],
             Some(&stats),
             "csrf",
             None,
@@ -2142,7 +2241,7 @@ mod tests {
         );
 
         assert!(html.contains("yüklenen ses dosyası"));
-        assert!(html.contains(">3</span><span class=\"index-stat-label\">yüklenen ses dosyası"));
+        assert!(html.contains("<strong>3</strong> yüklenen ses dosyası"));
         assert!(html.contains("2.00 GB"));
     }
 
@@ -2150,6 +2249,7 @@ mod tests {
     fn index_page_renders_tor_copy_button_as_js_enhancement() {
         let address = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaam2dqd.onion";
         let html = index_page(
+            &[],
             &[],
             None,
             "csrf",

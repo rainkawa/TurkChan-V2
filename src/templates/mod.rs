@@ -335,11 +335,16 @@ fn board_href(short_name: &str, preferences: UserPreferences) -> String {
     }
 }
 
-/// Renders one desktop board-navigation group when it is nonempty.
+/// Renders one board-navigation group when it is nonempty.
+///
+/// The links are emitted one per board with no separator between them: the rail
+/// stacks them as a list of communities, so the reader sees a column of
+/// names rather than the `[ a / b / c ]` run the markup used to carry.
 fn board_nav_group_html(
     boards: &[&Board],
     preferences: UserPreferences,
     is_nsfw: bool,
+    current: Option<&str>,
 ) -> Option<String> {
     if boards.is_empty() {
         return None;
@@ -352,17 +357,19 @@ fn board_nav_group_html(
     let inner = boards
         .iter()
         .map(|board| {
+            let active = current.is_some_and(|c| c.eq_ignore_ascii_case(&board.short_name));
+            let current_attr = if active { r#" aria-current="page""# } else { "" };
             format!(
-                r#"<a href="{href}">{short}</a>"#,
+                r#"<a class="rail-community{active}" href="{href}"{current_attr}>{short}</a>"#,
+                active = if active { " is-active" } else { "" },
                 href = board_href(&board.short_name, preferences),
+                current_attr = current_attr,
                 short = escape_html(&board.short_name),
             )
         })
         .collect::<Vec<_>>()
-        .join(" / ");
-    Some(format!(
-        r#"<span class="board-list-group"{nsfw_attr}>[ {inner} ]</span>"#
-    ))
+        .join("");
+    Some(format!(r#"<span class="board-list-group"{nsfw_attr}>{inner}</span>"#))
 }
 
 /// Renders one mobile board-navigation group.
@@ -410,6 +417,25 @@ fn rebuild_live_board_nav() {
 #[must_use]
 /// Renders board navigation using the supplied visitor preferences.
 pub fn board_nav_html_for_preferences(boards: &[Board], preferences: UserPreferences) -> String {
+    board_nav_html(boards, preferences, None)
+}
+
+#[must_use]
+/// Renders board navigation, marking the board the reader is standing in.
+pub fn board_nav_html_for_board(
+    boards: &[Board],
+    preferences: UserPreferences,
+    current: Option<&str>,
+) -> String {
+    board_nav_html(boards, preferences, current)
+}
+
+/// Shared body of the two board-navigation renderers above.
+fn board_nav_html(
+    boards: &[Board],
+    preferences: UserPreferences,
+    current: Option<&str>,
+) -> String {
     let (sfw_boards, nsfw_boards_all) = board_nav_groups(boards);
     let nsfw_boards = if preferences.hide_nsfw_boards {
         Vec::new()
@@ -417,8 +443,8 @@ pub fn board_nav_html_for_preferences(boards: &[Board], preferences: UserPrefere
         nsfw_boards_all
     };
     [
-        board_nav_group_html(&sfw_boards, preferences, false),
-        board_nav_group_html(&nsfw_boards, preferences, true),
+        board_nav_group_html(&sfw_boards, preferences, false, current),
+        board_nav_group_html(&nsfw_boards, preferences, true, current),
     ]
     .into_iter()
     .flatten()
@@ -774,7 +800,14 @@ pub fn base_layout_with_account(
     preferences: UserPreferences,
     account_menu_html: &str,
 ) -> String {
-    let board_links = board_nav_html_for_preferences(boards, preferences);
+    let board_links = board_nav_html_for_board(boards, preferences, board_short);
+    // The administration panel and the setup wizard lay their own panels out
+    // across the full width, so they do not take the reading rail.
+    let shell_class = if current_path.starts_with("/admin") || current_path.starts_with("/setup") {
+        "shell is-wide"
+    } else {
+        "shell"
+    };
     let board_menu = if boards.is_empty() {
         String::new()
     } else {
@@ -979,24 +1012,50 @@ pub fn base_layout_with_account(
 <script src="{theme_init_src}"></script>
 </head>
 <body{collapse_attr}>
+<a class="skip-link" href="#main-content">&#8593; İçeriğe atla</a>
 <header class="site-header">
-  <span class="site-brand"><span class="site-name">{forum_name}</span>{site_tagline}</span>
-  <a class="home-btn" href="/">&#8962; Ana Sayfa</a>
-  {board_menu}
-  <nav class="board-list">
-    {board_links}
-  </nav>
-  <div class="header-search">{search_bar}</div>
-  {account_menu_html}
-  <div class="color-mode-switch" role="group" aria-label="Renk modu">
-    <button type="button" class="color-mode-btn" data-action="set-color-mode" data-color-mode-value="light" aria-pressed="false" title="Aydınlık" aria-label="Aydınlık mod">&#9788;</button>
-    <button type="button" class="color-mode-btn" data-action="set-color-mode" data-color-mode-value="dark" aria-pressed="false" title="Koyu" aria-label="Koyu mod">&#9789;</button>
-    <button type="button" class="color-mode-btn" data-action="set-color-mode" data-color-mode-value="system" aria-pressed="false" title="Sistem" aria-label="Sistem modu">&#9881;</button>
+  <div class="topbar">
+    <a class="topbar-brand" href="/" aria-label="Ana sayfa">
+      <span class="topbar-logo" aria-hidden="true">&#9679;</span>
+      <span class="site-name">{forum_name}</span>
+    </a>
+    {board_menu}
+    <div class="header-search topbar-search">{search_bar}</div>
+    <nav class="topbar-actions" aria-label="Site gezinmesi">
+      <a class="topbar-action" href="/" title="Ana sayfa">Ana Sayfa</a>
+      <a class="topbar-action" href="/new" title="Yeni konular">Yeni</a>
+      <a class="topbar-action" href="/popular" title="Popüler konular">Popüler</a>
+      <a class="topbar-action" href="/search" title="Ara">Ara</a>
+      <a class="topbar-action" href="/notifications" title="Bildirimler">Bildirimler</a>
+      <a class="topbar-action" href="/messages" title="Mesajlar">Mesajlar</a>
+    </nav>
+    {account_menu_html}
+    <div class="color-mode-switch" role="group" aria-label="Renk modu">
+      <button type="button" class="color-mode-btn" data-action="set-color-mode" data-color-mode-value="light" aria-pressed="false" title="Aydınlık" aria-label="Aydınlık mod">&#9788;</button>
+      <button type="button" class="color-mode-btn" data-action="set-color-mode" data-color-mode-value="dark" aria-pressed="false" title="Koyu" aria-label="Koyu mod">&#9789;</button>
+      <button type="button" class="color-mode-btn" data-action="set-color-mode" data-color-mode-value="system" aria-pressed="false" title="Sistem" aria-label="Sistem modu">&#9881;</button>
+    </div>
   </div>
 </header>
-<main>
+<div class="{shell_class}">
+<aside class="rail" aria-label="Boardlar ve gezinme">
+  <nav class="rail-nav" aria-label="Keşfet">
+    <a class="rail-link" href="/">Ana Sayfa</a>
+    <a class="rail-link" href="/new">Yeni Konular</a>
+    <a class="rail-link" href="/popular">Popüler</a>
+    <a class="rail-link" href="/search">Ara</a>
+  </nav>
+  <h2 class="rail-title">Topluluklar</h2>
+  <nav class="board-list rail-communities">
+    {board_links}
+  </nav>
+  <p class="rail-note">{site_tagline}</p>
+  <a class="rail-link rail-link-muted" href="/account/profile">Profilim</a>
+</aside>
+<main class="content" id="main-content">
 {body}
 </main>
+</div>
 <footer class="site-footer">
   <p class="site-footer-copy">{forum_name} &mdash; <a href="/">ana sayfa</a></p>
   <div class="site-footer-theme">
@@ -1091,6 +1150,7 @@ pub fn base_layout_with_account(
         theme_stylesheet_link = theme_stylesheet_link,
         theme_init_src = theme_init_src,
         board_links = board_links,
+        shell_class = shell_class,
         search_bar = search_bar,
         board_menu = board_menu,
         account_menu_html = account_menu_html,
@@ -1566,7 +1626,7 @@ mod tests {
             UserPreferences::default(),
         );
 
-        assert!(html.contains(r#"<span class="board-list-group" data-board-nsfw="1">[ <a href="/x/catalog">x</a> ]</span>"#));
+        assert!(html.contains(r#"<span class="board-list-group" data-board-nsfw="1"><a class="rail-community" href="/x/catalog">x</a></span>"#));
         assert!(html.contains(r#"<div class="mobile-board-group" data-board-nsfw="1"><div class="mobile-board-group-title">NSFW</div><a class="mobile-board-link" href="/x/catalog">/x/</a></div>"#));
     }
 

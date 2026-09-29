@@ -27,11 +27,15 @@ pub struct BuiltinTheme {
 pub const HARD_DEFAULT_THEME: &str = "aurora";
 
 /// The built-in design.
+///
+/// The slug stays `aurora` because it is already stored on existing
+/// installations, in cookies, and in the theme catalog: renaming it would
+/// leave those rows pointing at a design this build no longer knows.
 pub const BUILTIN_THEMES: &[BuiltinTheme] = &[BuiltinTheme {
     slug: HARD_DEFAULT_THEME,
-    display_name: "Aurora",
-    description: "Modern violet dark palette with a light mode, readable at any size.",
-    swatch_hex: "#8b5cf6",
+    display_name: "Topluluk",
+    description: "Kart tabanlı aydınlık topluluk görünümü: akış, oy, yorum zinciri.",
+    swatch_hex: "#ff4500",
     sort_order: 10,
 }];
 

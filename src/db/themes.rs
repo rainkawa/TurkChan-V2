@@ -508,13 +508,16 @@ mod tests {
         let aurora = themes
             .iter()
             .find(|theme| theme.slug == "aurora")
-            .context("Aurora theme should exist")?;
+            .context("The built-in theme should exist")?;
         assert_eq!(
-            aurora.display_name, "Aurora",
-            "Aurora display name should match"
+            aurora.display_name, "Topluluk",
+            "the built-in display name should match the design"
         );
-        assert!(aurora.enabled, "Aurora should be enabled");
-        assert!(aurora.is_builtin, "Aurora should be a built-in design");
+        assert!(aurora.enabled, "the built-in theme should be enabled");
+        assert!(
+            aurora.is_builtin,
+            "the built-in theme should stay marked as built in"
+        );
         Ok(())
     }
 

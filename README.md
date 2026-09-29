@@ -109,7 +109,7 @@ Fresh configuration files document the available settings inline. A basic config
 ```toml
 forum_name = "TurkChan"
 site_subtitle = "select board to proceed"
-default_theme = "forest"
+default_theme = "aurora"
 port = 8080
 enable_tor_support = true
 require_ffmpeg = false

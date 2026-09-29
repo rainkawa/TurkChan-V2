@@ -16,6 +16,9 @@ use serde::Deserialize;
 /// Threads shown on one page of a cross-board feed.
 const FEED_PER_PAGE: i64 = 40;
 
+/// Threads shown in the homepage feed above the board directory.
+const HOME_FEED_THREADS: i64 = 15;
+
 #[derive(Debug, Deserialize)]
 /// Query fields accepted by the cross-board feeds.
 pub(in crate::server) struct FeedQuery {
@@ -147,6 +150,7 @@ type HomePageLoadResult = (
     HashMap<i64, i64>,
     bool,
     HashMap<i64, i64>,
+    Vec<crate::models::Thread>,
 );
 
 type BoardIndexLoadResult = (
@@ -191,6 +195,7 @@ pub(in crate::server) async fn index(
         board_badges,
         homepage_reply_badges_enabled,
         board_reply_badges,
+        home_threads,
     ) = tokio::task::spawn_blocking({
         let pool = state.db.clone();
         let board_activity_markers = board_activity_markers.clone();
@@ -254,6 +259,7 @@ pub(in crate::server) async fn index(
                 board_badges,
                 homepage_reply_badges_enabled,
                 board_reply_badges,
+                db::get_recent_threads(&conn, HOME_FEED_THREADS, 0)?,
             ))
         }
     })
@@ -297,6 +303,22 @@ pub(in crate::server) async fn index(
             .collect::<HashSet<_>>();
         jar = prune_board_activity_markers(jar, &known_board_ids);
     }
+
+    // The homepage feed crosses every board, so it may only show a thread from
+    // one the reader is allowed to open: a hidden or locked board must not
+    // leak its titles through a page that lists the whole site.
+    let visible_board_ids = board_stats
+        .iter()
+        .filter(|stats| {
+            let access_cookie = board_access_cookie_from_jar(&jar, &stats.board.short_name);
+            can_view_board(&stats.board, is_admin, access_cookie.as_deref())
+        })
+        .map(|stats| stats.board.id)
+        .collect::<HashSet<_>>();
+    let home_threads = home_threads
+        .into_iter()
+        .filter(|thread| visible_board_ids.contains(&thread.board_id))
+        .collect::<Vec<_>>();
 
     // Read the onion address from AppState (populated by the Arti task on startup).
     let onion_address: Option<String> = if CONFIG.enable_tor_support {
@@ -344,6 +366,7 @@ pub(in crate::server) async fn index(
 
     let mut response = Html(templates::index_page(
         &board_stats,
+        &home_threads,
         site_data.as_ref(),
         &csrf,
         admin_scoped_csrf_token(&jar, admin_session.as_deref(), is_admin).as_deref(),
