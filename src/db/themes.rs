@@ -510,7 +510,7 @@ mod tests {
             .find(|theme| theme.slug == "aurora")
             .context("The built-in theme should exist")?;
         assert_eq!(
-            aurora.display_name, "Topluluk",
+            aurora.display_name, "Board",
             "the built-in display name should match the design"
         );
         assert!(aurora.enabled, "the built-in theme should be enabled");

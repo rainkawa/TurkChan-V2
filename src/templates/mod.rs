@@ -338,8 +338,8 @@ fn board_href(short_name: &str, preferences: UserPreferences) -> String {
 /// Renders one board-navigation group when it is nonempty.
 ///
 /// The links are emitted one per board with no separator between them: the rail
-/// stacks them as a list of communities, so the reader sees a column of
-/// names rather than the `[ a / b / c ]` run the markup used to carry.
+/// stacks them as a column of boards, so the reader sees one name per line
+/// rather than the `[ a / b / c ]` run the markup used to carry.
 fn board_nav_group_html(
     boards: &[&Board],
     preferences: UserPreferences,
@@ -360,7 +360,7 @@ fn board_nav_group_html(
             let active = current.is_some_and(|c| c.eq_ignore_ascii_case(&board.short_name));
             let current_attr = if active { r#" aria-current="page""# } else { "" };
             format!(
-                r#"<a class="rail-community{active}" href="{href}"{current_attr}>{short}</a>"#,
+                r#"<a class="rail-board{active}" href="{href}"{current_attr}>/{short}/</a>"#,
                 active = if active { " is-active" } else { "" },
                 href = board_href(&board.short_name, preferences),
                 current_attr = current_attr,
@@ -1045,8 +1045,8 @@ pub fn base_layout_with_account(
     <a class="rail-link" href="/popular">Popüler</a>
     <a class="rail-link" href="/search">Ara</a>
   </nav>
-  <h2 class="rail-title">Topluluklar</h2>
-  <nav class="board-list rail-communities">
+  <h2 class="rail-title">Boardlar</h2>
+  <nav class="board-list rail-boards">
     {board_links}
   </nav>
   <p class="rail-note">{site_tagline}</p>
@@ -1626,7 +1626,7 @@ mod tests {
             UserPreferences::default(),
         );
 
-        assert!(html.contains(r#"<span class="board-list-group" data-board-nsfw="1"><a class="rail-community" href="/x/catalog">x</a></span>"#));
+        assert!(html.contains(r#"<span class="board-list-group" data-board-nsfw="1"><a class="rail-board" href="/x/catalog">/x/</a></span>"#));
         assert!(html.contains(r#"<div class="mobile-board-group" data-board-nsfw="1"><div class="mobile-board-group-title">NSFW</div><a class="mobile-board-link" href="/x/catalog">/x/</a></div>"#));
     }
 

@@ -435,7 +435,7 @@ pub fn thread_page(
         body,
         r#"<div id="top"></div>
 <header class="post-header">
-<p class="post-header-board"><a href="/{s}">r/{s}</a> &middot; {bn}{access_badge}</p>
+<p class="post-header-board"><a href="/{s}">/{s}/</a> &middot; {bn}{access_badge}</p>
 <h1 class="post-header-title">{subject}</h1>
 <p class="post-header-meta">{posts} yorum &middot; son hareket {bumped}</p>
 </header>
@@ -1106,6 +1106,13 @@ fn avatar_initial(name: &str) -> String {
         .unwrap_or_else(|| "#".to_owned())
 }
 
+#[must_use]
+/// Renders one post: the opening post of a thread, or a reply under it.
+///
+/// `opts` carries everything that varies between the places a post is shown —
+/// whether it is the opening post, whether the reader may act on it, and which
+/// account is behind it — so the same markup serves the board index preview,
+/// the thread page, and the self-service pages.
 pub fn render_post(
     post: &Post,
     board_short: &str,

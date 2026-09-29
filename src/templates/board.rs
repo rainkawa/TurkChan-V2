@@ -757,7 +757,7 @@ pub fn index_page<S: std::hash::BuildHasher>(
   <li><strong>{tv}</strong> yüklenen video</li>
   <li><strong>{ta}</strong> yüklenen ses dosyası</li>
   <li><strong>{active_gb_whole}.{active_gb_fraction:02} GB</strong> aktif içerik</li>
-  <li><strong>{boards}</strong> topluluk</li>
+  <li><strong>{boards}</strong> board</li>
 </ul>
 </section>"#,
                 tp = site_stats.total_posts,
@@ -994,12 +994,6 @@ pub fn board_page<S: std::hash::BuildHasher>(
         let name = escape_html(&board.name);
         let desc = escape_html(&board.description);
         let access_badge = board_access_badge(board);
-        let initial = board
-            .short_name
-            .chars()
-            .next()
-            .map(|c| c.to_uppercase().to_string())
-            .unwrap_or_else(|| "?".to_owned());
         let nav_archive = if board.allow_archive {
             format!(r#"<a class="sub-tab" href="/{short}/archive">Arsiv</a>"#)
         } else {
@@ -1010,9 +1004,8 @@ pub fn board_page<S: std::hash::BuildHasher>(
             r##"<div class="sub-header" data-activity-page="board-index">
 {board_banner_html}
 <div class="sub-header-body">
-  <div class="sub-avatar" aria-hidden="true">{initial}</div>
   <div class="sub-header-main">
-    <h1 class="sub-title">r/{short}{access_badge}</h1>
+    <h1 class="sub-title">/{short}/{access_badge}</h1>
     <p class="sub-name">{name}</p>
     <p class="sub-desc">{desc}</p>
   </div>
@@ -1024,7 +1017,6 @@ pub fn board_page<S: std::hash::BuildHasher>(
   {nav_archive}
 </nav>
 </div>"##,
-            initial = escape_html(&initial),
             create_button = if can_post {
                 r##"<a class="btn btn-primary" href="#post-form-wrap" data-action="toggle-post-form">+ Yeni Konu</a>"##.to_owned()
             } else {
@@ -1409,9 +1401,6 @@ impl FeedKind {
     }
 }
 
-/// Threads shown on one page of a cross-board feed.
-const FEED_PER_PAGE: i64 = 40;
-
 /// Render one thread as a post card in a feed.
 ///
 /// The card is the same shape everywhere a list of threads is shown — the
@@ -1468,8 +1457,8 @@ fn feed_row(kind: FeedKind, thread: &Thread, board_short: &str) -> String {
     {preview_html}
     <div class="post-card-meta">
       {flags}
-      <a class="post-card-board" href="/{board}">r/{board}</a>
-      <span class="post-card-author">u/{author}</span>
+      <a class="post-card-board" href="/{board}">/{board}/</a>
+      <span class="post-card-author">{author}</span>
       <span class="post-card-no">No.{op_id}</span>
       <time class="post-card-time" datetime="{bumped_iso}">{bumped}</time>
       <a class="post-card-comments" href="/{board}/thread/{thread_id}">{replies} {reply_label}</a>

@@ -33,8 +33,8 @@ pub const HARD_DEFAULT_THEME: &str = "aurora";
 /// leave those rows pointing at a design this build no longer knows.
 pub const BUILTIN_THEMES: &[BuiltinTheme] = &[BuiltinTheme {
     slug: HARD_DEFAULT_THEME,
-    display_name: "Topluluk",
-    description: "Kart tabanlı aydınlık topluluk görünümü: akış, oy, yorum zinciri.",
+    display_name: "Board",
+    description: "Kart tabanlı aydınlık görünüm: board listesi, konu akışı, numaralı gönderiler.",
     swatch_hex: "#ff4500",
     sort_order: 10,
 }];

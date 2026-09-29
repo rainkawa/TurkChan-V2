@@ -9233,10 +9233,10 @@ body[data-admin] {
 /* ═══════════════════════════════════════════════════════════════════════════
    The public design: a reader-first forum.
 
-   The site is read as three columns — a rail of communities, a feed of posts,
-   and a column of site information — over a flat page. A board is a
-   community, a thread is a post, and a reply is a comment, so the vocabulary
-   a reader already has from anywhere else applies here unchanged.
+   The site is read as three columns — a rail of boards, a feed of posts,
+   and a column of site information — over a flat page. It is an imageboard
+   first: boards are named with slashes, posts are numbered, and a poster may
+   write anonymously, with no account behind the name.
 
    The board list, the account menu, and the thread markup are shared with the
    administration panel and with the imageboard features, so the rules below
@@ -9574,7 +9574,7 @@ body {
   color: var(--text-faint);
 }
 .rail-link,
-.rail-community {
+.rail-board {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -9584,22 +9584,16 @@ body {
   font-size: 0.9rem;
   font-weight: 600;
 }
-.rail-community::before {
-  content: 'r/';
-  color: var(--text-faint);
-  font-weight: 700;
-}
 .rail-link:hover,
-.rail-community:hover {
+.rail-board:hover {
   background: var(--bg-hover);
   color: var(--text);
   text-decoration: none;
 }
-.rail-community.is-active {
+.rail-board.is-active {
   background: var(--primary-soft);
   color: var(--primary);
 }
-.rail-community.is-active::before { color: var(--primary); }
 .rail-note {
   margin: 1rem 0.75rem 0.5rem;
   color: var(--text-faint);
@@ -9843,18 +9837,6 @@ main.content {
   align-items: center;
   gap: 1rem;
   padding: 1rem;
-}
-.sub-avatar {
-  flex: 0 0 72px;
-  width: 72px;
-  height: 72px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary), var(--accent));
-  color: var(--on-primary);
-  font-size: 2rem;
-  font-weight: 800;
 }
 .sub-header-main { flex: 1 1 auto; min-width: 0; }
 .sub-title { margin: 0; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
@@ -10589,7 +10571,7 @@ textarea { resize: vertical; }
 @media (hover: none) and (pointer: coarse) {
   .topbar-action,
   .rail-link,
-  .rail-community,
+  .rail-board,
   .feed-sort,
   .sub-tab,
   .post-card-comments { min-height: 40px; }
